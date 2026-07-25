@@ -26,6 +26,9 @@ export const PROYECTO_POR_DEFECTO: ProjectProfile = {
   precioHasta: 175_000_000,
   esVIS: true,
   perfilComprador: {},
+  // Es un proyecto de referencia inventado: no tiene compradores de los que
+  // derivar un perfil, y por lo tanto nada que se pueda citar como estadistica.
+  perfilCalibrado: false,
   proporcionAfiliados: 0.9,
 };
 

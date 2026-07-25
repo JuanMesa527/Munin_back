@@ -7,7 +7,7 @@
  */
 
 import { describe, expect, it } from 'vitest';
-import type { LeadProfile, ProjectCard } from '@contracts';
+import type { Factor, LeadProfile, ProjectCard } from '@contracts';
 import { LEADS_DEMO } from '../../../shared/infrastructure/persistence/demo-seed.js';
 import {
   cabeEnCapacidad,
@@ -114,6 +114,19 @@ describe('calcularFactores', () => {
     expect(tipoDe(alto, false)).toBeGreaterThan(tipoDe(alto, true));
   });
 
+  it('gate de subsidio: si el lead YA tiene vivienda, la VIS pierde su argumento', () => {
+    const tipoVivienda = (lead: LeadProfile): Factor =>
+      calcularFactores(lead, ficha({ esVIS: true })).find((f) => f.nombre === 'Tipo de vivienda')!;
+
+    // familia gana 2-4 SMMLV (bajo el tope del SFV): sin vivienda, la VIS aplica
+    // al subsidio; con vivienda propia, el subsidio de PRIMERA vivienda se cae.
+    const sinVivienda = tipoVivienda({ ...familia, tieneVivienda: false });
+    const conVivienda = tipoVivienda({ ...familia, tieneVivienda: true });
+
+    expect(conVivienda.contribucion).toBeLessThan(sinVivienda.contribucion);
+    expect(conVivienda.valor).toMatch(/subsidio de primera no aplica/i);
+  });
+
   it('castiga el apartaestudio para un hogar con tres dependientes', () => {
     const tamanoDe = (habitaciones: number): number =>
       calcularFactores(
@@ -164,14 +177,87 @@ describe('explicarMatch', () => {
 });
 
 describe('cabeEnCapacidad', () => {
-  it('es false cuando el lead todavia no tiene capacidad estimada', () => {
-    expect(cabeEnCapacidad(null, ficha())).toBe(false);
+  it('es null -- no false -- cuando el lead todavia no tiene capacidad estimada', () => {
+    // "No sabemos cuanto puedes pagar" no es "no te alcanza". Colapsar los dos
+    // en `false` le hace decir a la UI algo que no podemos sostener.
+    expect(cabeEnCapacidad(null, ficha())).toBeNull();
   });
 
   it('compara contra el piso de la banda, no contra el techo', () => {
     const capacidad = { ...familia.capacidad!, precioMaximoEstimado: 200_000_000 };
     // desde 190M cabe; el `hasta` de 240M no debe hacerlo fallar.
     expect(cabeEnCapacidad(capacidad, ficha())).toBe(true);
+  });
+});
+
+describe('confianza del match', () => {
+  const sinNada: LeadProfile = {
+    ...familia,
+    ciudad: null,
+    personasACargo: null,
+    rangoSalarial: null,
+    capacidad: null,
+  };
+
+  it('un lead sin datos saca ~50% de afinidad, y por eso declara confianza 0', () => {
+    // Este es EL caso que motivo el campo: el puntaje tiene piso porque los
+    // ejes sin dato puntuan neutro. Si el 50% viajara solo, se leeria como
+    // "medio compatible" cuando significa "no sabemos nada de ti".
+    const [tarjeta] = matchProjects(sinNada, [ficha()]);
+
+    expect(tarjeta!.match.similitud).toBeCloseTo(0.5, 2);
+    expect(tarjeta!.match.confianza).toBe(0);
+    expect(tarjeta!.match.datosFaltantes).toHaveLength(5);
+  });
+
+  it('un lead completo declara confianza 1 y no reporta faltantes', () => {
+    const [tarjeta] = matchProjects(familia, [ficha()]);
+
+    expect(tarjeta!.match.confianza).toBe(1);
+    expect(tarjeta!.match.datosFaltantes).toEqual([]);
+  });
+
+  it('pondera por PESO del eje, no por cantidad de ejes', () => {
+    // Falta un solo eje en los dos casos, pero capacidad vale 0.40 y estilo de
+    // vida 0.08: la confianza tiene que distinguirlos.
+    const sinCapacidad = matchProjects({ ...familia, capacidad: null }, [ficha()])[0]!;
+    const sinHogar = matchProjects({ ...familia, personasACargo: null }, [ficha()])[0]!;
+
+    expect(sinCapacidad.match.confianza).toBe(0.6);
+    // `personasACargo` alimenta tamano del hogar (0.15) y estilo de vida (0.08).
+    expect(sinHogar.match.confianza).toBe(0.77);
+    expect(sinCapacidad.match.confianza).toBeLessThan(sinHogar.match.confianza);
+  });
+
+  it('declara que no sabe si el lead ya tiene vivienda, aunque siga suponiendo que no', () => {
+    // El gate del subsidio de primera vivienda solo dispara con
+    // `tieneVivienda === true`, asi que `null` puntua 1: se SUPONE primera
+    // vivienda. La suposicion es razonable y se queda -- pero se declara.
+    const [tarjeta] = matchProjects({ ...familia, tieneVivienda: null }, [ficha({ esVIS: true })]);
+
+    expect(tarjeta!.match.datosFaltantes).toContain('si ya tienes vivienda propia');
+    expect(tarjeta!.match.confianza).toBeLessThan(1);
+  });
+
+  it('no supone un perfil joven cuando no sabe cuantas personas hay a cargo', () => {
+    // Antes el `?? 0` trataba al lead desconocido como joven sin hijos y le
+    // puntuaba gimnasio y coworking: una suposicion vendida como medicion.
+    const estilo = calcularFactores({ ...familia, personasACargo: null }, ficha()).find(
+      (f) => f.nombre === 'Estilo de vida',
+    );
+
+    expect(estilo?.intensidad).toBe(50);
+    expect(estilo?.valor).toContain('no sabemos');
+  });
+
+  it('marca cabeEnCapacidad en false para un proyecto que puntua alto pero no alcanza', () => {
+    // La capacidad se hunde gradual, asi que un proyecto apenas por encima del
+    // techo conserva un puntaje alto. El numero solo no puede delatarlo.
+    const capacidad = { ...familia.capacidad!, precioMaximoEstimado: 185_000_000 };
+    const [tarjeta] = matchProjects({ ...familia, capacidad }, [ficha()]);
+
+    expect(tarjeta!.match.similitud).toBeGreaterThan(0.7);
+    expect(tarjeta!.match.cabeEnCapacidad).toBe(false);
   });
 });
 

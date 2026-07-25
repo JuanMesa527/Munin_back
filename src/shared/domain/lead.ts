@@ -29,6 +29,7 @@ export function createEmptyLeadProfile(id: string, now: IsoDateTime): LeadProfil
     telefono: null,
     edad: null,
     estadoCivil: null,
+    ocupacion: null,
     esAfiliado: null,
     rangoSalarial: null,
     segmento: null,
@@ -37,6 +38,9 @@ export function createEmptyLeadProfile(id: string, now: IsoDateTime): LeadProfil
     segmentoFamiliar: null,
     ahorroDeclarado: null,
     capacidadAhorroMensual: null,
+    tieneVivienda: null,
+    vinculacionLaboral: null,
+    horizonteCompra: null,
     slotsLlenos: [],
     capacidad: null,
     score: null,
@@ -95,6 +99,8 @@ function slotFieldValue(profile: LeadProfile, slot: Slot): unknown {
       return profile.edad;
     case 'estadoCivil':
       return profile.estadoCivil;
+    case 'ocupacion':
+      return profile.ocupacion;
     case 'afiliacion':
       return profile.esAfiliado;
     case 'rangoSalarial':
@@ -111,5 +117,11 @@ function slotFieldValue(profile: LeadProfile, slot: Slot): unknown {
       return profile.ahorroDeclarado;
     case 'capacidadAhorroMensual':
       return profile.capacidadAhorroMensual;
+    case 'viviendaPropia':
+      return profile.tieneVivienda;
+    case 'vinculacionLaboral':
+      return profile.vinculacionLaboral;
+    case 'horizonteCompra':
+      return profile.horizonteCompra;
   }
 }

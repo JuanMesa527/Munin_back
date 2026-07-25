@@ -1,21 +1,15 @@
 import { z } from 'zod';
-import type { EnrichedLead, LeadProfile } from '@contracts';
+import { SLOTS } from '@contracts';
+import type { EnrichedLead, LeadProfile, Slot } from '@contracts';
 
-const SlotSchema = z.enum([
-  'nombre',
-  'email',
-  'telefono',
-  'edad',
-  'estadoCivil',
-  'afiliacion',
-  'rangoSalarial',
-  'segmento',
-  'personasACargo',
-  'ciudad',
-  'segmentoFamiliar',
-  'ahorro',
-  'capacidadAhorroMensual',
-]);
+/**
+ * Derivado de `SLOTS` a proposito, NO reescrito a mano. La lista duplicada se
+ * quedo corta (le faltaban `ocupacion`, `viviendaPropia`, `vinculacionLaboral`
+ * y `horizonteCompra`) y el typecheck no lo vio: un enum mas estrecho sigue
+ * satisfaciendo `ZodType<LeadProfile>`. El resultado era que un lead con esos
+ * slots se ESCRIBIA bien y reventaba al releerlo — 503 permanente para ese lead.
+ */
+const SlotSchema = z.enum(SLOTS as readonly [Slot, ...Slot[]]);
 
 const ConsentRecordSchema = z.strictObject({
   otorgado: z.boolean(),
@@ -57,6 +51,14 @@ const ProjectMatchSchema = z.strictObject({
   etapa: z.string(),
   precioDesde: z.number(),
   tipologia: z.string(),
+  // Con default porque las filas escritas antes de que existieran estos campos
+  // siguen en la base y tienen que poder leerse. Los defaults son los
+  // PESIMISTAS a proposito: de un match viejo no sabemos con que datos se
+  // calculo ni si cabia en el techo, y el default no puede regalar una certeza
+  // que nadie midio.
+  confianza: z.number().default(0),
+  datosFaltantes: z.array(z.string()).default([]),
+  cabeEnCapacidad: z.boolean().nullable().default(null),
 });
 
 const ContactIdentitySchema = z.strictObject({
@@ -74,6 +76,10 @@ const LeadProfileObjectSchema = z.strictObject({
   telefono: z.string().nullable(),
   edad: z.number().nullable(),
   estadoCivil: z.string().nullable(),
+  // `.default(null)` y no solo `.nullable()`: los leads guardados ANTES de que
+  // existiera este slot no traen la clave, y sin el default `strictObject` los
+  // rechazaria al releerlos — cada lead viejo se volveria un 503.
+  ocupacion: z.string().nullable().default(null),
   esAfiliado: z.boolean().nullable(),
   rangoSalarial: z.string().nullable(),
   segmento: z.enum(['Basico', 'Medio', 'Alto', 'Joven']).nullable(),
@@ -82,6 +88,11 @@ const LeadProfileObjectSchema = z.strictObject({
   segmentoFamiliar: z.string().nullable(),
   ahorroDeclarado: z.number().nullable(),
   capacidadAhorroMensual: z.number().nullable(),
+  // `.default(null)`: filas persistidas ANTES de agregar estos slots no traen
+  // la clave; sin el default, cargarlas rompería el parse en vez de degradar.
+  tieneVivienda: z.boolean().nullable().default(null),
+  vinculacionLaboral: z.enum(['formal', 'independiente', 'informal']).nullable().default(null),
+  horizonteCompra: z.enum(['ya', 'pronto', 'explorando']).nullable().default(null),
   slotsLlenos: z.array(SlotSchema),
   capacidad: CapacityBandSchema.nullable(),
   score: ScoreResultSchema.nullable(),

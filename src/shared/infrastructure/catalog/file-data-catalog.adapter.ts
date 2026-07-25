@@ -61,6 +61,12 @@ const ArchivoProyectosSchema = z.union([
   z.array(ArchivoProyectoSchema),
   z.object({
     placeholder: z.boolean().optional(),
+    /**
+     * Lo escribe `05_export_artifacts.py` cuando el perfil salio del Excel real.
+     * Ausente = NO calibrado, que es el default seguro: un archivo editado a
+     * mano no puede ganarse la credibilidad de un dato real por omision.
+     */
+    calibrado: z.boolean().optional(),
     proyectos: z.array(ArchivoProyectoSchema),
   }),
 ]);
@@ -372,6 +378,10 @@ function rutasCandidatas(ruta: string, artefacto: Artefacto): string[] {
 /**
  * Aplana las dos formas del archivo y descarta la bandera `placeholder` para que
  * no viaje al dominio: `ProjectProfile` del contrato no la tiene.
+ *
+ * `calibrado` SI viaja (como `perfilCalibrado`), porque el dominio tiene que
+ * poder decidir si le esta permitido citar una estadistica de compradores. La
+ * forma de arreglo plano no puede declararlo, asi que ahi es `false`.
  */
 function normalizarProyectos(datos: ArchivoProyectos): {
   esPlaceholder: boolean;
@@ -380,6 +390,7 @@ function normalizarProyectos(datos: ArchivoProyectos): {
   const items = Array.isArray(datos) ? datos : datos.proyectos;
   const banderaArriba = Array.isArray(datos) ? false : datos.placeholder === true;
   const esPlaceholder = banderaArriba || items.some((item) => item.placeholder === true);
+  const calibrado = Array.isArray(datos) ? false : datos.calibrado === true;
 
   const proyectos = items.map<ProjectProfile>((item) => ({
     proyectoId: item.proyectoId,
@@ -391,6 +402,7 @@ function normalizarProyectos(datos: ArchivoProyectos): {
     esVIS: item.esVIS,
     perfilComprador: item.perfilComprador,
     proporcionAfiliados: item.proporcionAfiliados,
+    perfilCalibrado: calibrado,
   }));
 
   return { esPlaceholder, proyectos };

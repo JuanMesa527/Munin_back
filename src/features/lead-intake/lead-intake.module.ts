@@ -15,6 +15,7 @@
 
 import type { Router } from 'express';
 import type { AppEnv } from '@shared/infrastructure/config/env.js';
+import type { ContactVaultPort } from '@shared/application/ports/contact-vault.port.js';
 import type { LeadRepository } from '@shared/application/ports/lead-repository.port.js';
 import { FileDataCatalogAdapter } from '@shared/infrastructure/catalog/file-data-catalog.adapter.js';
 import { SystemClock } from '@shared/infrastructure/clock/system-clock.adapter.js';
@@ -38,11 +39,20 @@ export interface LeadIntakeModuleDeps {
    * el suyo con la fabrica env-driven (util para tests aislados de la feature).
    */
   readonly leads?: LeadRepository;
+
+  /**
+   * Boveda de contacto. OBLIGATORIA, y a diferencia de `leads` no tiene
+   * fallback a proposito: si F1 tokenizara contra una boveda propia, el token
+   * que guarda en el lead no existiria en la que consulta F4 y "revelar
+   * contacto" fallaria en la demo sin que nada lo avisara antes. Mejor no
+   * compilar que descubrirlo en vivo.
+   */
+  readonly vault: ContactVaultPort;
 }
 
 export function createLeadIntakeModule(
   env: AppEnv,
-  deps: LeadIntakeModuleDeps = {},
+  deps: LeadIntakeModuleDeps,
 ): LeadIntakeModule {
   const clock = new SystemClock();
   const ids = new CryptoIdGenerator();
@@ -69,6 +79,7 @@ export function createLeadIntakeModule(
     llm,
     clock,
     ids,
+    vault: deps.vault,
     activePolicyVersion: env.privacyPolicyVersion,
   });
 

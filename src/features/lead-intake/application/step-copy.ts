@@ -20,12 +20,16 @@ const STEP_PROMPT_BY_SLOT: Partial<Record<Slot, string>> = {
   telefono: '¿A qué número de celular te podemos contactar?',
   edad: '¿Cuántos años tienes?',
   estadoCivil: '¿Cuál es tu estado civil?',
+  ocupacion: '¿A qué te dedicas?',
   afiliacion: '¿Estás afiliado a Colsubsidio?',
+  viviendaPropia: '¿Ya tienes vivienda propia?',
   rangoSalarial: '¿En qué rango están tus ingresos mensuales?',
+  vinculacionLaboral: '¿Cómo son tus ingresos hoy?',
   segmentoFamiliar: '¿Cómo es tu núcleo familiar?',
   ciudad: '¿En qué ciudad buscás vivienda?',
   ahorro: '¿Cuánto tenés ahorrado hoy para tu vivienda?',
   capacidadAhorroMensual: '¿Cuánto podrías ahorrar por mes?',
+  horizonteCompra: '¿Para cuándo estás buscando tu vivienda?',
 };
 
 const TEXTO_GENERICO = 'Continuemos con tu perfil. Cuéntame lo que falte con tus palabras o elige una opción.';

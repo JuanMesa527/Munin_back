@@ -20,6 +20,9 @@ const PROYECTO: ProjectMatch = {
   etapa: 'Etapa 1',
   precioDesde: 180_000_000,
   tipologia: 'VIS · 2 hab',
+  confianza: 1,
+  datosFaltantes: [],
+  cabeEnCapacidad: true,
 };
 
 function lead(id: string, overrides: Partial<EnrichedLead> = {}): EnrichedLead {
@@ -38,6 +41,9 @@ function lead(id: string, overrides: Partial<EnrichedLead> = {}): EnrichedLead {
     segmentoFamiliar: 'Pareja con hijos',
     ahorroDeclarado: 20_000_000,
     capacidadAhorroMensual: 900_000,
+    tieneVivienda: null,
+    vinculacionLaboral: null,
+    horizonteCompra: null,
     slotsLlenos: [],
     capacidad: {
       banda: 'media',

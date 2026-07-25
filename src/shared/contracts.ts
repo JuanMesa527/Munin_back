@@ -171,8 +171,8 @@ export const ESTADOS_CIVILES: readonly string[] = [
 
 /**
  * Datos que la conversacion de F1 tiene que llenar.
- * Incluye identidad de contacto (nombre/email/telefono/edad/estadoCivil) +
- * los 8 campos de perfilamiento/scoring.
+ * Incluye identidad de contacto (nombre/email/telefono/edad/estadoCivil/
+ * ocupacion) + los 8 campos de perfilamiento/scoring.
  */
 export type Slot =
   | 'nombre'
@@ -180,6 +180,7 @@ export type Slot =
   | 'telefono'
   | 'edad'
   | 'estadoCivil'
+  | 'ocupacion'
   | 'afiliacion'
   | 'rangoSalarial'
   | 'segmento'
@@ -187,7 +188,10 @@ export type Slot =
   | 'ciudad'
   | 'segmentoFamiliar'
   | 'ahorro'
-  | 'capacidadAhorroMensual';
+  | 'capacidadAhorroMensual'
+  | 'viviendaPropia'
+  | 'vinculacionLaboral'
+  | 'horizonteCompra';
 
 export const SLOTS: readonly Slot[] = [
   'nombre',
@@ -195,6 +199,7 @@ export const SLOTS: readonly Slot[] = [
   'telefono',
   'edad',
   'estadoCivil',
+  'ocupacion',
   'afiliacion',
   'rangoSalarial',
   'segmento',
@@ -203,6 +208,9 @@ export const SLOTS: readonly Slot[] = [
   'segmentoFamiliar',
   'ahorro',
   'capacidadAhorroMensual',
+  'viviendaPropia',
+  'vinculacionLaboral',
+  'horizonteCompra',
 ];
 
 /** Carril al que se enruta el lead al final de F1. */
@@ -210,6 +218,21 @@ export type Carril = 'viable' | 'no_viable';
 
 /** Banda de capacidad estimada SIN consultar DataCredito (fuera de alcance). */
 export type Banda = 'alta' | 'media' | 'baja';
+
+/**
+ * Vinculacion laboral declarada por el titular. Es el mejor proxy de
+ * BANCABILIDAD disponible sin consultar un bureau (DataCredito esta fuera de
+ * alcance): un formal es sujeto de credito hipotecario estandar; un informal,
+ * mucho mas dificil. Glass-box: actua como REGLA explicita, no como peso.
+ */
+export type VinculacionLaboral = 'formal' | 'independiente' | 'informal';
+
+/**
+ * Horizonte de compra declarado. Es el separador directo entre "listo para
+ * cerrar" (va al asesor) y "todavia explorando" (entra a nutricion). No mide
+ * capacidad ni afinidad: mide TIMING.
+ */
+export type HorizonteCompra = 'ya' | 'pronto' | 'explorando';
 
 /* ==========================================================================
  *  2. Consentimiento y contacto  (adendas A1 y A2 — requisito legal)
@@ -322,6 +345,37 @@ export interface ProjectMatch {
   precioDesde: COP;
   /** Tipologia legible, p. ej. `VIS · 3 hab`. */
   tipologia: string;
+
+  /**
+   * 0-1. Fraccion del peso del puntaje que se evaluo con datos REALES.
+   *
+   * EXISTE PORQUE `similitud` TIENE PISO. Los ejes sin dato del lead puntuan
+   * neutro (0.5) en vez de cero -- castigar por no saber esconderia proyectos
+   * validos -- pero eso hace que un lead del que no sabemos nada saque ~50% de
+   * afinidad. Sin este campo, ese 50% se lee como "medio compatible" cuando
+   * significa "no sabemos". La UI DEBE rotular el porcentaje como parcial
+   * cuando `confianza < 1`, y nunca presentarlo como un hecho cerrado.
+   *
+   * `confianza: 0` es el caso de datos no calibrados (perfiles de compradores
+   * inventados, semillas de demo): el numero ordena, pero no significa nada.
+   */
+  confianza: number;
+  /**
+   * Que le falto al calculo, en lenguaje ya legible ("tu ciudad", "tu rango
+   * salarial"). Vacio cuando `confianza === 1`. Es el detalle que acompana a
+   * `confianza`: decir "parcial" sin decir de que sirve de poco.
+   */
+  datosFaltantes: string[];
+  /**
+   * Si el proyecto cabe en el techo estimado del lead. `null` = no se pudo
+   * evaluar porque no hay capacidad estimada -- que NO es lo mismo que `false`.
+   *
+   * Viaja pegado a `similitud` a proposito: un proyecto por encima del techo
+   * puede sacar un puntaje alto (la capacidad se hunde gradual, no de golpe) y
+   * quedar de segundo en la baraja. Mostrar ese 81% sin decir que no le alcanza
+   * es precisamente lo que el glass-box viene a impedir.
+   */
+  cabeEnCapacidad: boolean | null;
 }
 
 /* ==========================================================================
@@ -342,8 +396,11 @@ export interface LeadProfile {
   email: string | null;
   /** Telefono normalizado (solo digitos). No viaja al dashboard del closer sin vault. */
   telefono: string | null;
+  /** Edad EXACTA declarada por el titular, no un tramo. */
   edad: number | null;
   estadoCivil: string | null;
+  /** Ocupacion declarada en texto libre, p. ej. `Independiente`. */
+  ocupacion: string | null;
 
   /** --- Se llena en la conversacion (F1) --- */
   esAfiliado: boolean | null;
@@ -354,6 +411,18 @@ export interface LeadProfile {
   segmentoFamiliar: string | null;
   ahorroDeclarado: COP | null;
   capacidadAhorroMensual: COP | null;
+
+  /** --- Señales de elegibilidad, bancabilidad y timing (gates glass-box) --- */
+  /**
+   * ¿El titular ya es propietario? Gate del subsidio de PRIMERA vivienda: si ya
+   * tiene, el argumento del subsidio se cae. No es un peso, es una regla.
+   */
+  tieneVivienda: boolean | null;
+  /** Proxy de bancabilidad sin bureau. Ver `VinculacionLaboral`. */
+  vinculacionLaboral: VinculacionLaboral | null;
+  /** Timing declarado: separa cierre inmediato de nutrición. Ver `HorizonteCompra`. */
+  horizonteCompra: HorizonteCompra | null;
+
   slotsLlenos: Slot[];
 
   /** --- Lo produce la tuberia (F1) --- */
@@ -450,7 +519,6 @@ export interface ProjectMatchCard {
   ficha: ProjectCard;
   match: ProjectMatch;
   factores: Factor[];
-  cabeEnCapacidad: boolean;
 }
 
 export interface EnrichmentDeck {
@@ -1177,6 +1245,16 @@ export interface ProjectProfile {
   perfilComprador: Record<string, Record<string, number>>;
   /** Proporcion de compradores afiliados. Insumo de la regla 90/10. */
   proporcionAfiliados: number;
+  /**
+   * `true` solo cuando `perfilComprador` y `proporcionAfiliados` salieron del
+   * pipeline de `analysis/` contra el Excel de los 4.142 compradores reales.
+   *
+   * Mientras sea `false`, las distribuciones son una heuristica razonada a mano
+   * (ver `_aviso` en `data/project_profiles.json`) y NADIE puede afirmar
+   * "el 87% de los compradores de X comparten tu segmento": esa frase suena a
+   * dato duro y seria una estadistica inventada sobre personas que no existen.
+   */
+  perfilCalibrado: boolean;
 }
 
 /** Una tipologia de apartamento publicada en el brochure. */

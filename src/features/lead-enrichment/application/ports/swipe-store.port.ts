@@ -20,7 +20,8 @@ import type { Result } from '../../../../shared/kernel/result.js';
 export interface SwipeMatchContext {
   similitud: number;
   razon: string;
-  cabeEnCapacidad: boolean;
+  /** `null` = no habia capacidad estimada al momento de decidir, no "no cabe". */
+  cabeEnCapacidad: boolean | null;
   factores: Factor[];
 }
 

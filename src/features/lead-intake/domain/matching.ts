@@ -99,6 +99,14 @@ function calcularSimilitud(proyecto: ProjectProfile, profile: LeadProfile): numb
  * libre. Cuando no hay ninguna coincidencia de perfil, la razon cae a los
  * hechos de elegibilidad ya establecidos (precio/ciudad), pero SIEMPRE queda
  * fundamentada, nunca vacia ni un placeholder (spec "Every Match Has a Reason").
+ *
+ * LA ESTADISTICA SOLO SE CITA SI ESTA CALIBRADA. "El 87% de compradores de X
+ * comparten tu segmento" se lee como un hecho verificado sobre 4.142 personas
+ * reales. Mientras `perfilCalibrado` sea `false` esas proporciones son una
+ * heuristica escrita a mano, y publicarlas como porcentaje seria inventar una
+ * estadistica sobre compradores que no existen — el fallo de confianza mas caro
+ * que puede cometer un producto que se vende como glass-box. Sin calibrar se
+ * dice lo que SI es cierto: el proyecto encaja en precio y ciudad.
  */
 export function explainMatch(
   proyecto: ProjectProfile,
@@ -106,7 +114,7 @@ export function explainMatch(
 ): { razon: string; hechos: Record<string, string> } {
   const coincidencias = calcularCoincidencias(proyecto, profile);
 
-  if (coincidencias.length > 0) {
+  if (proyecto.perfilCalibrado && coincidencias.length > 0) {
     const mejor = coincidencias.reduce((max, actual) =>
       actual.proporcion > max.proporcion ? actual : max,
     );
@@ -128,9 +136,29 @@ export function explainMatch(
 }
 
 /**
+ * Que datos del lead le faltaron al cruce contra el buyer persona, ya legibles.
+ * Es el detalle que acompana a `ProjectMatch.confianza`.
+ */
+function datosFaltantes(proyecto: ProjectProfile, profile: LeadProfile): string[] {
+  const legible: Record<string, string> = {
+    segmento: 'tu segmento',
+    ciudad: 'tu ciudad',
+    segmentoFamiliar: 'tu composicion familiar',
+  };
+  const cruzados = new Set(calcularCoincidencias(proyecto, profile).map((c) => c.atributo));
+  return Object.keys(ATRIBUTOS_PERFIL)
+    .filter((atributo) => !cruzados.has(atributo))
+    .map((atributo) => legible[atributo] ?? atributo);
+}
+
+/**
  * Rankea proyectos elegibles por similitud contra el buyer persona real.
  * Recibe SOLO `elegibles` (ya filtrados por `filterByEligibility`): esta
  * funcion no vuelve a evaluar presupuesto/ciudad/cupo, solo ordena afinidad.
+ *
+ * `cabeEnCapacidad` es `true` sin volver a mirar el precio precisamente porque
+ * `filterByEligibility` ya descarto todo lo que no cabe: repetir la condicion
+ * aqui abriria la puerta a que las dos versiones se separen.
  */
 export function matchProjects(
   elegibles: readonly ProjectProfile[],
@@ -144,6 +172,16 @@ export function matchProjects(
       razon: explainMatch(proyecto, profile).razon,
       nombre: proyecto.nombre,
       precioDesde: proyecto.precioDesde,
+      cabeEnCapacidad: true,
+      // Sin perfiles calibrados la similitud sale de distribuciones inventadas:
+      // sirve para ordenar, no significa nada. Se declara `0` y no un valor
+      // parcial porque no hay grados de "el dato no existe".
+      confianza: proyecto.perfilCalibrado
+        ? (3 - datosFaltantes(proyecto, profile).length) / 3
+        : 0,
+      datosFaltantes: proyecto.perfilCalibrado
+        ? datosFaltantes(proyecto, profile)
+        : ['el perfil real de compradores de este proyecto'],
       // `ProjectProfile` (buyer-persona agregado) no trae `etapa` ni `tipologia`:
       // esos los resuelve el catalogo comercial (`ProjectCard`, adenda A8). Hasta
       // cablear ese cruce, se derivan del dato disponible y quedan documentados

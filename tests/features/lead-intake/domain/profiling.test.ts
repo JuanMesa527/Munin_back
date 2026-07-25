@@ -78,6 +78,22 @@ describe('estimateCapacity', () => {
     }
   });
 
+  it('gate de bancabilidad: un ingreso informal no sube de banda media aunque de para alta', () => {
+    const ingresoAlto = { rangoSalarial: '6-10 SMMLV' } as const;
+    const formal = estimateCapacity(perfilBase({ ...ingresoAlto, vinculacionLaboral: 'formal' }));
+    const informal = estimateCapacity(
+      perfilBase({ ...ingresoAlto, vinculacionLaboral: 'informal' }),
+    );
+
+    expect(formal.ok && informal.ok).toBe(true);
+    if (formal.ok && informal.ok) {
+      // Mismo ingreso, misma cuota estimada: el tope es de bancabilidad, no de plata.
+      expect(formal.value.banda).toBe('alta');
+      expect(informal.value.banda).toBe('media');
+      expect(informal.value.cuotaMensualEstimada).toBe(formal.value.cuotaMensualEstimada);
+    }
+  });
+
   it('reporta los slots relevantes aun faltantes en `faltantes`', () => {
     const perfil = perfilBase({ ahorroDeclarado: 1_000_000, slotsLlenos: ['ahorro'] });
     const resultado = estimateCapacity(perfil);

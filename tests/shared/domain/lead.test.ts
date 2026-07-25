@@ -74,6 +74,7 @@ describe('missingSlots', () => {
       'telefono',
       'edad',
       'estadoCivil',
+      'ocupacion',
       'afiliacion',
       'rangoSalarial',
       'segmento',
@@ -82,6 +83,9 @@ describe('missingSlots', () => {
       'segmentoFamiliar',
       'ahorro',
       'capacidadAhorroMensual',
+      'viviendaPropia',
+      'vinculacionLaboral',
+      'horizonteCompra',
     ]);
   });
 
@@ -92,12 +96,16 @@ describe('missingSlots', () => {
       'telefono',
       'edad',
       'estadoCivil',
+      'ocupacion',
       'rangoSalarial',
       'segmento',
       'personasACargo',
       'segmentoFamiliar',
       'ahorro',
       'capacidadAhorroMensual',
+      'viviendaPropia',
+      'vinculacionLaboral',
+      'horizonteCompra',
     ]);
   });
 });

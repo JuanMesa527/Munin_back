@@ -10,6 +10,7 @@ import type { LeadProfile, ProjectProfile, ScoringWeights, Slot } from '@contrac
 import { ProcessConversationTurnUseCase } from '../../../../src/features/lead-intake/application/process-conversation-turn.use-case.js';
 import { createEmptyLeadProfile } from '../../../../src/shared/domain/lead.js';
 import type { ClockPort } from '../../../../src/shared/application/ports/clock.port.js';
+import type { ContactVaultPort } from '../../../../src/shared/application/ports/contact-vault.port.js';
 import type { DataCatalogPort } from '../../../../src/shared/application/ports/data-catalog.port.js';
 import type { IdGeneratorPort } from '../../../../src/shared/application/ports/id-generator.port.js';
 import type { LeadRepository } from '../../../../src/shared/application/ports/lead-repository.port.js';
@@ -32,6 +33,28 @@ function fakeIds(): IdGeneratorPort {
       contador += 1;
       return `id-${String(contador)}`;
     },
+  };
+}
+
+/**
+ * Boveda de prueba. Registra lo que se le entrega para poder afirmar que el
+ * telefono real llego al vault y NO se quedo suelto en el perfil.
+ */
+function fakeVault(): ContactVaultPort & { almacenados: { nombre: string; telefono: string }[] } {
+  const almacenados: { nombre: string; telefono: string }[] = [];
+  return {
+    almacenados,
+    store: (input) => {
+      almacenados.push(input);
+      return Promise.resolve(
+        ok({
+          nombre: input.nombre,
+          telefonoEnmascarado: '+57 3.. ... ..42',
+          contactoTokenId: `token-${String(almacenados.length)}`,
+        }),
+      );
+    },
+    revealForCall: () => Promise.resolve(ok({ telefono: '3001234567' })),
   };
 }
 
@@ -85,6 +108,7 @@ const PROYECTOS: ProjectProfile[] = [
     esVIS: true,
     perfilComprador: { segmento: { Basico: 0.6 } },
     proporcionAfiliados: 0.5,
+    perfilCalibrado: true,
   },
 ];
 
@@ -118,18 +142,23 @@ function perfilListoParaEnrutar(overrides: Partial<LeadProfile> = {}): LeadProfi
     telefono: '3001234567',
     edad: 30,
     estadoCivil: 'Soltero/a',
+    ocupacion: 'Empleado',
     esAfiliado: true,
     rangoSalarial: '4-6 SMMLV',
     segmentoFamiliar: 'Unipersonal',
     ciudad: 'Bogotá',
     ahorroDeclarado: 50_000_000,
     capacidadAhorroMensual: 2_000_000,
+    tieneVivienda: false,
+    vinculacionLaboral: 'formal',
+    horizonteCompra: 'ya',
     slotsLlenos: [
       'nombre',
       'email',
       'telefono',
       'edad',
       'estadoCivil',
+      'ocupacion',
       'afiliacion',
       'rangoSalarial',
       'segmentoFamiliar',
@@ -138,6 +167,9 @@ function perfilListoParaEnrutar(overrides: Partial<LeadProfile> = {}): LeadProfi
       'capacidadAhorroMensual',
       'segmento',
       'personasACargo',
+      'viviendaPropia',
+      'vinculacionLaboral',
+      'horizonteCompra',
     ] as Slot[],
     segmento: 'Medio',
     personasACargo: 0,
@@ -167,9 +199,66 @@ function perfilListoParaAfiliacion(): LeadProfile {
     telefono: '3001234567',
     edad: 30,
     estadoCivil: 'Soltero/a',
-    slotsLlenos: ['nombre', 'email', 'telefono', 'edad', 'estadoCivil'],
+    ocupacion: 'Empleado',
+    slotsLlenos: ['nombre', 'email', 'telefono', 'edad', 'estadoCivil', 'ocupacion'],
   };
 }
+
+describe('ProcessConversationTurnUseCase — tokenizacion del contacto', () => {
+  it('entrega el contacto al vault y persiste la identidad tokenizada', async () => {
+    const perfil = perfilListoParaAfiliacion();
+    const leads = fakeLeadRepository(perfil);
+    const vault = fakeVault();
+    const useCase = new ProcessConversationTurnUseCase({
+      leads,
+      catalog: fakeCatalog(),
+      llm: new StubLlmAdapter(),
+      clock: fakeClock(),
+      ids: fakeIds(),
+      vault,
+      activePolicyVersion: VERSION_ACTIVA,
+    });
+
+    await useCase.execute({ leadId: perfil.id, texto: null, quickReplyValue: 'true' });
+
+    // El dato real llega a la boveda...
+    expect(vault.almacenados).toEqual([{ nombre: 'Ana', telefono: '3001234567' }]);
+    // ...y lo que queda persistido es la identidad tokenizada. Sin esto el lead
+    // le aparece al closer como "Lead sin nombre" y sin telefono que revelar.
+    expect(leads.guardados.at(-1)?.identidad).toEqual({
+      nombre: 'Ana',
+      telefonoEnmascarado: '+57 3.. ... ..42',
+      contactoTokenId: 'token-1',
+    });
+  });
+
+  it('no emite un token nuevo en cada turno si el lead ya tiene identidad', async () => {
+    const perfil: LeadProfile = {
+      ...perfilListoParaAfiliacion(),
+      identidad: {
+        nombre: 'Ana',
+        telefonoEnmascarado: '+57 3.. ... ..42',
+        contactoTokenId: 'token-ya-emitido',
+      },
+    };
+    const leads = fakeLeadRepository(perfil);
+    const vault = fakeVault();
+    const useCase = new ProcessConversationTurnUseCase({
+      leads,
+      catalog: fakeCatalog(),
+      llm: new StubLlmAdapter(),
+      clock: fakeClock(),
+      ids: fakeIds(),
+      vault,
+      activePolicyVersion: VERSION_ACTIVA,
+    });
+
+    await useCase.execute({ leadId: perfil.id, texto: null, quickReplyValue: 'true' });
+
+    expect(vault.almacenados).toEqual([]);
+    expect(leads.guardados.at(-1)?.identidad?.contactoTokenId).toBe('token-ya-emitido');
+  });
+});
 
 describe('ProcessConversationTurnUseCase — gate de consentimiento', () => {
   it('ConsentRequiredError cuando el perfil no tiene consentimiento, y save nunca se llama', async () => {
@@ -181,6 +270,7 @@ describe('ProcessConversationTurnUseCase — gate de consentimiento', () => {
       llm: new StubLlmAdapter(),
       clock: fakeClock(),
       ids: fakeIds(),
+      vault: fakeVault(),
       activePolicyVersion: VERSION_ACTIVA,
     });
 
@@ -207,6 +297,7 @@ describe('ProcessConversationTurnUseCase — loop de slots', () => {
       llm: new StubLlmAdapter(),
       clock: fakeClock(),
       ids: fakeIds(),
+      vault: fakeVault(),
       activePolicyVersion: VERSION_ACTIVA,
     });
 
@@ -220,7 +311,7 @@ describe('ProcessConversationTurnUseCase — loop de slots', () => {
     expect(leads.guardados).toHaveLength(1);
     if (!resultado.ok) return;
     expect(resultado.value.profile.esAfiliado).toBe(true);
-    expect(resultado.value.siguientePaso?.slot).toBe('rangoSalarial');
+    expect(resultado.value.siguientePaso?.slot).toBe('viviendaPropia');
     expect(resultado.value.routing).toBeNull();
   });
 
@@ -233,6 +324,7 @@ describe('ProcessConversationTurnUseCase — loop de slots', () => {
       llm: new StubLlmAdapter(),
       clock: fakeClock(),
       ids: fakeIds(),
+      vault: fakeVault(),
       activePolicyVersion: VERSION_ACTIVA,
     });
 
@@ -269,6 +361,7 @@ describe('ProcessConversationTurnUseCase — loop de slots', () => {
       llm: llmConfianzaBaja,
       clock: fakeClock(),
       ids: fakeIds(),
+      vault: fakeVault(),
       activePolicyVersion: VERSION_ACTIVA,
     });
 
@@ -297,7 +390,7 @@ describe('ProcessConversationTurnUseCase — loop de slots', () => {
               { slot: 'ciudad', valor: 'Bogotá', confianza: 0.9 },
               { slot: 'rangoSalarial', valor: '4-6 SMMLV', confianza: 0.85 },
             ],
-            respuestaBot: 'Listo: afiliado en Bogotá con ingresos 4-6 SMMLV. ¿Cómo es tu núcleo familiar?',
+            respuestaBot: 'Listo: afiliado en Bogotá con ingresos 4-6 SMMLV. ¿Ya tienes vivienda propia?',
           }),
         ),
       writeExplanation: () => Promise.resolve(ok('explicacion')),
@@ -308,6 +401,7 @@ describe('ProcessConversationTurnUseCase — loop de slots', () => {
       llm: llmMultiSlot,
       clock: fakeClock(),
       ids: fakeIds(),
+      vault: fakeVault(),
       activePolicyVersion: VERSION_ACTIVA,
     });
 
@@ -322,8 +416,8 @@ describe('ProcessConversationTurnUseCase — loop de slots', () => {
     expect(resultado.value.profile.esAfiliado).toBe(true);
     expect(resultado.value.profile.ciudad).toBe('Bogotá');
     expect(resultado.value.profile.rangoSalarial).toBe('4-6 SMMLV');
-    expect(resultado.value.siguientePaso?.slot).toBe('segmentoFamiliar');
-    expect(resultado.value.mensajes[0]?.texto).toMatch(/núcleo familiar/i);
+    expect(resultado.value.siguientePaso?.slot).toBe('viviendaPropia');
+    expect(resultado.value.mensajes[0]?.texto).toMatch(/vivienda propia/i);
   });
 
   it('chip no llama a converseIntake (atajo determinista)', async () => {
@@ -344,6 +438,7 @@ describe('ProcessConversationTurnUseCase — loop de slots', () => {
       llm,
       clock: fakeClock(),
       ids: fakeIds(),
+      vault: fakeVault(),
       activePolicyVersion: VERSION_ACTIVA,
     });
 
@@ -364,7 +459,7 @@ describe('ProcessConversationTurnUseCase — loop de slots', () => {
         Promise.resolve(
           ok({
             extracciones: [{ slot: 'afiliacion', valor: 'true', confianza: 0.9 }],
-            respuestaBot: 'Genial, eres afiliado. ¿En qué rango están tus ingresos?',
+            respuestaBot: 'Genial, eres afiliado. ¿Ya tienes vivienda propia?',
           }),
         ),
       writeExplanation: () => Promise.resolve(ok('explicacion')),
@@ -375,6 +470,7 @@ describe('ProcessConversationTurnUseCase — loop de slots', () => {
       llm: llmConfianzaAlta,
       clock: fakeClock(),
       ids: fakeIds(),
+      vault: fakeVault(),
       activePolicyVersion: VERSION_ACTIVA,
     });
 
@@ -387,7 +483,7 @@ describe('ProcessConversationTurnUseCase — loop de slots', () => {
     expect(resultado.ok).toBe(true);
     if (!resultado.ok) return;
     expect(resultado.value.profile.esAfiliado).toBe(true);
-    expect(resultado.value.siguientePaso?.slot).toBe('rangoSalarial');
+    expect(resultado.value.siguientePaso?.slot).toBe('viviendaPropia');
   });
 
   it('captura el nombre como primer slot tras el consentimiento', async () => {
@@ -399,6 +495,7 @@ describe('ProcessConversationTurnUseCase — loop de slots', () => {
       llm: new StubLlmAdapter(),
       clock: fakeClock(),
       ids: fakeIds(),
+      vault: fakeVault(),
       activePolicyVersion: VERSION_ACTIVA,
     });
 
@@ -421,6 +518,7 @@ describe('ProcessConversationTurnUseCase — 3 salidas de carril (finalizacion)'
       llm: new StubLlmAdapter(),
       clock: fakeClock(),
       ids: fakeIds(),
+      vault: fakeVault(),
       activePolicyVersion: VERSION_ACTIVA,
     });
 
@@ -453,6 +551,7 @@ describe('ProcessConversationTurnUseCase — 3 salidas de carril (finalizacion)'
       llm: new StubLlmAdapter(),
       clock: fakeClock(),
       ids: fakeIds(),
+      vault: fakeVault(),
       activePolicyVersion: VERSION_ACTIVA,
     });
 
@@ -481,6 +580,7 @@ describe('ProcessConversationTurnUseCase — 3 salidas de carril (finalizacion)'
       llm: new StubLlmAdapter(),
       clock: fakeClock(),
       ids: fakeIds(),
+      vault: fakeVault(),
       activePolicyVersion: VERSION_ACTIVA,
     });
 
@@ -506,6 +606,7 @@ describe('ProcessConversationTurnUseCase — 3 salidas de carril (finalizacion)'
       llm: new StubLlmAdapter(),
       clock: fakeClock(),
       ids: fakeIds(),
+      vault: fakeVault(),
       activePolicyVersion: VERSION_ACTIVA,
     });
 

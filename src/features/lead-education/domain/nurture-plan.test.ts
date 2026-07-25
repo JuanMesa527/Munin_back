@@ -14,6 +14,7 @@ const PROYECTO: ProjectProfile = {
   precioHasta: 180_000_000,
   esVIS: true,
   perfilComprador: {},
+  perfilCalibrado: false,
   proporcionAfiliados: 0.9,
 };
 
