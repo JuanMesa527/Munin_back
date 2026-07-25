@@ -629,12 +629,15 @@ export interface ScoringWeights {
   generadoEn: IsoDateTime;
 }
 
+/** Zona comercial del proyecto. */
+export type Zona = 'norte' | 'sur' | 'centro' | 'otra';
+
 /** Buyer persona real de un proyecto, derivado del PPT + Excel. */
 export interface ProjectProfile {
   proyectoId: string;
   nombre: string;
   ciudad: string;
-  zona: 'norte' | 'sur' | 'centro' | 'otra';
+  zona: Zona;
   precioDesde: COP;
   precioHasta: COP;
   /** `true` si el proyecto califica como Vivienda de Interes Social. */
@@ -643,6 +646,76 @@ export interface ProjectProfile {
   perfilComprador: Record<string, Record<string, number>>;
   /** Proporcion de compradores afiliados. Insumo de la regla 90/10. */
   proporcionAfiliados: number;
+}
+
+/** Una tipologia de apartamento publicada en el brochure. */
+export interface Tipologia {
+  nombre: string;
+  /** Area construida en m2, tal como la publica el brochure. */
+  areaConstruida: number;
+  areaPrivada: number | null;
+  habitaciones: number;
+  banos: number;
+  /** Precio publicado por el constructor, en SMMLV. `null` si no lo publica. */
+  precioSMMLV: number | null;
+}
+
+/**
+ * Banda de precio de un proyecto (adenda A8).
+ *
+ * `esEstimado` OBLIGA a la UI: si es `true`, el numero se rotula como estimado
+ * y jamas como oferta. 15 de los 16 brochures no publican precio y dicen
+ * explicitamente que el valor definitivo es el de la promesa de compraventa.
+ * `metodo` existe para poder responderle a un jurado que pregunte de donde
+ * salio la cifra.
+ */
+export interface PriceBand {
+  desde: COP;
+  /** `null` en proyectos NO VIS: no tienen techo regulado. */
+  hasta: COP | null;
+  esEstimado: boolean;
+  metodo: string;
+}
+
+/**
+ * Ficha comercial de un proyecto (adenda A8).
+ *
+ * Sale de `data/projects_catalog.json`, que genera
+ * `analysis/scripts/06_build_projects_catalog.py` transcribiendo los brochures
+ * publicos enlazados por la organizacion. SIN scraping de portales.
+ *
+ * Es la cara visible del proyecto; `ProjectProfile` es su buyer persona. No se
+ * fusionan: tienen fuente, cadencia y nivel de confianza distintos.
+ */
+export interface ProjectCard {
+  proyectoId: string;
+  nombre: string;
+  /** Sector comercial, p. ej. `Ciudadela Colsubsidio Maipore`. */
+  ubicacion: string;
+  ciudad: string;
+  zona: Zona;
+  esVIS: boolean;
+  descripcion: string;
+  unidades: number | null;
+  torres: number | null;
+  /** Texto libre: los brochures describen los pisos de formas distintas. */
+  pisos: string | null;
+  areaDesde: number;
+  /** `null` cuando el proyecto publica una sola tipologia. */
+  areaHasta: number | null;
+  habitacionesDesde: number;
+  habitacionesHasta: number;
+  tipologias: Tipologia[];
+  amenidades: string[];
+  lugaresCercanos: string[];
+  entrega: string | null;
+  certificacionEdge: boolean;
+  salaDeVentas: string | null;
+  /** Brochure publico del proyecto. Se abre en pestana nueva. */
+  brochureUrl: string;
+  /** Render extraido del brochure, servido por el frontend desde `public/`. */
+  imagen: string;
+  precio: PriceBand;
 }
 
 /* ==========================================================================
@@ -673,6 +746,14 @@ export const API_ROUTES = {
   enrichment: {
     start: '/api/leads/enrichment/start',
     turn: '/api/leads/enrichment/turn',
+    /** Baraja de proyectos afines al lead viable (adenda A9). */
+    deck: '/api/leads/enrichment/deck',
+    /** Registra una decision sobre una tarjeta. */
+    swipe: '/api/leads/enrichment/swipe',
+    /** Cierra F2.1 y persiste el lead enriquecido. */
+    summary: '/api/leads/enrichment/summary',
+    /** Recibe el lote de telemetria de atencion de la sesion (adenda A10). */
+    telemetry: '/api/leads/enrichment/telemetry',
   },
   education: {
     journey: '/api/leads/education/journey',

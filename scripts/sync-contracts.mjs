@@ -12,7 +12,8 @@
  * asi que `npm run verify` corre `--check` y rompe el build si alguien edito la
  * copia del frontend en vez de la fuente.
  *
- * Ubicacion del frontend: variable `FRONTEND_PATH`, o `../perfilador-vivienda-frontend`.
+ * Ubicacion del frontend: variable `FRONTEND_PATH`, o el primer candidato de
+ * `CANDIDATOS_FRONTEND` que exista al lado de este repo.
  */
 import { readFileSync, writeFileSync, existsSync, mkdirSync } from 'node:fs';
 import { dirname, resolve } from 'node:path';
@@ -23,9 +24,18 @@ const here = dirname(fileURLToPath(import.meta.url));
 const backendRepo = resolve(here, '..');
 
 const SOURCE = resolve(backendRepo, 'src/shared/contracts.ts');
+
+/**
+ * Nombres con los que puede estar clonado el repo del frontend al lado de este.
+ * Se busca por existencia y no por convencion porque el nombre del directorio
+ * lo decide quien clona, no nosotros.
+ */
+const CANDIDATOS_FRONTEND = ['../perfilador-vivienda-frontend', '../Munin_front'];
+
 const frontendRepo = process.env.FRONTEND_PATH
   ? resolve(process.env.FRONTEND_PATH)
-  : resolve(backendRepo, '../perfilador-vivienda-frontend');
+  : (CANDIDATOS_FRONTEND.map((c) => resolve(backendRepo, c)).find(existsSync) ??
+    resolve(backendRepo, CANDIDATOS_FRONTEND[0]));
 const TARGET = resolve(frontendRepo, 'src/shared/contracts.ts');
 
 const checkOnly = process.argv.includes('--check');

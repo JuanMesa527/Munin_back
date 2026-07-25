@@ -11,7 +11,19 @@ import prettier from 'eslint-config-prettier';
  *  - `no-console`                -> usar el logger de pino con redaccion de PII.
  */
 export default tseslint.config(
-  { ignores: ['dist/**', 'coverage/**', 'node_modules/**', 'analysis/**'] },
+  // Los archivos de configuracion y los scripts en JS puro no estan en el
+  // `tsconfig`, asi que el servicio de tipos no los puede analizar. Lintearlos
+  // con reglas que necesitan tipos solo produce ruido de parseo.
+  {
+    ignores: [
+      'dist/**',
+      'coverage/**',
+      'node_modules/**',
+      'analysis/**',
+      '**/*.mjs',
+      'vitest.config.ts',
+    ],
+  },
 
   ...tseslint.configs.strictTypeChecked,
   ...tseslint.configs.stylisticTypeChecked,
@@ -58,14 +70,28 @@ export default tseslint.config(
         },
       ],
 
-      // Apagada a proposito: dispara en los helpers de envoltura y de asercion
-      // (`sendOk<T>`, `readValidatedQuery<T>`), donde el generico ES el contrato
-      // con quien llama aunque aparezca una sola vez en la firma.
-      '@typescript-eslint/no-unnecessary-type-parameters': 'off',
-
+      // `res.locals['query']` y `process.env['LOG_LEVEL']` son accesos a una
+      // firma de indice: con notacion de punto TypeScript pierde el chequeo.
+      '@typescript-eslint/dot-notation': [
+        'error',
+        { allowIndexSignaturePropertyAccess: true },
+      ],
       'no-console': 'error',
       eqeqeq: ['error', 'always'],
       'prefer-const': 'error',
+    },
+  },
+
+  // ---- Helpers del borde HTTP: el generico ES la API ----
+  // `sendOk<T>`, `validateBody<S>` y `readValidatedQuery<T>` usan el parametro
+  // de tipo una sola vez a proposito: sirve para que el LLAMADOR declare la
+  // forma que espera, no para relacionar dos posiciones de la firma. La regla
+  // no distingue ese caso y pedirla cumplir aqui significaria borrar el tipado
+  // del sitio de llamada, que es justo lo que estos helpers aportan.
+  {
+    files: ['src/shared/infrastructure/http/**/*.ts'],
+    rules: {
+      '@typescript-eslint/no-unnecessary-type-parameters': 'off',
     },
   },
 
@@ -137,7 +163,21 @@ export default tseslint.config(
         {
           patterns: [
             {
-              group: ['@features/*/domain/*', '@features/*/application/*', '@features/*/infrastructure/*', '../../*/domain/*', '../../*/application/*', '../../*/infrastructure/*'],
+              // Las negaciones de `shared` NO son una excepcion a la regla 4:
+              // son lo que la regla manda. Sin ellas el patron relativo tambien
+              // atrapaba `../../shared/application/ports/*`, que es justo la via
+              // sancionada por el mensaje de abajo, y una feature quedaba sin
+              // forma legal de leer un puerto compartido.
+              group: [
+                '@features/*/domain/*',
+                '@features/*/application/*',
+                '@features/*/infrastructure/*',
+                '../../*/domain/*',
+                '../../*/application/*',
+                '../../*/infrastructure/*',
+                '!../../shared/**',
+                '!@shared/**',
+              ],
               message:
                 'AISLAMIENTO DE FEATURES (regla 4): no importes internals de otra feature. Comunicate por @contracts o por un puerto en shared/application/ports.',
             },

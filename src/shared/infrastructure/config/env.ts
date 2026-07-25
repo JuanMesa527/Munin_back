@@ -40,10 +40,19 @@ const EnvSchema = z.object({
   CLOSER_SESSION_SECRET: z.string().min(1, 'falta el secreto de sesion del closer'),
   CLOSER_SESSION_TTL_MINUTES: z.coerce.number().int().positive().max(1440).default(480),
 
-  PERSISTENCE_DRIVER: z.enum(['memory']).default('memory'),
+  PERSISTENCE_DRIVER: z.enum(['memory', 'supabase']).default('memory'),
+
+  /**
+   * Credenciales de Supabase. Vacias por defecto porque el driver `memory` no
+   * las necesita; se exigen (abajo) solo cuando `PERSISTENCE_DRIVER=supabase`.
+   * `SUPABASE_SERVICE_ROLE_KEY` IGNORA RLS: vive solo aqui, jamas en el front.
+   */
+  SUPABASE_URL: z.string().trim().default(''),
+  SUPABASE_SERVICE_ROLE_KEY: z.string().trim().default(''),
 
   WEIGHTS_PATH: z.string().trim().min(1).default('./data/weights.json'),
   PROJECT_PROFILES_PATH: z.string().trim().min(1).default('./data/project_profiles.json'),
+  PROJECTS_CATALOG_PATH: z.string().trim().min(1).default('./data/projects_catalog.json'),
 
   PRIVACY_POLICY_VERSION: z.string().trim().min(1).default(VERSION_POLITICA_SIN_CONFIGURAR),
 });
@@ -65,9 +74,15 @@ export interface AppEnv {
   readonly llmModel: string;
   readonly closerSessionSecret: string;
   readonly closerSessionTtlMinutes: number;
-  readonly persistenceDriver: 'memory';
+  readonly persistenceDriver: 'memory' | 'supabase';
+  /** URL del proyecto Supabase. `null` con el driver `memory`. */
+  readonly supabaseUrl: string | null;
+  /** Service role key de Supabase. `null` con el driver `memory`. Nunca se loguea. */
+  readonly supabaseServiceRoleKey: string | null;
   readonly weightsPath: string;
   readonly projectProfilesPath: string;
+  /** Fichas comerciales de los proyectos que consume F2.1 (adenda A8). */
+  readonly projectsCatalogPath: string;
   /** Version del aviso que acepta el titular. Queda en `ConsentRecord`. */
   readonly privacyPolicyVersion: string;
 }
@@ -140,8 +155,12 @@ export function loadEnv(): AppEnv {
     closerSessionSecret: raw.CLOSER_SESSION_SECRET,
     closerSessionTtlMinutes: raw.CLOSER_SESSION_TTL_MINUTES,
     persistenceDriver: raw.PERSISTENCE_DRIVER,
+    supabaseUrl: raw.SUPABASE_URL.length > 0 ? raw.SUPABASE_URL : null,
+    supabaseServiceRoleKey:
+      raw.SUPABASE_SERVICE_ROLE_KEY.length > 0 ? raw.SUPABASE_SERVICE_ROLE_KEY : null,
     weightsPath: raw.WEIGHTS_PATH,
     projectProfilesPath: raw.PROJECT_PROFILES_PATH,
+    projectsCatalogPath: raw.PROJECTS_CATALOG_PATH,
     privacyPolicyVersion: raw.PRIVACY_POLICY_VERSION,
   };
 
@@ -149,6 +168,17 @@ export function loadEnv(): AppEnv {
   // de conversacion: mejor no arrancar (A05, fallar temprano y visible).
   if (env.llmProvider === 'anthropic' && env.anthropicApiKey === null) {
     throw new Error('Configuracion invalida: LLM_PROVIDER=anthropic exige ANTHROPIC_API_KEY');
+  }
+
+  // Mismo criterio para Supabase: el driver `supabase` sin URL/llave fallaria en
+  // la primera query. Fallar al arrancar es preferible (A05).
+  if (
+    env.persistenceDriver === 'supabase' &&
+    (env.supabaseUrl === null || env.supabaseServiceRoleKey === null)
+  ) {
+    throw new Error(
+      'Configuracion invalida: PERSISTENCE_DRIVER=supabase exige SUPABASE_URL y SUPABASE_SERVICE_ROLE_KEY',
+    );
   }
 
   if (env.isProduction) {

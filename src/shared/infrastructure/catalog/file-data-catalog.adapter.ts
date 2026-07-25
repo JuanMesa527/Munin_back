@@ -12,8 +12,11 @@
 import { readFile } from 'node:fs/promises';
 import { resolve } from 'node:path';
 import { z } from 'zod';
-import type { ProjectProfile, ScoringWeights } from '@contracts';
-import type { DataCatalogPort } from '../../application/ports/data-catalog.port.js';
+import type { ProjectCard, ProjectProfile, ScoringWeights } from '@contracts';
+import type {
+  DataCatalogPort,
+  ProjectCatalog,
+} from '../../application/ports/data-catalog.port.js';
 import { DataUnavailableError, NotFoundError } from '../../kernel/errors.js';
 import type { Result } from '../../kernel/result.js';
 import { err, ok } from '../../kernel/result.js';
@@ -66,18 +69,80 @@ const ArchivoProyectosSchema = z.union([
 
 type ArchivoProyectos = z.infer<typeof ArchivoProyectosSchema>;
 
+/**
+ * Ficha comercial (adenda A8). Se valida con el mismo criterio que el resto: el
+ * archivo lo genera `analysis/scripts/06_build_projects_catalog.py`, pero un
+ * artefacto regenerado a mano es entrada no confiable igual que cualquier otra.
+ */
+const ArchivoTipologiaSchema = z.object({
+  nombre: z.string().min(1),
+  areaConstruida: z.number().positive(),
+  areaPrivada: z.number().positive().nullable(),
+  habitaciones: z.number().int().positive(),
+  banos: z.number().int().positive(),
+  precioSMMLV: z.number().positive().nullable(),
+});
+
+const ArchivoBandaPrecioSchema = z
+  .object({
+    desde: z.number().int().nonnegative(),
+    hasta: z.number().int().nonnegative().nullable(),
+    esEstimado: z.boolean(),
+    metodo: z.string().min(1),
+  })
+  // Una banda invertida pintaria "$243M - $189M" en la tarjeta. Mejor 503.
+  .refine((banda) => banda.hasta === null || banda.hasta >= banda.desde, {
+    message: 'la banda de precio esta invertida (hasta < desde)',
+  });
+
+const ArchivoFichaSchema = z.object({
+  proyectoId: z.string().min(1),
+  nombre: z.string().min(1),
+  ubicacion: z.string().min(1),
+  ciudad: z.string().min(1),
+  zona: z.enum(['norte', 'sur', 'centro', 'otra']),
+  esVIS: z.boolean(),
+  descripcion: z.string().min(1),
+  unidades: z.number().int().positive().nullable(),
+  torres: z.number().int().positive().nullable(),
+  pisos: z.string().min(1).nullable(),
+  areaDesde: z.number().positive(),
+  areaHasta: z.number().positive().nullable(),
+  habitacionesDesde: z.number().int().positive(),
+  habitacionesHasta: z.number().int().positive(),
+  tipologias: z.array(ArchivoTipologiaSchema).min(1),
+  amenidades: z.array(z.string().min(1)),
+  lugaresCercanos: z.array(z.string().min(1)),
+  entrega: z.string().min(1).nullable(),
+  certificacionEdge: z.boolean(),
+  salaDeVentas: z.string().min(1).nullable(),
+  // Solo https: una URL de brochure con otro esquema es un vector de phishing
+  // en un enlace que el usuario abre desde nuestra UI.
+  brochureUrl: z.url().startsWith('https://'),
+  imagen: z.string().startsWith('/'),
+  precio: ArchivoBandaPrecioSchema,
+});
+
+const ArchivoCatalogoSchema = z.object({
+  version: z.string().min(1),
+  proyectos: z.array(ArchivoFichaSchema).min(1),
+  placeholder: z.boolean().optional(),
+});
+
 /** Nombre logico del artefacto. Nunca exponemos la ruta real del filesystem. */
-type Artefacto = 'weights' | 'project_profiles';
+type Artefacto = 'weights' | 'project_profiles' | 'projects_catalog';
 
 export interface FileDataCatalogDeps {
   readonly weightsPath: string;
   readonly projectProfilesPath: string;
+  readonly projectsCatalogPath: string;
 }
 
 export class FileDataCatalogAdapter implements DataCatalogPort {
   /** Se cachea el EXITO, no el fallo: asi se puede regenerar el artefacto y reintentar sin reiniciar. */
   private pesosEnCache: ScoringWeights | null = null;
   private proyectosEnCache: ProjectProfile[] | null = null;
+  private catalogoEnCache: ProjectCatalog | null = null;
 
   constructor(private readonly deps: FileDataCatalogDeps) {}
 
@@ -157,6 +222,49 @@ export class FileDataCatalogAdapter implements DataCatalogPort {
     }
 
     const encontrado = todos.value.find((proyecto) => proyecto.proyectoId === proyectoId);
+    if (encontrado === undefined) {
+      return err(new NotFoundError('Proyecto no encontrado', { proyectoId: 'no existe' }));
+    }
+    return ok(encontrado);
+  }
+
+  async getProjectCatalog(): Promise<Result<ProjectCatalog>> {
+    if (this.catalogoEnCache !== null) {
+      return ok(this.catalogoEnCache);
+    }
+
+    const crudo = await this.leerJson(this.deps.projectsCatalogPath, 'projects_catalog');
+    if (!crudo.ok) {
+      return crudo;
+    }
+
+    const parseado = ArchivoCatalogoSchema.safeParse(crudo.value);
+    if (!parseado.success) {
+      return err(this.artefactoInvalido('projects_catalog', parseado.error.issues));
+    }
+    if (parseado.data.placeholder === true) {
+      return err(this.artefactoPlaceholder('projects_catalog'));
+    }
+
+    const catalogo: ProjectCatalog = {
+      version: parseado.data.version,
+      // `ArchivoFichaSchema` reproduce `ProjectCard` campo a campo, asi que lo
+      // que sale de zod ya es la forma del contrato.
+      proyectos: parseado.data.proyectos,
+    };
+    this.catalogoEnCache = catalogo;
+    return ok(catalogo);
+  }
+
+  async getProjectCard(proyectoId: string): Promise<Result<ProjectCard>> {
+    const catalogo = await this.getProjectCatalog();
+    if (!catalogo.ok) {
+      return catalogo;
+    }
+
+    const encontrado = catalogo.value.proyectos.find(
+      (proyecto) => proyecto.proyectoId === proyectoId,
+    );
     if (encontrado === undefined) {
       return err(new NotFoundError('Proyecto no encontrado', { proyectoId: 'no existe' }));
     }

@@ -18,12 +18,14 @@
     "format:check": "prettier --check \"**/*.{ts,json,md}\"",
     "test": "vitest run --passWithNoTests",
     "test:watch": "vitest",
+    "seed:supabase": "node scripts/seed-supabase.mjs",
     "contracts:sync": "node scripts/sync-contracts.mjs",
     "contracts:check": "node scripts/sync-contracts.mjs --check",
     "verify": "npm run contracts:check && npm run typecheck && npm run lint && npm run test"
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.115.0",
+    "@supabase/supabase-js": "^2.110.8",
     "cors": "^2.8.6",
     "dotenv": "^17.4.2",
     "express": "^5.2.1",
