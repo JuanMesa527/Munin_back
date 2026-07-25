@@ -7,6 +7,11 @@
 create table if not exists lead_profiles (
   id uuid primary key,
   consentimiento jsonb,
+  nombre text,
+  email text,
+  telefono text,
+  edad integer,
+  estado_civil text,
   es_afiliado boolean,
   rango_salarial text,
   segmento text,

@@ -22,20 +22,31 @@ function perfilBase(overrides: Partial<LeadProfile> = {}): LeadProfile {
   return { ...createEmptyLeadProfile('lead-1', AHORA), ...overrides };
 }
 
+const CAMPOS_IDENTIDAD = {
+  nombre: 'Ana',
+  email: 'ana@example.com',
+  telefono: '3001234567',
+  edad: 30,
+  estadoCivil: 'Soltero/a',
+} as const;
+
+const SLOTS_IDENTIDAD = ['nombre', 'email', 'telefono', 'edad', 'estadoCivil'] as const;
+
 describe('getNextStep', () => {
-  it('pregunta afiliacion primero cuando el perfil esta vacio', () => {
+  it('pregunta nombre primero cuando el perfil esta vacio', () => {
     const paso = getNextStep(perfilBase());
     expect(paso).not.toBeNull();
-    expect(paso?.slot).toBe('afiliacion');
+    expect(paso?.slot).toBe('nombre');
     expect(paso?.tipo).toBe('pregunta');
-    expect(paso?.quickReplies).toEqual([
-      { label: 'Sí', value: 'true' },
-      { label: 'No', value: 'false' },
-    ]);
+    expect(paso?.quickReplies).toEqual([]);
   });
 
   it('usa el copy y quickReplies exactos confirmados para rangoSalarial', () => {
-    const perfil = perfilBase({ slotsLlenos: ['afiliacion'], esAfiliado: true });
+    const perfil = perfilBase({
+      ...CAMPOS_IDENTIDAD,
+      slotsLlenos: [...SLOTS_IDENTIDAD, 'afiliacion'],
+      esAfiliado: true,
+    });
     const paso = getNextStep(perfil);
     expect(paso?.slot).toBe('rangoSalarial');
     expect(paso?.quickReplies).toEqual([
@@ -49,7 +60,15 @@ describe('getNextStep', () => {
 
   it('salta un slot ya inferido (segmentoFamiliar) y pregunta ciudad', () => {
     const perfil = perfilBase({
-      slotsLlenos: ['afiliacion', 'rangoSalarial', 'segmento', 'segmentoFamiliar', 'personasACargo'],
+      ...CAMPOS_IDENTIDAD,
+      slotsLlenos: [
+        ...SLOTS_IDENTIDAD,
+        'afiliacion',
+        'rangoSalarial',
+        'segmento',
+        'segmentoFamiliar',
+        'personasACargo',
+      ],
       esAfiliado: true,
       rangoSalarial: '2-4 SMMLV',
       segmento: 'Medio',
@@ -60,9 +79,11 @@ describe('getNextStep', () => {
     expect(paso?.slot).toBe('ciudad');
   });
 
-  it('retorna null cuando los 6 slots preguntados ya estan llenos', () => {
+  it('retorna null cuando los slots preguntados ya estan llenos', () => {
     const perfil = perfilBase({
+      ...CAMPOS_IDENTIDAD,
       slotsLlenos: [
+        ...SLOTS_IDENTIDAD,
         'afiliacion',
         'rangoSalarial',
         'segmentoFamiliar',
@@ -81,7 +102,11 @@ describe('getNextStep', () => {
   });
 
   it('no tiene rama de afiliacion: un no-afiliado sigue recibiendo la siguiente pregunta normal', () => {
-    const perfil = perfilBase({ slotsLlenos: ['afiliacion'], esAfiliado: false });
+    const perfil = perfilBase({
+      ...CAMPOS_IDENTIDAD,
+      slotsLlenos: [...SLOTS_IDENTIDAD, 'afiliacion'],
+      esAfiliado: false,
+    });
     const paso = getNextStep(perfil);
     expect(paso?.slot).toBe('rangoSalarial');
   });
@@ -198,13 +223,15 @@ describe('updateProfile', () => {
 
 describe('isReadyToRoute', () => {
   it('retorna false cuando faltan preguntas', () => {
-    const perfil = perfilBase({ slotsLlenos: ['afiliacion'], esAfiliado: true });
+    const perfil = perfilBase({ slotsLlenos: ['nombre'], nombre: 'Ana' });
     expect(isReadyToRoute(perfil)).toBe(false);
   });
 
-  it('retorna true cuando los 6 slots preguntados estan llenos, incluso para no-afiliados', () => {
+  it('retorna true cuando los slots preguntados estan llenos, incluso para no-afiliados', () => {
     const perfil = perfilBase({
+      ...CAMPOS_IDENTIDAD,
       slotsLlenos: [
+        ...SLOTS_IDENTIDAD,
         'afiliacion',
         'rangoSalarial',
         'segmentoFamiliar',
@@ -228,19 +255,19 @@ describe('computeProgress', () => {
     expect(computeProgress(perfilBase())).toBe(0);
   });
 
-  it('retorna 0.5 con 3 de los 6 slots preguntados llenos', () => {
+  it('retorna ~0.45 con 5 de los 11 slots preguntados llenos (identidad)', () => {
     const perfil = perfilBase({
-      slotsLlenos: ['afiliacion', 'rangoSalarial', 'segmentoFamiliar'],
-      esAfiliado: true,
-      rangoSalarial: '2-4 SMMLV',
-      segmentoFamiliar: 'Pareja con hijos',
+      ...CAMPOS_IDENTIDAD,
+      slotsLlenos: [...SLOTS_IDENTIDAD],
     });
-    expect(computeProgress(perfil)).toBeCloseTo(0.5);
+    expect(computeProgress(perfil)).toBeCloseTo(5 / 11);
   });
 
-  it('retorna 1 cuando los 6 slots preguntados estan llenos', () => {
+  it('retorna 1 cuando los slots preguntados estan llenos', () => {
     const perfil = perfilBase({
+      ...CAMPOS_IDENTIDAD,
       slotsLlenos: [
+        ...SLOTS_IDENTIDAD,
         'afiliacion',
         'rangoSalarial',
         'segmentoFamiliar',

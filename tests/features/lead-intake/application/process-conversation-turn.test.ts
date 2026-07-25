@@ -99,19 +99,38 @@ function fakeCatalog(overrides: Partial<DataCatalogPort> = {}): DataCatalogPort 
   };
 }
 
-/** Perfil con los 6 slots preguntados llenos, listo para `isReadyToRoute`. */
+/** Perfil con los slots preguntados llenos, listo para `isReadyToRoute`. */
 function perfilListoParaEnrutar(overrides: Partial<LeadProfile> = {}): LeadProfile {
   const base = createEmptyLeadProfile('lead-1', AHORA);
   return {
     ...base,
     consentimiento: { otorgado: true, versionPolitica: VERSION_ACTIVA, finalidades: ['perfilamiento_vivienda'], otorgadoEn: AHORA, canal: 'web-chat' },
+    nombre: 'Ana',
+    email: 'ana@example.com',
+    telefono: '3001234567',
+    edad: 30,
+    estadoCivil: 'Soltero/a',
     esAfiliado: true,
     rangoSalarial: '4-6 SMMLV',
     segmentoFamiliar: 'Unipersonal',
     ciudad: 'Bogotá',
     ahorroDeclarado: 50_000_000,
     capacidadAhorroMensual: 2_000_000,
-    slotsLlenos: ['afiliacion', 'rangoSalarial', 'segmentoFamiliar', 'ciudad', 'ahorro', 'capacidadAhorroMensual', 'segmento', 'personasACargo'] as Slot[],
+    slotsLlenos: [
+      'nombre',
+      'email',
+      'telefono',
+      'edad',
+      'estadoCivil',
+      'afiliacion',
+      'rangoSalarial',
+      'segmentoFamiliar',
+      'ciudad',
+      'ahorro',
+      'capacidadAhorroMensual',
+      'segmento',
+      'personasACargo',
+    ] as Slot[],
     segmento: 'Medio',
     personasACargo: 0,
     ...overrides,
@@ -128,6 +147,19 @@ function perfilConConsentimientoVacio(): LeadProfile {
       otorgadoEn: AHORA,
       canal: 'web-chat',
     },
+  };
+}
+
+/** Identidad ya capturada; siguiente pregunta = afiliacion. */
+function perfilListoParaAfiliacion(): LeadProfile {
+  return {
+    ...perfilConConsentimientoVacio(),
+    nombre: 'Ana',
+    email: 'ana@example.com',
+    telefono: '3001234567',
+    edad: 30,
+    estadoCivil: 'Soltero/a',
+    slotsLlenos: ['nombre', 'email', 'telefono', 'edad', 'estadoCivil'],
   };
 }
 
@@ -155,7 +187,7 @@ describe('ProcessConversationTurnUseCase — gate de consentimiento', () => {
 
 describe('ProcessConversationTurnUseCase — loop de slots', () => {
   it('avanza al siguiente paso y persiste el progreso cuando la respuesta es valida', async () => {
-    const perfil = perfilConConsentimientoVacio();
+    const perfil = perfilListoParaAfiliacion();
     const leads = fakeLeadRepository(perfil);
     const useCase = new ProcessConversationTurnUseCase({
       leads,
@@ -177,7 +209,7 @@ describe('ProcessConversationTurnUseCase — loop de slots', () => {
   });
 
   it('texto libre inentendible (prompt injection) con StubLlmAdapter: el slot no cambia y repregunta la misma cosa', async () => {
-    const perfil = perfilConConsentimientoVacio();
+    const perfil = perfilListoParaAfiliacion();
     const leads = fakeLeadRepository(perfil);
     const useCase = new ProcessConversationTurnUseCase({
       leads,
@@ -202,10 +234,17 @@ describe('ProcessConversationTurnUseCase — loop de slots', () => {
   });
 
   it('confianza baja del LLM (< umbral) tambien produce un re-ask sin actualizar el perfil', async () => {
-    const perfil = perfilConConsentimientoVacio();
+    const perfil = perfilListoParaAfiliacion();
     const leads = fakeLeadRepository(perfil);
     const llmConfianzaBaja: LlmPort = {
       extractSlotValue: () => Promise.resolve(ok({ valor: 'true', confianza: 0.1 })),
+      converseIntake: () =>
+        Promise.resolve(
+          ok({
+            extracciones: [{ slot: 'afiliacion', valor: 'true', confianza: 0.1 }],
+            respuestaBot: 'No estoy seguro, ¿eres afiliado?',
+          }),
+        ),
       writeExplanation: () => Promise.resolve(ok('explicacion')),
     };
     const useCase = new ProcessConversationTurnUseCase({
@@ -225,11 +264,89 @@ describe('ProcessConversationTurnUseCase — loop de slots', () => {
     expect(resultado.value.siguientePaso?.slot).toBe('afiliacion');
   });
 
+  it('un LLM conversacional con alta confianza puede llenar varios slots de un mensaje (D1)', async () => {
+    const perfil = perfilListoParaAfiliacion();
+    const leads = fakeLeadRepository(perfil);
+    const llmMultiSlot: LlmPort = {
+      extractSlotValue: () => Promise.resolve(ok({ valor: null, confianza: 0 })),
+      converseIntake: () =>
+        Promise.resolve(
+          ok({
+            extracciones: [
+              { slot: 'afiliacion', valor: 'true', confianza: 0.95 },
+              { slot: 'ciudad', valor: 'Bogotá', confianza: 0.9 },
+              { slot: 'rangoSalarial', valor: '4-6 SMMLV', confianza: 0.85 },
+            ],
+            respuestaBot: 'Listo: afiliado en Bogotá con ingresos 4-6 SMMLV. ¿Cómo es tu núcleo familiar?',
+          }),
+        ),
+      writeExplanation: () => Promise.resolve(ok('explicacion')),
+    };
+    const useCase = new ProcessConversationTurnUseCase({
+      leads,
+      catalog: fakeCatalog(),
+      llm: llmMultiSlot,
+      clock: fakeClock(),
+      ids: fakeIds(),
+      activePolicyVersion: VERSION_ACTIVA,
+    });
+
+    const resultado = await useCase.execute({
+      leadId: perfil.id,
+      texto: 'soy afiliado, vivo en Bogotá y gano entre 4 y 6 SMMLV',
+      quickReplyValue: null,
+    });
+
+    expect(resultado.ok).toBe(true);
+    if (!resultado.ok) return;
+    expect(resultado.value.profile.esAfiliado).toBe(true);
+    expect(resultado.value.profile.ciudad).toBe('Bogotá');
+    expect(resultado.value.profile.rangoSalarial).toBe('4-6 SMMLV');
+    expect(resultado.value.siguientePaso?.slot).toBe('segmentoFamiliar');
+    expect(resultado.value.mensajes[0]?.texto).toMatch(/núcleo familiar/i);
+  });
+
+  it('chip no llama a converseIntake (atajo determinista)', async () => {
+    const perfil = perfilListoParaAfiliacion();
+    const leads = fakeLeadRepository(perfil);
+    let converseLlamado = false;
+    const llm: LlmPort = {
+      extractSlotValue: () => Promise.resolve(ok({ valor: null, confianza: 0 })),
+      converseIntake: () => {
+        converseLlamado = true;
+        return Promise.resolve(ok({ extracciones: [], respuestaBot: 'no deberia' }));
+      },
+      writeExplanation: () => Promise.resolve(ok('explicacion')),
+    };
+    const useCase = new ProcessConversationTurnUseCase({
+      leads,
+      catalog: fakeCatalog(),
+      llm,
+      clock: fakeClock(),
+      ids: fakeIds(),
+      activePolicyVersion: VERSION_ACTIVA,
+    });
+
+    const resultado = await useCase.execute({ leadId: perfil.id, texto: null, quickReplyValue: 'true' });
+
+    expect(resultado.ok).toBe(true);
+    expect(converseLlamado).toBe(false);
+    if (!resultado.ok) return;
+    expect(resultado.value.profile.esAfiliado).toBe(true);
+  });
+
   it('un LLM con alta confianza cuyo valor SI pasa por parseAnswer completa el slot (D1)', async () => {
-    const perfil = perfilConConsentimientoVacio();
+    const perfil = perfilListoParaAfiliacion();
     const leads = fakeLeadRepository(perfil);
     const llmConfianzaAlta: LlmPort = {
       extractSlotValue: () => Promise.resolve(ok({ valor: 'si', confianza: 0.9 })),
+      converseIntake: () =>
+        Promise.resolve(
+          ok({
+            extracciones: [{ slot: 'afiliacion', valor: 'true', confianza: 0.9 }],
+            respuestaBot: 'Genial, eres afiliado. ¿En qué rango están tus ingresos?',
+          }),
+        ),
       writeExplanation: () => Promise.resolve(ok('explicacion')),
     };
     const useCase = new ProcessConversationTurnUseCase({
@@ -247,6 +364,26 @@ describe('ProcessConversationTurnUseCase — loop de slots', () => {
     if (!resultado.ok) return;
     expect(resultado.value.profile.esAfiliado).toBe(true);
     expect(resultado.value.siguientePaso?.slot).toBe('rangoSalarial');
+  });
+
+  it('captura el nombre como primer slot tras el consentimiento', async () => {
+    const perfil = perfilConConsentimientoVacio();
+    const leads = fakeLeadRepository(perfil);
+    const useCase = new ProcessConversationTurnUseCase({
+      leads,
+      catalog: fakeCatalog(),
+      llm: new StubLlmAdapter(),
+      clock: fakeClock(),
+      ids: fakeIds(),
+      activePolicyVersion: VERSION_ACTIVA,
+    });
+
+    const resultado = await useCase.execute({ leadId: perfil.id, texto: 'Ana Pérez', quickReplyValue: null });
+
+    expect(resultado.ok).toBe(true);
+    if (!resultado.ok) return;
+    expect(resultado.value.profile.nombre).toBe('Ana Pérez');
+    expect(resultado.value.siguientePaso?.slot).toBe('email');
   });
 });
 

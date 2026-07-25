@@ -20,6 +20,8 @@ import type { Express } from 'express';
 import { API_ROUTES } from '@contracts';
 import { createLeadIntakeModule } from './features/lead-intake/lead-intake.module.js';
 import { createLeadEnrichmentModule } from './features/lead-enrichment/lead-enrichment.module.js';
+import { createLeadEducationModule } from './features/lead-education/lead-education.module.js';
+import { seedDemoLeads as seedEducationDemoLeads } from './features/lead-education/infrastructure/demo-seed.js';
 import type { AppEnv } from './shared/infrastructure/config/env.js';
 import { SystemClock } from './shared/infrastructure/clock/system-clock.adapter.js';
 import { FileDataCatalogAdapter } from './shared/infrastructure/catalog/file-data-catalog.adapter.js';
@@ -28,6 +30,7 @@ import { applySecurity, publicRateLimiter } from './shared/infrastructure/http/s
 import { createHttpLogger, logger } from './shared/infrastructure/logging/logger.js';
 import { createLeadRepository } from './shared/infrastructure/persistence/persistence.factory.js';
 import { seedDemoLeads } from './shared/infrastructure/persistence/demo-seed.js';
+import { InMemoryEducationRepository } from './shared/infrastructure/persistence/in-memory/in-memory-education.repository.js';
 import { createSupabaseClient } from './shared/infrastructure/persistence/supabase/supabase-client.js';
 import type { SwipeStorePort } from './features/lead-enrichment/application/ports/swipe-store.port.js';
 import type { TelemetryStorePort } from './features/lead-enrichment/application/ports/telemetry.port.js';
@@ -35,6 +38,9 @@ import { InMemorySwipeStore } from './features/lead-enrichment/infrastructure/in
 import { NoopTelemetryStore } from './features/lead-enrichment/infrastructure/noop-telemetry.store.js';
 import { SupabaseSwipeStore } from './features/lead-enrichment/infrastructure/supabase-swipe.store.js';
 import { SupabaseTelemetryStore } from './features/lead-enrichment/infrastructure/supabase-telemetry.store.js';
+
+/** Prefijo de las rutas de F2.2, derivado del contrato para no inventar URLs. */
+const PREFIJO_EDUCATION = API_ROUTES.education.journey.replace(/\/journey$/u, '');
 
 export interface App {
   readonly server: Express;
@@ -57,6 +63,9 @@ export async function createApp(env: AppEnv): Promise<App> {
     projectProfilesPath: env.projectProfilesPath,
     projectsCatalogPath: env.projectsCatalogPath,
   });
+  // F2.2 lead-education: repositorio propio del journey gamificado, siempre en
+  // memoria (es progreso derivado, no el registro maestro del lead).
+  const journeys = new InMemoryEducationRepository();
 
   // Swipes y telemetria: Supabase cuando el driver lo pide, memoria/no-op si no.
   // Es la unica eleccion memoria-vs-DB de F2.1, y vive solo aqui.
@@ -81,6 +90,9 @@ export async function createApp(env: AppEnv): Promise<App> {
   // F1 con consentimiento real del titular.
   if (!env.isProduction) {
     await seedDemoLeads(leads);
+    // Perfiles NO VIABLES adicionales (carril de nutricion de F2.2), distintos
+    // de los `viable` de arriba: ids propios (`demo-lead-*`), sin colision.
+    await seedEducationDemoLeads(leads, clock.now());
   }
 
   // --- Health check: sin rate limit, para que el PaaS no se auto-bloquee ---
@@ -98,8 +110,11 @@ export async function createApp(env: AppEnv): Promise<App> {
   const enrichment = createLeadEnrichmentModule({ leads, catalogo, clock, swipes, telemetry });
   server.use(publicRateLimiter, enrichment.router);
 
-  // TODO: montar lead-education (F2.2), closer-dashboard (F3) y
-  // closer-briefing (F4) cuando existan.
+  // F2.2 lead-education: camino gamificado de nutricion para leads no viables.
+  const education = createLeadEducationModule({ journeys, leads, catalog: catalogo, clock });
+  server.use(PREFIJO_EDUCATION, publicRateLimiter, education.router);
+
+  // TODO: montar closer-dashboard (F3) y closer-briefing (F4) cuando existan.
 
   server.use(notFoundHandler);
   server.use(errorHandler);

@@ -59,4 +59,13 @@ export class AnthropicLlmAdapter implements LlmPort {
   }): Promise<Result<string>> {
     throw new Error(`TODO: not implemented (modelo ${this.config.model})`);
   }
+
+  converseIntake(_input: {
+    texto: string;
+    slotsPendientes: readonly Slot[];
+    perfilParcial: Record<string, string>;
+    vocabulario: Record<string, readonly string[]>;
+  }): Promise<Result<{ extracciones: readonly { slot: Slot; valor: string; confianza: number }[]; respuestaBot: string }>> {
+    throw new Error(`TODO: not implemented (modelo ${this.config.model})`);
+  }
 }

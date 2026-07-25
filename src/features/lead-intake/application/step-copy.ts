@@ -15,6 +15,11 @@
 import type { Slot } from '@contracts';
 
 const STEP_PROMPT_BY_SLOT: Partial<Record<Slot, string>> = {
+  nombre: 'Para empezar, ¿cómo te llamas?',
+  email: '¿Cuál es tu correo electrónico?',
+  telefono: '¿A qué número de celular te podemos contactar?',
+  edad: '¿Cuántos años tienes?',
+  estadoCivil: '¿Cuál es tu estado civil?',
   afiliacion: '¿Estás afiliado a Colsubsidio?',
   rangoSalarial: '¿En qué rango están tus ingresos mensuales?',
   segmentoFamiliar: '¿Cómo es tu núcleo familiar?',
@@ -23,7 +28,7 @@ const STEP_PROMPT_BY_SLOT: Partial<Record<Slot, string>> = {
   capacidadAhorroMensual: '¿Cuánto podrías ahorrar por mes?',
 };
 
-const TEXTO_GENERICO = 'Continuemos con tu perfil.';
+const TEXTO_GENERICO = 'Continuemos con tu perfil. Cuéntame lo que falte con tus palabras o elige una opción.';
 
 /**
  * `null` cubre el caso defensivo en el que no hay un paso de pregunta activo

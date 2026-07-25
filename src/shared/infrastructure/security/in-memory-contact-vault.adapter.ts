@@ -16,27 +16,17 @@ import type { AuditLogPort } from '../../application/ports/audit-log.port.js';
 import type { ClockPort } from '../../application/ports/clock.port.js';
 import type { ContactVaultPort } from '../../application/ports/contact-vault.port.js';
 import type { IdGeneratorPort } from '../../application/ports/id-generator.port.js';
+import { maskPhone } from '../../domain/phone.js';
 import { ForbiddenError, NotFoundError, ValidationError } from '../../kernel/errors.js';
 import type { Result } from '../../kernel/result.js';
 import { err, ok } from '../../kernel/result.js';
 
-/** Plantilla de presentacion fijada por el contrato: `+57 3.. ... ..42`. */
-const PLANTILLA_ENMASCARADA = '+57 3.. ... ..';
+export { maskPhone } from '../../domain/phone.js';
 
 /** Un movil colombiano tiene 10 digitos; con indicativo, 12. */
 const MINIMO_DIGITOS_TELEFONO = 7;
 
 const ACCION_AUDITADA = 'revelar_contacto';
-
-/**
- * Deja visibles solo los dos ultimos digitos. Suficiente para que el closer
- * confirme con el lead "termina en 42" sin que el numero completo circule.
- */
-export function maskPhone(telefono: string): string {
-  const digitos = telefono.replace(/\D/gu, '');
-  const ultimos = digitos.slice(-2).padStart(2, '.');
-  return `${PLANTILLA_ENMASCARADA}${ultimos}`;
-}
 
 export interface InMemoryContactVaultDeps {
   readonly ids: IdGeneratorPort;

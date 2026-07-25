@@ -44,6 +44,11 @@ const BANDAS = ['alta', 'media', 'baja'] as const;
 const SEGMENTOS_VALIDOS = ['Basico', 'Medio', 'Alto', 'Joven'] as const;
 const CARRILES_VALIDOS = ['viable', 'no_viable'] as const;
 const SLOTS_VALIDOS = [
+  'nombre',
+  'email',
+  'telefono',
+  'edad',
+  'estadoCivil',
   'afiliacion',
   'rangoSalarial',
   'segmento',
@@ -117,6 +122,11 @@ const ProyectosSchema = z.array(ProyectoSchema);
 export interface SupabaseLeadRow {
   id: string;
   consentimiento: unknown;
+  nombre: string | null;
+  email: string | null;
+  telefono: string | null;
+  edad: number | null;
+  estado_civil: string | null;
   es_afiliado: boolean | null;
   rango_salarial: string | null;
   segmento: string | null;
@@ -154,6 +164,11 @@ export function toRow(profile: LeadProfile): SupabaseLeadRow {
   return {
     id: profile.id,
     consentimiento: profile.consentimiento,
+    nombre: profile.nombre,
+    email: profile.email,
+    telefono: profile.telefono,
+    edad: profile.edad,
+    estado_civil: profile.estadoCivil,
     es_afiliado: profile.esAfiliado,
     rango_salarial: profile.rangoSalarial,
     segmento: profile.segmento,
@@ -182,6 +197,11 @@ export function toDomain(row: SupabaseLeadRow): LeadProfile {
     id: row.id,
     consentimiento:
       row.consentimiento === null ? null : ConsentimientoSchema.parse(row.consentimiento),
+    nombre: row.nombre,
+    email: row.email,
+    telefono: row.telefono,
+    edad: row.edad,
+    estadoCivil: row.estado_civil,
     esAfiliado: row.es_afiliado,
     rangoSalarial: row.rango_salarial,
     segmento: SegmentoSchema.parse(row.segmento),

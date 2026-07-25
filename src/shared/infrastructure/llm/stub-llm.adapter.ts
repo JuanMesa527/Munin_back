@@ -12,7 +12,11 @@
  */
 
 import type { Slot } from '@contracts';
-import type { LlmPort } from '../../application/ports/llm.port.js';
+import type {
+  ConverseIntakeInput,
+  ConverseIntakeResult,
+  LlmPort,
+} from '../../application/ports/llm.port.js';
 import type { Result } from '../../kernel/result.js';
 import { ok } from '../../kernel/result.js';
 
@@ -40,6 +44,20 @@ export class StubLlmAdapter implements LlmPort {
     contexto: string;
   }): Promise<Result<{ valor: string | null; confianza: number }>> {
     return Promise.resolve(ok({ valor: null, confianza: 0 }));
+  }
+
+  /**
+   * Sin extracciones ni prosa: el caso de uso usa `parseAnswer` + `stepPromptFor`.
+   * Respuesta vacia a proposito — si devolvemos "No logré entender…", el turn
+   * mostraba ese texto aunque el parser puro hubiera avanzado el slot.
+   */
+  converseIntake(_input: ConverseIntakeInput): Promise<Result<ConverseIntakeResult>> {
+    return Promise.resolve(
+      ok({
+        extracciones: [],
+        respuestaBot: ' ',
+      }),
+    );
   }
 
   writeExplanation(input: {

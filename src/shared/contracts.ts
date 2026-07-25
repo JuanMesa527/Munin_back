@@ -63,6 +63,14 @@
  *          `LeadListSort` gana `capacidad_desc`.
  *      Nuevos tipos: `ContactabilidadDia`, `LeadTimelineEvent`,
  *      `ObjecionSugerida`.
+ *  A9. `EtapaCamino` / `ContenidoEducativo` y los campos OPCIONALES
+ *      `Meta.etapa?` y `EducationJourney.etapas?` — AGREGADOS para F2.2
+ *      ("Camino a Mi Hogar"). El brief describe un journey gamificado por
+ *      hitos del comprador; estos tipos modelan las 5 etapas del recorrido y
+ *      el microlearning curado de cada una. Son ADITIVOS y OPCIONALES: no
+ *      rompen a F1/F2.1/F3/F4, que pueden ignorarlos. El scoring y la
+ *      reclasificacion siguen siendo deterministas (glass-box); estos tipos
+ *      solo describen la presentacion del recorrido, no deciden nada.
  * ============================================================================
  */
 
@@ -122,8 +130,27 @@ export const SEGMENTOS_FAMILIARES: readonly string[] = [
   'Familia extensa',
 ];
 
-/** Los 8 datos que la conversacion de F1 tiene que llenar. */
+/** Vocabulario cerrado de estado civil para el perfilamiento F1. */
+export const ESTADOS_CIVILES: readonly string[] = [
+  'Soltero/a',
+  'Casado/a',
+  'Unión libre',
+  'Separado/a',
+  'Divorciado/a',
+  'Viudo/a',
+];
+
+/**
+ * Datos que la conversacion de F1 tiene que llenar.
+ * Incluye identidad de contacto (nombre/email/telefono/edad/estadoCivil) +
+ * los 8 campos de perfilamiento/scoring.
+ */
 export type Slot =
+  | 'nombre'
+  | 'email'
+  | 'telefono'
+  | 'edad'
+  | 'estadoCivil'
   | 'afiliacion'
   | 'rangoSalarial'
   | 'segmento'
@@ -134,6 +161,11 @@ export type Slot =
   | 'capacidadAhorroMensual';
 
 export const SLOTS: readonly Slot[] = [
+  'nombre',
+  'email',
+  'telefono',
+  'edad',
+  'estadoCivil',
   'afiliacion',
   'rangoSalarial',
   'segmento',
@@ -274,6 +306,15 @@ export interface LeadProfile {
 
   /** Gate legal. Se captura ANTES de cualquier pregunta de perfilamiento. */
   consentimiento: ConsentRecord | null;
+
+  /** --- Identidad de contacto (F1, post-consentimiento) --- */
+  /** Nombre de pila o nombre completo declarado por el titular. */
+  nombre: string | null;
+  email: string | null;
+  /** Telefono normalizado (solo digitos). No viaja al dashboard del closer sin vault. */
+  telefono: string | null;
+  edad: number | null;
+  estadoCivil: string | null;
 
   /** --- Se llena en la conversacion (F1) --- */
   esAfiliado: boolean | null;
@@ -478,8 +519,50 @@ export interface EnrichedLead extends LeadProfile {
 }
 
 /* ==========================================================================
- *  7. F2.2 · lead-education (gamificado)
+ *  7. F2.2 · lead-education (gamificado) — "Camino a Mi Hogar"
  * ========================================================================== */
+
+/**
+ * Las 5 etapas del recorrido del comprador (adenda A8). No son "materias":
+ * son hitos reales del camino a la vivienda. El orden es fijo y el usuario
+ * avanza de una a la siguiente a medida que completa metas.
+ */
+export type EtapaId = 'descubrir' | 'capacidad' | 'financiar' | 'prepararse' | 'llegar';
+
+/** Una etapa del "Camino a Mi Hogar", ya lista para pintar en la UI. */
+export interface EtapaCamino {
+  id: EtapaId;
+  titulo: string;
+  /** Clave/emoji del icono. Presentacion, no logica. */
+  icono: string;
+  /** 1..5. Posicion en el recorrido. */
+  orden: number;
+}
+
+/**
+ * Catalogo canonico de las 5 etapas. Fuente de verdad compartida back/front
+ * para que ambos pinten el mismo camino sin duplicar textos.
+ */
+export const ETAPAS_CAMINO: readonly EtapaCamino[] = [
+  { id: 'descubrir', titulo: 'Descubrir si puedes comprar', icono: 'search', orden: 1 },
+  { id: 'capacidad', titulo: 'Entender tu capacidad', icono: 'calculator', orden: 2 },
+  { id: 'financiar', titulo: 'Cómo financiar tu vivienda', icono: 'landmark', orden: 3 },
+  { id: 'prepararse', titulo: 'Prepararte para comprar', icono: 'list-checks', orden: 4 },
+  { id: 'llegar', titulo: 'Llegar a tu vivienda', icono: 'key-round', orden: 5 },
+];
+
+/**
+ * Microlearning curado de una etapa. `cuerpo` es texto corto pensado para
+ * consumo en celular. Contenido DETERMINISTA: no lo genera un LLM en la demo
+ * (glass-box + autogestionado a prueba de jurado).
+ */
+export interface ContenidoEducativo {
+  id: string;
+  etapa: EtapaId;
+  titulo: string;
+  cuerpo: string;
+  tipoContenido: 'concepto' | 'simulacion' | 'checklist';
+}
 
 /**
  * Plan de nutricion basado en el Subsidio Familiar de Vivienda.
@@ -510,6 +593,8 @@ export interface Meta {
   completada: boolean;
   puntos: number;
   badgeId: string | null;
+  /** Etapa del "Camino a Mi Hogar" a la que pertenece la meta (adenda A8). */
+  etapa?: EtapaId;
 }
 
 export interface Badge {
@@ -531,7 +616,51 @@ export interface EducationJourney {
   reclasificadoAViable: boolean;
   /** Por que entro a nutricion. Viene de `RoutingDecision.razones`. */
   razonesIngreso: NonViableReason[];
+  /**
+   * Las etapas del "Camino a Mi Hogar" en orden (adenda A8). Opcional para no
+   * romper consumidores previos; F2.2 siempre lo llena con `ETAPAS_CAMINO`.
+   */
+  etapas?: EtapaCamino[];
   actualizadoEn: IsoDateTime;
+}
+
+/**
+ * Snapshot del lead para F2.2: lo que F1 ya perfiló, incluido identidad
+ * declarada por el titular. Este DTO alimenta la UI del propio lead (no la
+ * consola del closer). El telefono viaja enmascarado; el closer usa
+ * `ContactVaultPort` + `ContactIdentity` para revelar el real.
+ */
+export interface EducationLeadSnapshot {
+  leadId: string;
+  nombre: string | null;
+  email: string | null;
+  telefonoEnmascarado: string | null;
+  edad: number | null;
+  estadoCivil: string | null;
+  esAfiliado: boolean | null;
+  rangoSalarial: string | null;
+  segmento: Segmento | null;
+  personasACargo: number | null;
+  ciudad: string | null;
+  segmentoFamiliar: string | null;
+  ahorroDeclarado: COP | null;
+  capacidadAhorroMensual: COP | null;
+  score: number | null;
+  banda: Banda | null;
+  cuotaMensualEstimada: COP | null;
+  precioMaximoEstimado: COP | null;
+  /** Top proyectos que F1 ya matcheó (puede ir vacío). */
+  proyectos: ProjectMatch[];
+}
+
+/**
+ * Respuesta de `GET /api/leads/education/journey`: journey + contenidos +
+ * snapshot del perfil F1 para que el front no invente datos de demo.
+ */
+export interface EducationJourneyView {
+  journey: EducationJourney;
+  contenidos: ContenidoEducativo[];
+  lead: EducationLeadSnapshot;
 }
 
 /** Evento que mueve el progreso del journey. */

@@ -10,7 +10,12 @@
  * dominio sin pasar por esta misma puerta de validacion.
  */
 
-import { RANGOS_SALARIALES_SMMLV, SEGMENTOS, SEGMENTOS_FAMILIARES } from '@contracts';
+import {
+  ESTADOS_CIVILES,
+  RANGOS_SALARIALES_SMMLV,
+  SEGMENTOS,
+  SEGMENTOS_FAMILIARES,
+} from '@contracts';
 import type {
   BotMessage,
   COP,
@@ -22,6 +27,7 @@ import type {
   Slot,
 } from '@contracts';
 import { isSlotFilled } from '@shared/domain/lead.js';
+import { normalizePhoneDigits } from '@shared/domain/phone.js';
 import { toSmmlvBounds } from '@shared/domain/value-objects/salary-range.js';
 import { ValidationError } from '@shared/kernel/errors.js';
 import type { Result } from '@shared/kernel/result.js';
@@ -34,18 +40,27 @@ import { err, ok } from '@shared/kernel/result.js';
  */
 export type SlotValue =
   | { slot: 'afiliacion'; valor: boolean }
-  | { slot: 'rangoSalarial' | 'ciudad' | 'segmentoFamiliar'; valor: string }
+  | {
+      slot: 'nombre' | 'email' | 'telefono' | 'estadoCivil' | 'rangoSalarial' | 'ciudad' | 'segmentoFamiliar';
+      valor: string;
+    }
   | { slot: 'segmento'; valor: Segmento }
-  | { slot: 'personasACargo'; valor: number }
+  | { slot: 'edad' | 'personasACargo'; valor: number }
   | { slot: 'ahorro' | 'capacidadAhorroMensual'; valor: COP };
 
 /**
- * Los 6 slots que SI se preguntan (design.md D8). `segmento` y
- * `personasACargo` completan `SLOTS` (8 en `@contracts`) pero se infieren en
- * `updateProfile`, nunca se presentan como pregunta — por eso este tipo y
- * constante son mas angostos que `Slot`/`SLOTS`.
+ * Slots que SI se preguntan. `segmento` y `personasACargo` se infieren en
+ * `updateProfile` y nunca se presentan como pregunta.
+ *
+ * Orden: identidad de contacto primero (para saludar y perfil F2.2), luego
+ * perfilamiento financiero.
  */
 type AskedSlot =
+  | 'nombre'
+  | 'email'
+  | 'telefono'
+  | 'edad'
+  | 'estadoCivil'
   | 'afiliacion'
   | 'rangoSalarial'
   | 'segmentoFamiliar'
@@ -53,8 +68,13 @@ type AskedSlot =
   | 'ahorro'
   | 'capacidadAhorroMensual';
 
-/** Orden EXACTO confirmado por el product owner. No reordenar sin anunciar. */
+/** Orden fijo del flujo. No reordenar sin anunciar. */
 const ASKED_SLOTS: readonly AskedSlot[] = [
+  'nombre',
+  'email',
+  'telefono',
+  'edad',
+  'estadoCivil',
   'afiliacion',
   'rangoSalarial',
   'segmentoFamiliar',
@@ -95,9 +115,39 @@ const CAPACIDAD_AHORRO_CHIPS: readonly QuickReply[] = [
   { label: 'Más de $1.5M', value: '2000000' },
 ];
 
-/** Copy y quickReplies EXACTOS confirmados por el product owner. No parafrasear. */
+/** Copy y quickReplies por slot. No parafrasear el copy financiero ya confirmado. */
 function copyFor(slot: AskedSlot): { texto: string; quickReplies: QuickReply[] } {
   switch (slot) {
+    case 'nombre':
+      return {
+        texto: 'Para empezar, ¿cómo te llamas?',
+        quickReplies: [],
+      };
+    case 'email':
+      return {
+        texto: '¿Cuál es tu correo electrónico?',
+        quickReplies: [],
+      };
+    case 'telefono':
+      return {
+        texto: '¿A qué número de celular te podemos contactar?',
+        quickReplies: [],
+      };
+    case 'edad':
+      return {
+        texto: '¿Cuántos años tienes?',
+        quickReplies: [
+          { label: '18-25', value: '22' },
+          { label: '26-35', value: '30' },
+          { label: '36-45', value: '40' },
+          { label: '46 o más', value: '50' },
+        ],
+      };
+    case 'estadoCivil':
+      return {
+        texto: '¿Cuál es tu estado civil?',
+        quickReplies: ESTADOS_CIVILES.map((estado) => ({ label: estado, value: estado })),
+      };
     case 'afiliacion':
       return {
         texto: '¿Estás afiliado a Colsubsidio?',
@@ -135,7 +185,7 @@ function copyFor(slot: AskedSlot): { texto: string; quickReplies: QuickReply[] }
 }
 
 /**
- * Siguiente paso de la conversacion, o `null` cuando los 6 slots preguntados
+ * Siguiente paso de la conversacion, o `null` cuando los slots preguntados
  * ya estan llenos (listo para enrutar). Sin rama de afiliacion a proposito
  * (spec "Non-Affiliation Never Short-Circuits the Flow", design.md D5): el
  * orden es fijo y no consulta `esAfiliado`.
@@ -154,6 +204,20 @@ export function getNextStep(profile: LeadProfile): ConversationStep | null {
     permiteTextoLibre: true,
     quickReplies: copia.quickReplies,
   };
+}
+
+/** Slots preguntados aun vacios (orden fijo de `ASKED_SLOTS`). */
+export function listPendingAskedSlots(profile: LeadProfile): readonly Slot[] {
+  return ASKED_SLOTS.filter((slot) => !isSlotFilled(profile, slot));
+}
+
+/** Vocabulario cerrado (valores de chips) para un slot preguntado; `[]` si no aplica. */
+export function vocabularyForAskedSlot(slot: Slot): readonly string[] {
+  const asked = ASKED_SLOTS.find((candidato) => candidato === slot);
+  if (asked === undefined) {
+    return [];
+  }
+  return copyFor(asked).quickReplies.map((qr) => qr.value);
 }
 
 function parseVocabulario<T extends string>(
@@ -201,6 +265,62 @@ function parseCiudad(texto: string): Result<SlotValue, ValidationError> {
     );
   }
   return ok({ slot: 'ciudad', valor: texto });
+}
+
+function parseNombre(texto: string): Result<SlotValue, ValidationError> {
+  if (texto.length < 2) {
+    return err(new ValidationError('El nombre es demasiado corto', { nombre: 'mínimo 2 caracteres' }));
+  }
+  if (texto.length > 80) {
+    return err(new ValidationError('El nombre es demasiado largo', { nombre: 'máximo 80 caracteres' }));
+  }
+  return ok({ slot: 'nombre', valor: texto });
+}
+
+const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/u;
+
+function parseEmail(texto: string): Result<SlotValue, ValidationError> {
+  const normalizado = texto.toLowerCase();
+  if (!EMAIL_RE.test(normalizado) || normalizado.length > 120) {
+    return err(
+      new ValidationError('No se reconoce un correo válido', {
+        email: 'se esperaba un email como nombre@dominio.com',
+      }),
+    );
+  }
+  return ok({ slot: 'email', valor: normalizado });
+}
+
+function parseTelefono(texto: string): Result<SlotValue, ValidationError> {
+  let digitos = normalizePhoneDigits(texto);
+  // Acepta +57 / 57 delante de un celular de 10 digitos.
+  if (digitos.length === 12 && digitos.startsWith('57')) {
+    digitos = digitos.slice(2);
+  }
+  if (digitos.length !== 10 || !digitos.startsWith('3')) {
+    return err(
+      new ValidationError('No se reconoce un celular colombiano válido', {
+        telefono: 'se esperaban 10 dígitos empezando en 3',
+      }),
+    );
+  }
+  return ok({ slot: 'telefono', valor: digitos });
+}
+
+function parseEdad(texto: string): Result<SlotValue, ValidationError> {
+  const digitos = texto.replace(/[^0-9]/gu, '');
+  if (digitos.length === 0) {
+    return err(new ValidationError('No se reconoce una edad', { edad: 'se esperaba un número' }));
+  }
+  const valor = Number.parseInt(digitos, 10);
+  if (!Number.isSafeInteger(valor) || valor < 18 || valor > 99) {
+    return err(
+      new ValidationError('La edad no es válida', {
+        edad: 'debe estar entre 18 y 99 años',
+      }),
+    );
+  }
+  return ok({ slot: 'edad', valor });
 }
 
 function parseMonto(
@@ -256,6 +376,19 @@ function parsePersonasACargo(texto: string): Result<SlotValue, ValidationError> 
 export function parseAnswer(slot: Slot, texto: string): Result<SlotValue, ValidationError> {
   const normalizado = texto.trim();
   switch (slot) {
+    case 'nombre':
+      return parseNombre(normalizado);
+    case 'email':
+      return parseEmail(normalizado);
+    case 'telefono':
+      return parseTelefono(normalizado);
+    case 'edad':
+      return parseEdad(normalizado);
+    case 'estadoCivil':
+      return parseVocabulario(normalizado, ESTADOS_CIVILES, 'estadoCivil', (valor) => ({
+        slot: 'estadoCivil',
+        valor,
+      }));
     case 'afiliacion':
       return parseAfiliacion(normalizado);
     case 'rangoSalarial':
@@ -292,6 +425,16 @@ function addSlot(slots: readonly Slot[], slot: Slot): Slot[] {
 
 function applyDirectValue(profile: LeadProfile, valor: SlotValue): LeadProfile {
   switch (valor.slot) {
+    case 'nombre':
+      return { ...profile, nombre: valor.valor };
+    case 'email':
+      return { ...profile, email: valor.valor };
+    case 'telefono':
+      return { ...profile, telefono: valor.valor };
+    case 'edad':
+      return { ...profile, edad: valor.valor };
+    case 'estadoCivil':
+      return { ...profile, estadoCivil: valor.valor };
     case 'afiliacion':
       return { ...profile, esAfiliado: valor.valor };
     case 'rangoSalarial':
@@ -381,7 +524,7 @@ export function updateProfile(profile: LeadProfile, valor: SlotValue, now: IsoDa
 }
 
 /**
- * `true` cuando los 6 slots preguntados estan llenos — simetrico con
+ * `true` cuando los slots preguntados estan llenos — simetrico con
  * `getNextStep(profile) === null`. No depende de `esAfiliado`.
  */
 export function isReadyToRoute(profile: LeadProfile): boolean {
