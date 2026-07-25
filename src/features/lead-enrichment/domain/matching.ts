@@ -33,6 +33,7 @@ import type {
   ProjectMatchCard,
 } from '@contracts';
 import { TOPE_SFV_SMMLV } from '@contracts';
+import { mismaAreaMetropolitana, mismaCiudad } from '@shared/domain/value-objects/city.js';
 
 /**
  * Peso de cada factor sobre el puntaje de afinidad. Suman 1.0: asi la similitud
@@ -159,7 +160,7 @@ function aporteCapacidad(capacidad: CapacityBand | null, ficha: ProjectCard): Ap
 }
 
 function aporteUbicacion(lead: LeadProfile, ficha: ProjectCard): Aporte {
-  const ciudadLead = lead.ciudad?.trim().toLowerCase() ?? null;
+  const ciudadLead = lead.ciudad?.trim() ?? null;
   if (ciudadLead === null || ciudadLead.length === 0) {
     return {
       nombre: 'Ubicacion',
@@ -170,8 +171,10 @@ function aporteUbicacion(lead: LeadProfile, ficha: ProjectCard): Aporte {
     };
   }
 
-  const ciudadProyecto = ficha.ciudad.toLowerCase();
-  if (ciudadLead === ciudadProyecto) {
+  // Se compara normalizado (sin tildes): el chip del chat dice "Bogota" con
+  // tilde y el catalogo sin ella. Con la comparacion cruda, un lead de Bogota
+  // puntuaba 0.2 en sus PROPIOS proyectos y la baraja se los mostraba ultimos.
+  if (mismaCiudad(ciudadLead, ficha.ciudad)) {
     return {
       nombre: 'Ubicacion',
       ajuste: 1,
@@ -183,8 +186,7 @@ function aporteUbicacion(lead: LeadProfile, ficha: ProjectCard): Aporte {
 
   // Soacha, Chia y Tocancipa son area de influencia de Bogota: para alguien de
   // Bogota son una alternativa real, no otra ciudad.
-  const areaBogota = ['bogota', 'soacha', 'chia', 'tocancipa'];
-  if (areaBogota.includes(ciudadLead) && areaBogota.includes(ciudadProyecto)) {
+  if (mismaAreaMetropolitana(ciudadLead, ficha.ciudad)) {
     return {
       nombre: 'Ubicacion',
       ajuste: 0.7,
