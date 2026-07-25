@@ -575,6 +575,25 @@ export interface ContactPreference {
   mejorHorario: string;
 }
 
+/**
+ * Vocabulario del "¿cuándo te llamamos?" que cierra F2.1.
+ *
+ * Cerrado a proposito: el closer necesita leer siempre las mismas etiquetas, y
+ * un texto libre aqui produciria "cuando pueda" en la ficha. `D` (domingo)
+ * queda fuera: no es dia de gestion comercial.
+ */
+export const DIAS_CONTACTO = ['L', 'M', 'X', 'J', 'V', 'S'] as const;
+export type DiaContacto = (typeof DIAS_CONTACTO)[number];
+
+export const FRANJAS_CONTACTO = ['mañana', 'tarde', 'noche'] as const;
+export type FranjaContacto = (typeof FRANJAS_CONTACTO)[number];
+
+/** Lo que el titular ELIGE al cerrar su perfil. Alimenta `ContactPreference`. */
+export interface PreferenciaContacto {
+  dias: DiaContacto[];
+  franjas: FranjaContacto[];
+}
+
 /** Dia de la semana con que tan contactable ha sido el lead ahi. Adenda A8. */
 export interface ContactabilidadDia {
   dia: 'L' | 'M' | 'X' | 'J' | 'V' | 'S' | 'D';

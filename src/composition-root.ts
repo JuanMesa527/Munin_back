@@ -69,6 +69,8 @@ import { createSupabaseClient } from './shared/infrastructure/persistence/supaba
 import type { AppSupabaseClient } from './shared/infrastructure/persistence/supabase/supabase-client.js';
 import { SupabaseLeadRepository } from './shared/infrastructure/persistence/supabase/supabase-lead.repository.js';
 import { InMemoryContactVaultAdapter } from './shared/infrastructure/security/in-memory-contact-vault.adapter.js';
+import { SupabaseContactVaultAdapter } from './shared/infrastructure/security/supabase-contact-vault.adapter.js';
+import type { ContactVaultPort } from './shared/application/ports/contact-vault.port.js';
 
 /** Prefijo de las rutas de F2.2, derivado del contrato para no inventar URLs. */
 const PREFIJO_EDUCATION = API_ROUTES.education.journey.replace(/\/journey$/u, '');
@@ -92,7 +94,6 @@ export async function createApp(env: AppEnv, server: Express = express()): Promi
   const clock = new SystemClock();
   const ids = new CryptoIdGenerator();
   const audit = new PinoAuditLogAdapter();
-  const vault = new InMemoryContactVaultAdapter({ ids, clock, audit });
   // F2.2 lead-education + F4 briefing: mismo repositorio de journeys.
   const journeys = new InMemoryEducationRepository();
   const sessionStore = new InMemorySessionStore({
@@ -112,6 +113,13 @@ export async function createApp(env: AppEnv, server: Express = express()): Promi
   });
 
   let leads: LeadRepository;
+  /**
+   * La boveda sigue al driver de persistencia, y no es un detalle: en memoria,
+   * CADA reinicio la vacia. El `contactoTokenId` queda guardado dentro del lead
+   * pero ya no resuelve, asi que "revelar contacto" falla para todo lead
+   * anterior al deploy. Con `supabase` el telefono sobrevive al reinicio.
+   */
+  let vault: ContactVaultPort;
   // Se retiene para F5: el archivo de llamadas usa el MISMO cliente en vez de
   // abrir una segunda conexion con la misma llave.
   let supabaseClient: AppSupabaseClient | null = null;
@@ -129,12 +137,17 @@ export async function createApp(env: AppEnv, server: Express = express()): Promi
     leads = new SupabaseLeadRepository(supabase);
     swipes = new SupabaseSwipeStore(supabase);
     telemetry = new SupabaseTelemetryStore(supabase);
+    vault = new SupabaseContactVaultAdapter({ client: supabase, ids, clock, audit });
     logger.info({ driver: 'supabase' }, 'persistencia en Supabase');
   } else {
     leads = new InMemoryLeadRepository();
     swipes = new InMemorySwipeStore();
     telemetry = new NoopTelemetryStore();
+    vault = new InMemoryContactVaultAdapter({ ids, clock, audit });
     logger.info({ driver: 'memory' }, 'persistencia en memoria');
+    logger.warn(
+      'boveda de contacto en memoria: cada reinicio la vacia y "revelar contacto" dejara de resolver los tokens ya emitidos',
+    );
   }
 
   // Los leads de demo NUNCA se siembran en produccion: alli los leads los crea
@@ -167,7 +180,16 @@ export async function createApp(env: AppEnv, server: Express = express()): Promi
   server.use(intake.router);
 
   // F2.1 lead-enrichment: expande info del lead viable.
-  const enrichment = createLeadEnrichmentModule({ leads, catalogo, clock, swipes, telemetry });
+  const enrichment = createLeadEnrichmentModule({
+    leads,
+    catalogo,
+    clock,
+    swipes,
+    telemetry,
+    // El MISMO repositorio de journeys que F2.2 y F4: el hito de nutricion del
+    // recorrido tiene que salir del journey real, no de una suposicion.
+    journeys,
+  });
   server.use(publicRateLimiter, enrichment.router);
 
   // F2.2 lead-education: camino gamificado de nutricion para leads no viables.
