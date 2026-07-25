@@ -66,9 +66,14 @@ export interface App {
   readonly server: Express;
 }
 
-export async function createApp(env: AppEnv): Promise<App> {
-  const server = express();
-
+/**
+ * `server` se puede inyectar y por defecto se crea aqui. No es un punto de
+ * extension: existe porque el detector de Vercel identifica el proyecto
+ * buscando un `import` de express EN EL ENTRYPOINT, y el entrypoint de la
+ * plataforma (`server.js`) no puede importar este archivo sin mas. Al recibir
+ * la instancia, express queda importado alli de verdad y no como adorno.
+ */
+export async function createApp(env: AppEnv, server: Express = express()): Promise<App> {
   applySecurity(server, env);
   server.use(createHttpLogger());
 
