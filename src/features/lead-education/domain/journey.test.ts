@@ -13,6 +13,7 @@ const NOW = '2026-07-25T00:00:00.000Z';
 const PLAN: NurturePlan = {
   precioObjetivo: 120_000_000,
   subsidioEstimado: 32_470_000,
+  cuotaInicialObjetivo: 24_000_000,
   gap: 77_530_000,
   mesesParaCalificar: 78,
   proyectoObjetivoId: 'proj-norte-1',

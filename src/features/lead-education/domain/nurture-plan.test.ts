@@ -3,7 +3,7 @@ import type { LeadProfile, ProjectProfile } from '@contracts';
 import { SMMLV_2026 } from '@contracts';
 import { createEmptyLeadProfile } from '@shared/domain/index.js';
 import { isErr, isOk } from '@shared/kernel/result.js';
-import { computeNurturePlan } from './nurture-plan.js';
+import { computeNurturePlan, PORCENTAJE_CUOTA_INICIAL } from './nurture-plan.js';
 
 const PROYECTO: ProjectProfile = {
   proyectoId: 'proj-norte-1',
@@ -23,10 +23,26 @@ function perfil(overrides: Partial<LeadProfile>): LeadProfile {
 }
 
 describe('computeNurturePlan', () => {
-  it('calcula gap y meses con subsidio de 2-4 SMMLV', () => {
+  it('la meta de ahorro es la cuota inicial (30% del precio), no el precio completo', () => {
+    const resultado = computeNurturePlan(
+      perfil({ rangoSalarial: '4-6 SMMLV', ahorroDeclarado: 0, capacidadAhorroMensual: 1_000_000 }),
+      PROYECTO,
+    );
+
+    expect(isOk(resultado)).toBe(true);
+    if (!isOk(resultado)) return;
+    expect(resultado.value.cuotaInicialObjetivo).toBe(120_000_000 * PORCENTAJE_CUOTA_INICIAL);
+    expect(resultado.value.cuotaInicialObjetivo).toBe(36_000_000);
+    // Nunca se mide contra el precio completo del proyecto.
+    expect(resultado.value.gap).toBeLessThan(120_000_000);
+  });
+
+  it('calcula el gap contra la cuota inicial cuando el subsidio no la cubre del todo', () => {
+    // '4-6 SMMLV' no aplica al SFV (TOPE_SFV_SMMLV = 4): subsidio en 0, asi el
+    // gap se puede verificar solo contra ahorro y cuota inicial, sin ruido.
     const resultado = computeNurturePlan(
       perfil({
-        rangoSalarial: '2-4 SMMLV',
+        rangoSalarial: '4-6 SMMLV',
         ahorroDeclarado: 10_000_000,
         capacidadAhorroMensual: 1_000_000,
       }),
@@ -37,12 +53,38 @@ describe('computeNurturePlan', () => {
     if (!isOk(resultado)) return;
     const plan = resultado.value;
 
-    const subsidioEsperado = 20 * SMMLV_2026; // 32_470_000
-    const gapEsperado = 120_000_000 - 10_000_000 - subsidioEsperado; // 77_530_000
-    expect(plan.subsidioEstimado).toBe(subsidioEsperado);
+    const cuotaInicialEsperada = 120_000_000 * PORCENTAJE_CUOTA_INICIAL; // 36_000_000
+    const gapEsperado = cuotaInicialEsperada - 10_000_000; // 26_000_000
+    expect(plan.subsidioEstimado).toBe(0);
+    expect(plan.aplicaSubsidio).toBe(false);
+    expect(plan.cuotaInicialObjetivo).toBe(cuotaInicialEsperada);
     expect(plan.gap).toBe(gapEsperado);
-    expect(plan.mesesParaCalificar).toBe(Math.ceil(gapEsperado / 1_000_000)); // 78
+    expect(plan.mesesParaCalificar).toBe(Math.ceil(gapEsperado / 1_000_000)); // 26
     expect(plan.proyectoObjetivoId).toBe('proj-norte-1');
+  });
+
+  it('el ahorro declarado mas el subsidio pueden cubrir toda la cuota inicial (gap = 0)', () => {
+    // Con precio 120M al 30%, la cuota inicial objetivo es 36M. El subsidio de
+    // 2-4 SMMLV (32_470_000) por si solo YA NO alcanza (antes, al 20%, si
+    // alcanzaba) — ahora hace falta ademas el ahorro declarado para cubrirla.
+    const resultado = computeNurturePlan(
+      perfil({
+        rangoSalarial: '2-4 SMMLV',
+        ahorroDeclarado: 5_000_000,
+        capacidadAhorroMensual: 1_000_000,
+      }),
+      PROYECTO,
+    );
+
+    expect(isOk(resultado)).toBe(true);
+    if (!isOk(resultado)) return;
+    const plan = resultado.value;
+
+    const subsidioEsperado = 20 * SMMLV_2026; // 32_470_000
+    expect(plan.subsidioEstimado).toBe(subsidioEsperado);
+    expect(plan.cuotaInicialObjetivo).toBe(36_000_000);
+    expect(plan.gap).toBe(0);
+    expect(plan.mesesParaCalificar).toBe(0);
     expect(plan.aplicaSubsidio).toBe(true);
   });
 

@@ -97,6 +97,7 @@ function makeJourney(): EducationJourney {
     plan: {
       precioObjetivo: 180_000_000,
       subsidioEstimado: 30_000_000,
+      cuotaInicialObjetivo: 36_000_000,
       gap: 130_000_000,
       mesesParaCalificar: 12,
       proyectoObjetivoId: 'project-1',

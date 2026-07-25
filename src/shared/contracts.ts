@@ -608,6 +608,14 @@ export interface ContenidoEducativo {
 export interface NurturePlan {
   precioObjetivo: COP;
   subsidioEstimado: COP;
+  /**
+   * Cuota inicial objetivo (adenda A11): un % de `precioObjetivo` (ver
+   * `PORCENTAJE_CUOTA_INICIAL`), NO el precio completo. Ahorrar el precio
+   * entero de la vivienda antes de arrancar tramites no tiene sentido — el
+   * credito hipotecario cubre el resto. `gap` se mide contra ESTA cifra.
+   */
+  cuotaInicialObjetivo: COP;
+  /** gap = max(0, cuotaInicialObjetivo - ahorroDeclarado - subsidioEstimado). */
   gap: COP;
   mesesParaCalificar: number;
   proyectoObjetivoId: string;

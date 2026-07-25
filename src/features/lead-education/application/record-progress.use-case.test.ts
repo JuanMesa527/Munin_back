@@ -46,6 +46,7 @@ async function setup(): Promise<{
     plan: {
       precioObjetivo: 100_000_000,
       subsidioEstimado: 0,
+      cuotaInicialObjetivo: 20_000_000,
       gap: 100_000_000,
       mesesParaCalificar: 10,
       proyectoObjetivoId: 'proj-1',
