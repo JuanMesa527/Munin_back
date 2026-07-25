@@ -11,10 +11,27 @@
 import cors from 'cors';
 import type { CorsOptions } from 'cors';
 import express from 'express';
-import type { Express } from 'express';
+import type { Express, RequestHandler } from 'express';
 import { rateLimit } from 'express-rate-limit';
-import helmet from 'helmet';
+import helmetImport from 'helmet';
 import type { AppEnv } from '../config/env.js';
+
+/**
+ * helmet 8 tipa mal el default export bajo algunos resolvers (Vercel/NodeNext):
+ * a veces llega como namespace y no como factory. Resolvemos el callable real.
+ */
+function resolveHelmet(): (options?: object) => RequestHandler {
+  if (typeof helmetImport === 'function') {
+    return helmetImport as (options?: object) => RequestHandler;
+  }
+  const nested = (helmetImport as unknown as { default?: unknown }).default;
+  if (typeof nested === 'function') {
+    return nested as (options?: object) => RequestHandler;
+  }
+  throw new Error('No se pudo resolver el export invocable de helmet');
+}
+
+const helmet = resolveHelmet();
 
 /** Un minuto en milisegundos. Los limitadores se leen mejor en minutos. */
 const MINUTO_MS = 60 * 1000;
