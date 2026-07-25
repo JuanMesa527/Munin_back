@@ -40,6 +40,14 @@ const SLOTS_IDENTIDAD = [
   'ocupacion',
 ] as const;
 
+/** Señales de elegibilidad/bancabilidad/timing agregadas al flujo. */
+const SLOTS_SENALES = ['viviendaPropia', 'vinculacionLaboral', 'horizonteCompra'] as const;
+const CAMPOS_SENALES = {
+  tieneVivienda: false,
+  vinculacionLaboral: 'formal',
+  horizonteCompra: 'ya',
+} as const;
+
 describe('getNextStep', () => {
   it('pregunta nombre primero cuando el perfil esta vacio', () => {
     const paso = getNextStep(perfilBase());
@@ -52,8 +60,9 @@ describe('getNextStep', () => {
   it('usa el copy y quickReplies exactos confirmados para rangoSalarial', () => {
     const perfil = perfilBase({
       ...CAMPOS_IDENTIDAD,
-      slotsLlenos: [...SLOTS_IDENTIDAD, 'afiliacion'],
+      slotsLlenos: [...SLOTS_IDENTIDAD, 'afiliacion', 'viviendaPropia'],
       esAfiliado: true,
+      tieneVivienda: false,
     });
     const paso = getNextStep(perfil);
     expect(paso?.slot).toBe('rangoSalarial');
@@ -72,13 +81,17 @@ describe('getNextStep', () => {
       slotsLlenos: [
         ...SLOTS_IDENTIDAD,
         'afiliacion',
+        'viviendaPropia',
         'rangoSalarial',
+        'vinculacionLaboral',
         'segmento',
         'segmentoFamiliar',
         'personasACargo',
       ],
       esAfiliado: true,
+      tieneVivienda: false,
       rangoSalarial: '2-4 SMMLV',
+      vinculacionLaboral: 'formal',
       segmento: 'Medio',
       segmentoFamiliar: 'Pareja con hijos',
       personasACargo: 2,
@@ -98,6 +111,7 @@ describe('getNextStep', () => {
         'ciudad',
         'ahorro',
         'capacidadAhorroMensual',
+        ...SLOTS_SENALES,
       ],
       esAfiliado: true,
       rangoSalarial: '2-4 SMMLV',
@@ -105,6 +119,7 @@ describe('getNextStep', () => {
       ciudad: 'Bogotá',
       ahorroDeclarado: 5_000_000,
       capacidadAhorroMensual: 500_000,
+      ...CAMPOS_SENALES,
     });
     expect(getNextStep(perfil)).toBeNull();
   });
@@ -112,8 +127,9 @@ describe('getNextStep', () => {
   it('no tiene rama de afiliacion: un no-afiliado sigue recibiendo la siguiente pregunta normal', () => {
     const perfil = perfilBase({
       ...CAMPOS_IDENTIDAD,
-      slotsLlenos: [...SLOTS_IDENTIDAD, 'afiliacion'],
+      slotsLlenos: [...SLOTS_IDENTIDAD, 'afiliacion', 'viviendaPropia'],
       esAfiliado: false,
+      tieneVivienda: false,
     });
     const paso = getNextStep(perfil);
     expect(paso?.slot).toBe('rangoSalarial');
@@ -134,6 +150,33 @@ describe('parseAnswer', () => {
   it('rechaza texto no interpretable para afiliacion', () => {
     const resultado = parseAnswer('afiliacion', 'tal vez');
     expect(resultado.ok).toBe(false);
+  });
+
+  it('parsea "Sí" como viviendaPropia true', () => {
+    const resultado = parseAnswer('viviendaPropia', 'Sí');
+    expect(resultado).toEqual({ ok: true, value: { slot: 'viviendaPropia', valor: true } });
+  });
+
+  it('parsea cada token de vinculacionLaboral del vocabulario', () => {
+    for (const token of ['formal', 'independiente', 'informal'] as const) {
+      expect(parseAnswer('vinculacionLaboral', token)).toEqual({
+        ok: true,
+        value: { slot: 'vinculacionLaboral', valor: token },
+      });
+    }
+  });
+
+  it('rechaza una vinculacionLaboral fuera del vocabulario', () => {
+    expect(parseAnswer('vinculacionLaboral', 'pensionado').ok).toBe(false);
+  });
+
+  it('parsea cada token de horizonteCompra del vocabulario', () => {
+    for (const token of ['ya', 'pronto', 'explorando'] as const) {
+      expect(parseAnswer('horizonteCompra', token)).toEqual({
+        ok: true,
+        value: { slot: 'horizonteCompra', valor: token },
+      });
+    }
   });
 
   it('parsea un rango salarial exacto del vocabulario', () => {
@@ -250,6 +293,7 @@ describe('isReadyToRoute', () => {
         'ciudad',
         'ahorro',
         'capacidadAhorroMensual',
+        ...SLOTS_SENALES,
       ],
       esAfiliado: false,
       rangoSalarial: '2-4 SMMLV',
@@ -257,6 +301,7 @@ describe('isReadyToRoute', () => {
       ciudad: 'Cali',
       ahorroDeclarado: 1_000_000,
       capacidadAhorroMensual: 200_000,
+      ...CAMPOS_SENALES,
     });
     expect(isReadyToRoute(perfil)).toBe(true);
   });
@@ -267,12 +312,12 @@ describe('computeProgress', () => {
     expect(computeProgress(perfilBase())).toBe(0);
   });
 
-  it('retorna 0.5 con 6 de los 12 slots preguntados llenos (identidad)', () => {
+  it('retorna 0.4 con 6 de los 15 slots preguntados llenos (identidad)', () => {
     const perfil = perfilBase({
       ...CAMPOS_IDENTIDAD,
       slotsLlenos: [...SLOTS_IDENTIDAD],
     });
-    expect(computeProgress(perfil)).toBeCloseTo(6 / 12);
+    expect(computeProgress(perfil)).toBeCloseTo(6 / 15);
   });
 
   it('retorna 1 cuando los slots preguntados estan llenos', () => {
@@ -286,6 +331,7 @@ describe('computeProgress', () => {
         'ciudad',
         'ahorro',
         'capacidadAhorroMensual',
+        ...SLOTS_SENALES,
       ],
       esAfiliado: true,
       rangoSalarial: '2-4 SMMLV',
@@ -293,6 +339,7 @@ describe('computeProgress', () => {
       ciudad: 'Cali',
       ahorroDeclarado: 1_000_000,
       capacidadAhorroMensual: 200_000,
+      ...CAMPOS_SENALES,
     });
     expect(computeProgress(perfil)).toBe(1);
   });

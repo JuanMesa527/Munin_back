@@ -39,6 +39,9 @@ export function leadProfile(id: string, score = 80, carril: Carril = 'viable'): 
     segmentoFamiliar: 'Pareja con hijos',
     ahorroDeclarado: 20_000_000,
     capacidadAhorroMensual: 1_000_000,
+    tieneVivienda: null,
+    vinculacionLaboral: null,
+    horizonteCompra: null,
     slotsLlenos: ['afiliacion', 'rangoSalarial'],
     capacidad: {
       banda: 'media',

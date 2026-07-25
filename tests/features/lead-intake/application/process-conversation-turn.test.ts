@@ -149,6 +149,9 @@ function perfilListoParaEnrutar(overrides: Partial<LeadProfile> = {}): LeadProfi
     ciudad: 'Bogotá',
     ahorroDeclarado: 50_000_000,
     capacidadAhorroMensual: 2_000_000,
+    tieneVivienda: false,
+    vinculacionLaboral: 'formal',
+    horizonteCompra: 'ya',
     slotsLlenos: [
       'nombre',
       'email',
@@ -164,6 +167,9 @@ function perfilListoParaEnrutar(overrides: Partial<LeadProfile> = {}): LeadProfi
       'capacidadAhorroMensual',
       'segmento',
       'personasACargo',
+      'viviendaPropia',
+      'vinculacionLaboral',
+      'horizonteCompra',
     ] as Slot[],
     segmento: 'Medio',
     personasACargo: 0,
@@ -305,7 +311,7 @@ describe('ProcessConversationTurnUseCase — loop de slots', () => {
     expect(leads.guardados).toHaveLength(1);
     if (!resultado.ok) return;
     expect(resultado.value.profile.esAfiliado).toBe(true);
-    expect(resultado.value.siguientePaso?.slot).toBe('rangoSalarial');
+    expect(resultado.value.siguientePaso?.slot).toBe('viviendaPropia');
     expect(resultado.value.routing).toBeNull();
   });
 
@@ -384,7 +390,7 @@ describe('ProcessConversationTurnUseCase — loop de slots', () => {
               { slot: 'ciudad', valor: 'Bogotá', confianza: 0.9 },
               { slot: 'rangoSalarial', valor: '4-6 SMMLV', confianza: 0.85 },
             ],
-            respuestaBot: 'Listo: afiliado en Bogotá con ingresos 4-6 SMMLV. ¿Cómo es tu núcleo familiar?',
+            respuestaBot: 'Listo: afiliado en Bogotá con ingresos 4-6 SMMLV. ¿Ya tienes vivienda propia?',
           }),
         ),
       writeExplanation: () => Promise.resolve(ok('explicacion')),
@@ -410,8 +416,8 @@ describe('ProcessConversationTurnUseCase — loop de slots', () => {
     expect(resultado.value.profile.esAfiliado).toBe(true);
     expect(resultado.value.profile.ciudad).toBe('Bogotá');
     expect(resultado.value.profile.rangoSalarial).toBe('4-6 SMMLV');
-    expect(resultado.value.siguientePaso?.slot).toBe('segmentoFamiliar');
-    expect(resultado.value.mensajes[0]?.texto).toMatch(/núcleo familiar/i);
+    expect(resultado.value.siguientePaso?.slot).toBe('viviendaPropia');
+    expect(resultado.value.mensajes[0]?.texto).toMatch(/vivienda propia/i);
   });
 
   it('chip no llama a converseIntake (atajo determinista)', async () => {
@@ -453,7 +459,7 @@ describe('ProcessConversationTurnUseCase — loop de slots', () => {
         Promise.resolve(
           ok({
             extracciones: [{ slot: 'afiliacion', valor: 'true', confianza: 0.9 }],
-            respuestaBot: 'Genial, eres afiliado. ¿En qué rango están tus ingresos?',
+            respuestaBot: 'Genial, eres afiliado. ¿Ya tienes vivienda propia?',
           }),
         ),
       writeExplanation: () => Promise.resolve(ok('explicacion')),
@@ -477,7 +483,7 @@ describe('ProcessConversationTurnUseCase — loop de slots', () => {
     expect(resultado.ok).toBe(true);
     if (!resultado.ok) return;
     expect(resultado.value.profile.esAfiliado).toBe(true);
-    expect(resultado.value.siguientePaso?.slot).toBe('rangoSalarial');
+    expect(resultado.value.siguientePaso?.slot).toBe('viviendaPropia');
   });
 
   it('captura el nombre como primer slot tras el consentimiento', async () => {

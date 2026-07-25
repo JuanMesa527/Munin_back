@@ -20,11 +20,13 @@ import type {
   BotMessage,
   COP,
   ConversationStep,
+  HorizonteCompra,
   IsoDateTime,
   LeadProfile,
   QuickReply,
   Segmento,
   Slot,
+  VinculacionLaboral,
 } from '@contracts';
 import { isSlotFilled } from '@shared/domain/lead.js';
 import { normalizePhoneDigits } from '@shared/domain/phone.js';
@@ -39,7 +41,7 @@ import { err, ok } from '@shared/kernel/result.js';
  * le corresponde en el contrato (design.md, seccion Interfaces/Contracts).
  */
 export type SlotValue =
-  | { slot: 'afiliacion'; valor: boolean }
+  | { slot: 'afiliacion' | 'viviendaPropia'; valor: boolean }
   | {
       slot:
         | 'nombre'
@@ -53,6 +55,8 @@ export type SlotValue =
       valor: string;
     }
   | { slot: 'segmento'; valor: Segmento }
+  | { slot: 'vinculacionLaboral'; valor: VinculacionLaboral }
+  | { slot: 'horizonteCompra'; valor: HorizonteCompra }
   | { slot: 'edad' | 'personasACargo'; valor: number }
   | { slot: 'ahorro' | 'capacidadAhorroMensual'; valor: COP };
 
@@ -71,13 +75,24 @@ type AskedSlot =
   | 'estadoCivil'
   | 'ocupacion'
   | 'afiliacion'
+  | 'viviendaPropia'
   | 'rangoSalarial'
+  | 'vinculacionLaboral'
   | 'segmentoFamiliar'
   | 'ciudad'
   | 'ahorro'
-  | 'capacidadAhorroMensual';
+  | 'capacidadAhorroMensual'
+  | 'horizonteCompra';
 
-/** Orden fijo del flujo. No reordenar sin anunciar. */
+/**
+ * Orden fijo del flujo. No reordenar sin anunciar.
+ *
+ * Agrupado por intencion: identidad → elegibilidad (afiliacion + vivienda
+ * propia, las dos preguntas del filtro 90/10 y subsidio) → capacidad (rango +
+ * vinculacion laboral, ingreso y bancabilidad juntos) → hogar/ubicacion →
+ * ahorro → y de ultimo el TIMING, que es la pregunta que decide asesor vs
+ * nutricion y cierra el perfilamiento.
+ */
 const ASKED_SLOTS: readonly AskedSlot[] = [
   'nombre',
   'email',
@@ -86,11 +101,14 @@ const ASKED_SLOTS: readonly AskedSlot[] = [
   'estadoCivil',
   'ocupacion',
   'afiliacion',
+  'viviendaPropia',
   'rangoSalarial',
+  'vinculacionLaboral',
   'segmentoFamiliar',
   'ciudad',
   'ahorro',
   'capacidadAhorroMensual',
+  'horizonteCompra',
 ];
 
 /** Ciudades sugeridas como chips. `permiteTextoLibre` sigue habilitado: no es exhaustivo. */
@@ -134,6 +152,28 @@ const CAPACIDAD_AHORRO_CHIPS: readonly QuickReply[] = [
   { label: '$300 mil - $800 mil', value: '550000' },
   { label: '$800 mil - $1.5M', value: '1150000' },
   { label: 'Más de $1.5M', value: '2000000' },
+];
+
+/**
+ * Chips de las señales de elegibilidad/bancabilidad/timing. El `value` es el
+ * token del enum del contrato (o `'true'`/`'false'`), no la etiqueta: así el
+ * parser recibe el valor canónico y la UI muestra algo legible.
+ */
+const VIVIENDA_PROPIA_CHIPS: readonly QuickReply[] = [
+  { label: 'Sí, ya tengo', value: 'true' },
+  { label: 'No, todavía no', value: 'false' },
+];
+
+const VINCULACION_LABORAL_CHIPS: readonly QuickReply[] = [
+  { label: 'Empleado formal', value: 'formal' },
+  { label: 'Independiente', value: 'independiente' },
+  { label: 'Informal', value: 'informal' },
+];
+
+const HORIZONTE_COMPRA_CHIPS: readonly QuickReply[] = [
+  { label: 'Lo antes posible', value: 'ya' },
+  { label: 'En los próximos 6 meses', value: 'pronto' },
+  { label: 'Estoy explorando', value: 'explorando' },
 ];
 
 /** Copy y quickReplies por slot. No parafrasear el copy financiero ya confirmado. */
@@ -186,6 +226,21 @@ function copyFor(slot: AskedSlot): { texto: string; quickReplies: QuickReply[] }
           { label: 'Sí', value: 'true' },
           { label: 'No', value: 'false' },
         ],
+      };
+    case 'viviendaPropia':
+      return {
+        texto: '¿Ya tienes vivienda propia?',
+        quickReplies: [...VIVIENDA_PROPIA_CHIPS],
+      };
+    case 'vinculacionLaboral':
+      return {
+        texto: '¿Cómo son tus ingresos hoy?',
+        quickReplies: [...VINCULACION_LABORAL_CHIPS],
+      };
+    case 'horizonteCompra':
+      return {
+        texto: '¿Para cuándo estás buscando tu vivienda?',
+        quickReplies: [...HORIZONTE_COMPRA_CHIPS],
       };
     case 'rangoSalarial':
       return {
@@ -274,17 +329,33 @@ function parseVocabulario<T extends string>(
 const AFIRMATIVOS = new Set(['si', 'sí', 'true', 'yes']);
 const NEGATIVOS = new Set(['no', 'false']);
 
-function parseAfiliacion(texto: string): Result<SlotValue, ValidationError> {
+/** Vocabularios cerrados de los enums del contrato (mismos tokens que los chips). */
+const VINCULACIONES_LABORALES: readonly VinculacionLaboral[] = [
+  'formal',
+  'independiente',
+  'informal',
+];
+const HORIZONTES_COMPRA: readonly HorizonteCompra[] = ['ya', 'pronto', 'explorando'];
+
+/**
+ * Parser booleano sí/no reutilizable. `afiliacion` y `viviendaPropia` comparten
+ * el mismo vocabulario afirmativo/negativo; el `campo` solo cambia el mensaje.
+ */
+function parseBooleano(
+  texto: string,
+  slot: 'afiliacion' | 'viviendaPropia',
+  campo: string,
+): Result<SlotValue, ValidationError> {
   const normalizado = texto.toLowerCase();
   if (AFIRMATIVOS.has(normalizado)) {
-    return ok({ slot: 'afiliacion', valor: true });
+    return ok({ slot, valor: true });
   }
   if (NEGATIVOS.has(normalizado)) {
-    return ok({ slot: 'afiliacion', valor: false });
+    return ok({ slot, valor: false });
   }
   return err(
-    new ValidationError('No se pudo interpretar la respuesta de afiliación', {
-      afiliacion: 'esperado si/no',
+    new ValidationError(`No se pudo interpretar la respuesta de ${campo}`, {
+      [campo]: 'esperado si/no',
     }),
   );
 }
@@ -442,7 +513,21 @@ export function parseAnswer(slot: Slot, texto: string): Result<SlotValue, Valida
     case 'ocupacion':
       return parseOcupacion(normalizado);
     case 'afiliacion':
-      return parseAfiliacion(normalizado);
+      return parseBooleano(normalizado, 'afiliacion', 'afiliación');
+    case 'viviendaPropia':
+      return parseBooleano(normalizado, 'viviendaPropia', 'vivienda propia');
+    case 'vinculacionLaboral':
+      return parseVocabulario(
+        normalizado,
+        VINCULACIONES_LABORALES,
+        'vinculacionLaboral',
+        (valor) => ({ slot: 'vinculacionLaboral', valor }),
+      );
+    case 'horizonteCompra':
+      return parseVocabulario(normalizado, HORIZONTES_COMPRA, 'horizonteCompra', (valor) => ({
+        slot: 'horizonteCompra',
+        valor,
+      }));
     case 'rangoSalarial':
       return parseVocabulario(normalizado, RANGOS_SALARIALES_SMMLV, 'rangoSalarial', (valor) => ({
         slot: 'rangoSalarial',
@@ -489,6 +574,12 @@ function applyDirectValue(profile: LeadProfile, valor: SlotValue): LeadProfile {
       return { ...profile, ocupacion: valor.valor };
     case 'afiliacion':
       return { ...profile, esAfiliado: valor.valor };
+    case 'viviendaPropia':
+      return { ...profile, tieneVivienda: valor.valor };
+    case 'vinculacionLaboral':
+      return { ...profile, vinculacionLaboral: valor.valor };
+    case 'horizonteCompra':
+      return { ...profile, horizonteCompra: valor.valor };
     case 'rangoSalarial':
       return { ...profile, rangoSalarial: valor.valor };
     case 'ciudad':

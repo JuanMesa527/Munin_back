@@ -88,17 +88,23 @@ interface Aporte {
   /** `true` si este eje es un ARGUMENTO A FAVOR, citable en la razon. */
   favorable: boolean;
   /**
-   * `false` cuando el eje se resolvio con el neutro 0.5 por falta de dato del
-   * lead, no por haberlo evaluado.
+   * Que dato del lead le falto a ESTE eje, ya legible. `null` = se evaluo con
+   * datos reales.
    *
    * Es lo que hace auditable el PISO DEL PUNTAJE. Los ejes sin dato puntuan
-   * neutro a proposito (castigar por no saber esconderia proyectos validos),
-   * pero eso significa que un lead del que no sabemos nada saca ~50% de
-   * afinidad contra todo el catalogo. Ese 50% no es "medio compatible": es
-   * "no sabemos". Sin esta bandera los dos casos son indistinguibles aguas
-   * abajo, y la UI termina presentando ignorancia como si fuera evidencia.
+   * neutro (0.5) a proposito -- castigar por no saber esconderia proyectos
+   * validos -- pero eso significa que un lead del que no sabemos nada saca
+   * ~50% de afinidad contra todo el catalogo. Ese 50% no es "medio
+   * compatible": es "no sabemos". Sin esto los dos casos son indistinguibles
+   * aguas abajo, y la UI termina presentando ignorancia como si fuera
+   * evidencia.
+   *
+   * Es el texto y no solo un booleano porque UN MISMO EJE puede quedar corto
+   * por datos distintos: "Tipo de vivienda" depende del rango salarial y, para
+   * el gate del subsidio de primera vivienda, tambien de si el lead ya es
+   * propietario. Un mapa eje -> dato solo podria nombrar uno de los dos.
    */
-  conocido: boolean;
+  faltante: string | null;
 }
 
 /**
@@ -126,7 +132,7 @@ function aporteCapacidad(capacidad: CapacityBand | null, ficha: ProjectCard): Ap
       ajuste: 0.5,
       valor: 'todavia no tenemos tu capacidad estimada',
       favorable: false,
-      conocido: false,
+      faltante: 'tu capacidad de pago',
     };
   }
 
@@ -139,7 +145,7 @@ function aporteCapacidad(capacidad: CapacityBand | null, ficha: ProjectCard): Ap
       ajuste: Math.max(0, 1 + holgura * 3),
       valor: 'queda por encima de tu techo estimado',
       favorable: false,
-      conocido: true,
+      faltante: null,
     };
   }
   // Holgura enorme tampoco es match perfecto: el lead puede aspirar a mas.
@@ -148,7 +154,7 @@ function aporteCapacidad(capacidad: CapacityBand | null, ficha: ProjectCard): Ap
     ajuste: holgura > 0.45 ? 0.75 : 1,
     valor: 'cabe en tu techo estimado',
     favorable: true,
-    conocido: true,
+    faltante: null,
   };
 }
 
@@ -160,7 +166,7 @@ function aporteUbicacion(lead: LeadProfile, ficha: ProjectCard): Aporte {
       ajuste: 0.5,
       valor: 'no nos dijiste tu ciudad',
       favorable: false,
-      conocido: false,
+      faltante: 'tu ciudad',
     };
   }
 
@@ -171,7 +177,7 @@ function aporteUbicacion(lead: LeadProfile, ficha: ProjectCard): Aporte {
       ajuste: 1,
       valor: `queda en ${ficha.ciudad}`,
       favorable: true,
-      conocido: true,
+      faltante: null,
     };
   }
 
@@ -184,7 +190,7 @@ function aporteUbicacion(lead: LeadProfile, ficha: ProjectCard): Aporte {
       ajuste: 0.7,
       valor: `queda en ${ficha.ciudad}, cerca de Bogota`,
       favorable: true,
-      conocido: true,
+      faltante: null,
     };
   }
 
@@ -193,7 +199,7 @@ function aporteUbicacion(lead: LeadProfile, ficha: ProjectCard): Aporte {
     ajuste: 0.2,
     valor: `queda en ${ficha.ciudad}`,
     favorable: false,
-    conocido: true,
+    faltante: null,
   };
 }
 
@@ -213,7 +219,7 @@ function aporteTamanoHogar(lead: LeadProfile, ficha: ProjectCard): Aporte {
       ajuste: 0.5,
       valor: 'no nos dijiste cuantas personas tienes a cargo',
       favorable: false,
-      conocido: false,
+      faltante: 'cuantas personas tienes a cargo',
     };
   }
 
@@ -234,7 +240,7 @@ function aporteTamanoHogar(lead: LeadProfile, ficha: ProjectCard): Aporte {
       ajuste: 1,
       valor: `tiene ${etiqueta}, ${sobra}`,
       favorable: true,
-      conocido: true,
+      faltante: null,
     };
   }
   if (necesarias <= ficha.habitacionesHasta) {
@@ -243,7 +249,7 @@ function aporteTamanoHogar(lead: LeadProfile, ficha: ProjectCard): Aporte {
       ajuste: 0.85,
       valor: `tiene ${etiqueta} y una tipologia que le calza a tu hogar`,
       favorable: true,
-      conocido: true,
+      faltante: null,
     };
   }
   // Se queda corto. Cuanto mas corto, peor.
@@ -253,7 +259,7 @@ function aporteTamanoHogar(lead: LeadProfile, ficha: ProjectCard): Aporte {
     ajuste: Math.max(0, 1 - faltantes * 0.4),
     valor: `tiene ${etiqueta} y se queda corto para tu hogar`,
     favorable: false,
-    conocido: true,
+    faltante: null,
   };
 }
 
@@ -272,27 +278,47 @@ function aporteVivienda(lead: LeadProfile, ficha: ProjectCard): Aporte {
       ajuste: 0.5,
       valor: 'no nos dijiste tu rango salarial',
       favorable: false,
-      conocido: false,
+      faltante: 'tu rango salarial',
     };
   }
 
   const bajoTope = RANGOS_BAJO_TOPE_SFV.includes(rango);
   if (bajoTope) {
-    return ficha.esVIS
-      ? {
-          nombre: 'Tipo de vivienda',
-          ajuste: 1,
-          valor: `es VIS y aplica al subsidio (hasta ${String(TOPE_SFV_SMMLV)} SMMLV)`,
-          favorable: true,
-          conocido: true,
-        }
-      : {
-          nombre: 'Tipo de vivienda',
-          ajuste: 0.15,
-          valor: 'no es VIS, asi que queda fuera del subsidio',
-          favorable: false,
-          conocido: true,
-        };
+    if (!ficha.esVIS) {
+      return {
+        nombre: 'Tipo de vivienda',
+        ajuste: 0.15,
+        valor: 'no es VIS, asi que queda fuera del subsidio',
+        favorable: false,
+        faltante: null,
+      };
+    }
+    // VIS + bajo tope: el argumento FUERTE es el subsidio. Pero el Subsidio
+    // Familiar de Vivienda es para PRIMERA vivienda (Ley 3 de 1991): si el
+    // titular ya es propietario, esa palanca no existe. Gate explicito, no un
+    // peso — el proyecto sigue siendo VIS y cabe en el bolsillo, pero no le
+    // vendemos un subsidio que no va a poder pedir.
+    if (lead.tieneVivienda === true) {
+      return {
+        nombre: 'Tipo de vivienda',
+        ajuste: 0.6,
+        valor: 'es VIS, pero como ya tienes vivienda el subsidio de primera no aplica',
+        favorable: false,
+        faltante: null,
+      };
+    }
+    return {
+      nombre: 'Tipo de vivienda',
+      ajuste: 1,
+      valor: `es VIS y aplica al subsidio (hasta ${String(TOPE_SFV_SMMLV)} SMMLV)`,
+      favorable: true,
+      // El gate de arriba solo dispara con `tieneVivienda === true`, asi que
+      // `null` (no preguntado todavia) llega hasta aca puntuando 1 -- o sea,
+      // SUPONIENDO primera vivienda. La suposicion es razonable y se queda,
+      // pero se declara: es exactamente el patron que este modulo dejo de
+      // hacer en silencio con `personasACargo ?? 0`.
+      faltante: lead.tieneVivienda === null ? 'si ya tienes vivienda propia' : null,
+    };
   }
 
   return ficha.esVIS
@@ -301,14 +327,14 @@ function aporteVivienda(lead: LeadProfile, ficha: ProjectCard): Aporte {
         ajuste: 0.6,
         valor: 'es VIS, por debajo de tu rango',
         favorable: false,
-        conocido: true,
+        faltante: null,
       }
     : {
         nombre: 'Tipo de vivienda',
         ajuste: 0.9,
         valor: 'no es VIS, acorde a tu rango',
         favorable: true,
-        conocido: true,
+        faltante: null,
       };
 }
 
@@ -333,7 +359,7 @@ function aporteEstiloDeVida(lead: LeadProfile, ficha: ProjectCard): Aporte {
       ajuste: 0.5,
       valor: 'no sabemos que amenidades te sirven',
       favorable: false,
-      conocido: false,
+      faltante: 'tu composicion de hogar',
     };
   }
 
@@ -350,7 +376,7 @@ function aporteEstiloDeVida(lead: LeadProfile, ficha: ProjectCard): Aporte {
         ? 'no tiene amenidades de tu perfil'
         : `tiene ${String(encontradas)} amenidades de tu perfil`,
     favorable: encontradas > 0,
-    conocido: true,
+    faltante: null,
   };
 }
 
@@ -411,18 +437,6 @@ export function similitudDe(factores: readonly Factor[]): number {
 }
 
 /**
- * Que dato del lead alimenta cada eje, en las mismas palabras con que se le
- * pidio. Se usa para decirle QUE falta cuando la afinidad sale parcial.
- */
-const DATO_DEL_EJE: Record<string, string> = {
-  'Capacidad estimada': 'tu capacidad de pago',
-  Ubicacion: 'tu ciudad',
-  'Tamano del hogar': 'cuantas personas tienes a cargo',
-  'Tipo de vivienda': 'tu rango salarial',
-  'Estilo de vida': 'tu composicion de hogar',
-};
-
-/**
  * Fraccion del peso total (0..1) que se evaluo con datos reales del lead.
  *
  * Se mide en PESO y no en cantidad de ejes porque no todos valen lo mismo: un
@@ -432,15 +446,15 @@ const DATO_DEL_EJE: Record<string, string> = {
  */
 function confianzaDe(ejes: readonly Eje[]): number {
   const conocido = ejes
-    .filter(({ aporte }) => aporte.conocido)
+    .filter(({ aporte }) => aporte.faltante === null)
     .reduce((suma, { peso }) => suma + peso, 0);
   return redondear(conocido);
 }
 
 function faltantesDe(ejes: readonly Eje[]): string[] {
   return ejes
-    .filter(({ aporte }) => !aporte.conocido)
-    .map(({ aporte }) => DATO_DEL_EJE[aporte.nombre] ?? aporte.nombre);
+    .map(({ aporte }) => aporte.faltante)
+    .filter((faltante): faltante is string => faltante !== null);
 }
 
 /**

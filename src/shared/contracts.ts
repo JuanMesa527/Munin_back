@@ -188,7 +188,10 @@ export type Slot =
   | 'ciudad'
   | 'segmentoFamiliar'
   | 'ahorro'
-  | 'capacidadAhorroMensual';
+  | 'capacidadAhorroMensual'
+  | 'viviendaPropia'
+  | 'vinculacionLaboral'
+  | 'horizonteCompra';
 
 export const SLOTS: readonly Slot[] = [
   'nombre',
@@ -205,6 +208,9 @@ export const SLOTS: readonly Slot[] = [
   'segmentoFamiliar',
   'ahorro',
   'capacidadAhorroMensual',
+  'viviendaPropia',
+  'vinculacionLaboral',
+  'horizonteCompra',
 ];
 
 /** Carril al que se enruta el lead al final de F1. */
@@ -212,6 +218,21 @@ export type Carril = 'viable' | 'no_viable';
 
 /** Banda de capacidad estimada SIN consultar DataCredito (fuera de alcance). */
 export type Banda = 'alta' | 'media' | 'baja';
+
+/**
+ * Vinculacion laboral declarada por el titular. Es el mejor proxy de
+ * BANCABILIDAD disponible sin consultar un bureau (DataCredito esta fuera de
+ * alcance): un formal es sujeto de credito hipotecario estandar; un informal,
+ * mucho mas dificil. Glass-box: actua como REGLA explicita, no como peso.
+ */
+export type VinculacionLaboral = 'formal' | 'independiente' | 'informal';
+
+/**
+ * Horizonte de compra declarado. Es el separador directo entre "listo para
+ * cerrar" (va al asesor) y "todavia explorando" (entra a nutricion). No mide
+ * capacidad ni afinidad: mide TIMING.
+ */
+export type HorizonteCompra = 'ya' | 'pronto' | 'explorando';
 
 /* ==========================================================================
  *  2. Consentimiento y contacto  (adendas A1 y A2 — requisito legal)
@@ -390,6 +411,18 @@ export interface LeadProfile {
   segmentoFamiliar: string | null;
   ahorroDeclarado: COP | null;
   capacidadAhorroMensual: COP | null;
+
+  /** --- Señales de elegibilidad, bancabilidad y timing (gates glass-box) --- */
+  /**
+   * ¿El titular ya es propietario? Gate del subsidio de PRIMERA vivienda: si ya
+   * tiene, el argumento del subsidio se cae. No es un peso, es una regla.
+   */
+  tieneVivienda: boolean | null;
+  /** Proxy de bancabilidad sin bureau. Ver `VinculacionLaboral`. */
+  vinculacionLaboral: VinculacionLaboral | null;
+  /** Timing declarado: separa cierre inmediato de nutrición. Ver `HorizonteCompra`. */
+  horizonteCompra: HorizonteCompra | null;
+
   slotsLlenos: Slot[];
 
   /** --- Lo produce la tuberia (F1) --- */

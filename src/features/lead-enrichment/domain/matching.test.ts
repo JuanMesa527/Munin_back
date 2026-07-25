@@ -7,7 +7,7 @@
  */
 
 import { describe, expect, it } from 'vitest';
-import type { LeadProfile, ProjectCard } from '@contracts';
+import type { Factor, LeadProfile, ProjectCard } from '@contracts';
 import { LEADS_DEMO } from '../../../shared/infrastructure/persistence/demo-seed.js';
 import {
   cabeEnCapacidad,
@@ -114,6 +114,19 @@ describe('calcularFactores', () => {
     expect(tipoDe(alto, false)).toBeGreaterThan(tipoDe(alto, true));
   });
 
+  it('gate de subsidio: si el lead YA tiene vivienda, la VIS pierde su argumento', () => {
+    const tipoVivienda = (lead: LeadProfile): Factor =>
+      calcularFactores(lead, ficha({ esVIS: true })).find((f) => f.nombre === 'Tipo de vivienda')!;
+
+    // familia gana 2-4 SMMLV (bajo el tope del SFV): sin vivienda, la VIS aplica
+    // al subsidio; con vivienda propia, el subsidio de PRIMERA vivienda se cae.
+    const sinVivienda = tipoVivienda({ ...familia, tieneVivienda: false });
+    const conVivienda = tipoVivienda({ ...familia, tieneVivienda: true });
+
+    expect(conVivienda.contribucion).toBeLessThan(sinVivienda.contribucion);
+    expect(conVivienda.valor).toMatch(/subsidio de primera no aplica/i);
+  });
+
   it('castiga el apartaestudio para un hogar con tres dependientes', () => {
     const tamanoDe = (habitaciones: number): number =>
       calcularFactores(
@@ -214,6 +227,16 @@ describe('confianza del match', () => {
     // `personasACargo` alimenta tamano del hogar (0.15) y estilo de vida (0.08).
     expect(sinHogar.match.confianza).toBe(0.77);
     expect(sinCapacidad.match.confianza).toBeLessThan(sinHogar.match.confianza);
+  });
+
+  it('declara que no sabe si el lead ya tiene vivienda, aunque siga suponiendo que no', () => {
+    // El gate del subsidio de primera vivienda solo dispara con
+    // `tieneVivienda === true`, asi que `null` puntua 1: se SUPONE primera
+    // vivienda. La suposicion es razonable y se queda -- pero se declara.
+    const [tarjeta] = matchProjects({ ...familia, tieneVivienda: null }, [ficha({ esVIS: true })]);
+
+    expect(tarjeta!.match.datosFaltantes).toContain('si ya tienes vivienda propia');
+    expect(tarjeta!.match.confianza).toBeLessThan(1);
   });
 
   it('no supone un perfil joven cuando no sabe cuantas personas hay a cargo', () => {

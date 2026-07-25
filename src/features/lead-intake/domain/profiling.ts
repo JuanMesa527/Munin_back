@@ -17,6 +17,7 @@ import type {
   ScoreResult,
   Slot,
   ScoringWeights,
+  VinculacionLaboral,
 } from '@contracts';
 import { isSlotFilled } from '@shared/domain/lead.js';
 import { toSmmlvBounds } from '@shared/domain/value-objects/salary-range.js';
@@ -112,6 +113,27 @@ function clasificarBanda(cuotaMensualEstimada: COP | null): CapacityBand['banda'
 }
 
 /**
+ * Techo de BANCABILIDAD sobre la banda ya clasificada por ingreso.
+ *
+ * Un ingreso informal, por alto que sea, no se traduce en el mismo crédito
+ * hipotecario que uno formal: sin soporte de renta el banco no lo respalda
+ * igual. Es una REGLA explícita (glass-box), no un peso — un informal no sube
+ * de `media` aunque su cuota estimada diera `alta`. El independiente NO se topa:
+ * declara renta y es sujeto de crédito. Sin dato de vinculación, sin tope: no
+ * castigamos por no saber. No tocamos `precioMaximoEstimado`: rebajarlo un
+ * porcentaje sería inventar una calibración que no tenemos.
+ */
+function aplicarBancabilidad(
+  banda: CapacityBand['banda'],
+  vinculacion: VinculacionLaboral | null,
+): CapacityBand['banda'] {
+  if (vinculacion === 'informal' && banda === 'alta') {
+    return 'media';
+  }
+  return banda;
+}
+
+/**
  * Estima una banda de capacidad SIN consultar ningun bureau de credito
  * (fuera de alcance, EQUIPO.md seccion 8). Todo COP se trata como entero ya
  * normalizado — nunca se multiplica/divide por 1000.
@@ -132,7 +154,11 @@ export function estimateCapacity(profile: LeadProfile): Result<CapacityBand, Val
   const faltantes = SLOTS_RELEVANTES_CAPACIDAD.filter((slot) => !isSlotFilled(profile, slot));
   const cuotaMensualEstimada = estimarCuotaMensual(profile);
   const precioMaximoEstimado = estimarPrecioMaximo(profile, cuotaMensualEstimada);
-  const banda = clasificarBanda(cuotaMensualEstimada);
+  // Banda por ingreso, con el techo de bancabilidad de la vinculación laboral.
+  const banda = aplicarBancabilidad(
+    clasificarBanda(cuotaMensualEstimada),
+    profile.vinculacionLaboral,
+  );
 
   return ok({ banda, faltantes, cuotaMensualEstimada, precioMaximoEstimado });
 }
