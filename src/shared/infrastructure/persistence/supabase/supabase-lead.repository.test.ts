@@ -39,7 +39,11 @@ function createJsonbClient(): {
     eq: vi.fn((column: string, value: unknown) => {
       const selected = [...rows.values()]
         .filter((row) => row[column] === value)
-        .map((row) => ({ [columns]: jsonb(row[columns]) }));
+        // `?? null` porque Postgres devuelve NULL para una columna sin valor,
+        // nunca `undefined`. Sin esto el doble se comporta distinto de la base
+        // real justo en el caso que importa: la fila de un lead que aun no
+        // tiene `enriched_payload`.
+        .map((row) => ({ [columns]: jsonb(row[columns] ?? null) }));
       const response = { data: selected, error: null };
       return Object.assign(Promise.resolve(response), {
         maybeSingle: () =>
