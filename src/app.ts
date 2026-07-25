@@ -18,22 +18,36 @@
 import express from 'express';
 import type { Express } from 'express';
 import { API_ROUTES } from '@contracts';
+import { createCloserBriefingModule } from './features/closer-briefing/closer-briefing.module.js';
+import { createCloserDashboardModule } from './features/closer-dashboard/closer-dashboard.module.js';
+import { EnvCloserAuthAdapter } from './features/closer-dashboard/infrastructure/env-closer-auth.adapter.js';
 import { createLeadEnrichmentModule } from './features/lead-enrichment/lead-enrichment.module.js';
-import type { AppEnv } from './shared/infrastructure/config/env.js';
-import { SystemClock } from './shared/infrastructure/clock/system-clock.adapter.js';
-import { FileDataCatalogAdapter } from './shared/infrastructure/catalog/file-data-catalog.adapter.js';
-import { errorHandler, notFoundHandler } from './shared/infrastructure/http/error-handler.js';
-import { applySecurity, publicRateLimiter } from './shared/infrastructure/http/security.js';
-import { createHttpLogger, logger } from './shared/infrastructure/logging/logger.js';
-import { InMemoryLeadRepository } from './shared/infrastructure/persistence/in-memory/in-memory-lead.repository.js';
-import { seedDemoLeads } from './shared/infrastructure/persistence/demo-seed.js';
-import { createSupabaseClient } from './shared/infrastructure/persistence/supabase/supabase-client.js';
 import type { SwipeStorePort } from './features/lead-enrichment/application/ports/swipe-store.port.js';
 import type { TelemetryStorePort } from './features/lead-enrichment/application/ports/telemetry.port.js';
 import { InMemorySwipeStore } from './features/lead-enrichment/infrastructure/in-memory-swipe.store.js';
 import { NoopTelemetryStore } from './features/lead-enrichment/infrastructure/noop-telemetry.store.js';
 import { SupabaseSwipeStore } from './features/lead-enrichment/infrastructure/supabase-swipe.store.js';
 import { SupabaseTelemetryStore } from './features/lead-enrichment/infrastructure/supabase-telemetry.store.js';
+import type { LeadRepository } from './shared/application/ports/lead-repository.port.js';
+import type { AppEnv } from './shared/infrastructure/config/env.js';
+import { PinoAuditLogAdapter } from './shared/infrastructure/audit/pino-audit-log.adapter.js';
+import { SystemClock } from './shared/infrastructure/clock/system-clock.adapter.js';
+import { FileDataCatalogAdapter } from './shared/infrastructure/catalog/file-data-catalog.adapter.js';
+import { errorHandler, notFoundHandler } from './shared/infrastructure/http/error-handler.js';
+import {
+  applySecurity,
+  authRateLimiter,
+  publicRateLimiter,
+} from './shared/infrastructure/http/security.js';
+import { CryptoIdGenerator } from './shared/infrastructure/id/crypto-id-generator.adapter.js';
+import { createHttpLogger, logger } from './shared/infrastructure/logging/logger.js';
+import { InMemoryEducationRepository } from './shared/infrastructure/persistence/in-memory/in-memory-education.repository.js';
+import { InMemoryLeadRepository } from './shared/infrastructure/persistence/in-memory/in-memory-lead.repository.js';
+import { InMemorySessionStore } from './shared/infrastructure/persistence/in-memory/in-memory-session.store.js';
+import { seedDemoLeads } from './shared/infrastructure/persistence/demo-seed.js';
+import { createSupabaseClient } from './shared/infrastructure/persistence/supabase/supabase-client.js';
+import { SupabaseLeadRepository } from './shared/infrastructure/persistence/supabase/supabase-lead.repository.js';
+import { InMemoryContactVaultAdapter } from './shared/infrastructure/security/in-memory-contact-vault.adapter.js';
 
 export interface App {
   readonly server: Express;
@@ -47,19 +61,27 @@ export async function createApp(env: AppEnv): Promise<App> {
 
   // --- Adapters concretos (la unica eleccion de implementacion del backend) ---
   const clock = new SystemClock();
-  // Los leads siguen en memoria a proposito: los ids de demo son slugs
-  // (`demo-familia-soacha`) y `lead_profiles.id` en Supabase es uuid. Persistir
-  // el lead viene con F1; lo que F2.1 manda a Supabase es el catalogo, los
-  // swipes y la telemetria, todos con `lead_id` de texto libre.
-  const leads = new InMemoryLeadRepository();
+  const ids = new CryptoIdGenerator();
+  const audit = new PinoAuditLogAdapter();
+  const vault = new InMemoryContactVaultAdapter({ ids, clock, audit });
+  const journeys = new InMemoryEducationRepository();
+  const sessionStore = new InMemorySessionStore({
+    clock,
+    ttlMinutos: env.closerSessionTtlMinutes,
+  });
+  const auth = new EnvCloserAuthAdapter({
+    username: env.closerUsername,
+    password: env.closerPassword,
+    clock,
+    ttlMinutes: env.closerSessionTtlMinutes,
+  });
   const catalogo = new FileDataCatalogAdapter({
     weightsPath: env.weightsPath,
     projectProfilesPath: env.projectProfilesPath,
     projectsCatalogPath: env.projectsCatalogPath,
   });
 
-  // Swipes y telemetria: Supabase cuando el driver lo pide, memoria/no-op si no.
-  // Es la unica eleccion memoria-vs-DB del backend, y vive solo aqui.
+  let leads: LeadRepository;
   let swipes: SwipeStorePort;
   let telemetry: TelemetryStorePort;
   if (
@@ -68,19 +90,21 @@ export async function createApp(env: AppEnv): Promise<App> {
     env.supabaseServiceRoleKey !== null
   ) {
     const supabase = createSupabaseClient(env.supabaseUrl, env.supabaseServiceRoleKey);
+    leads = new SupabaseLeadRepository(supabase);
     swipes = new SupabaseSwipeStore(supabase);
     telemetry = new SupabaseTelemetryStore(supabase);
-    logger.info({ driver: 'supabase' }, 'persistencia de F2.1 en Supabase');
+    logger.info({ driver: 'supabase' }, 'persistencia en Supabase');
   } else {
+    leads = new InMemoryLeadRepository();
     swipes = new InMemorySwipeStore();
     telemetry = new NoopTelemetryStore();
-    logger.info({ driver: 'memory' }, 'persistencia de F2.1 en memoria');
+    logger.info({ driver: 'memory' }, 'persistencia en memoria');
   }
 
   // Los leads de demo NUNCA se siembran en produccion: alli los leads los crea
   // F1 con consentimiento real del titular.
   if (!env.isProduction) {
-    await seedDemoLeads(leads);
+    await seedDemoLeads(leads, vault);
   }
 
   // --- Health check: sin rate limit, para que el PaaS no se auto-bloquee ---
@@ -92,8 +116,25 @@ export async function createApp(env: AppEnv): Promise<App> {
   const enrichment = createLeadEnrichmentModule({ leads, catalogo, clock, swipes, telemetry });
   server.use(publicRateLimiter, enrichment.router);
 
-  // TODO: montar aqui lead-intake (F1), lead-education (F2.2),
-  // closer-dashboard (F3) y closer-briefing (F4) cuando existan.
+  // --- Login publico; el resto de las rutas closer exige sesion verificada ---
+  const dashboard = createCloserDashboardModule({
+    auth,
+    sessionStore,
+    secureCookie: env.isProduction,
+    sessionTtlMinutes: env.closerSessionTtlMinutes,
+    leads,
+  });
+  server.use(authRateLimiter, dashboard.publicRouter);
+  server.use(dashboard.requireCloser, dashboard.protectedRouter);
+
+  const briefing = createCloserBriefingModule({
+    leads,
+    journeys,
+    vault,
+    clock,
+    requireCloser: dashboard.requireCloser,
+  });
+  server.use(briefing.router);
 
   server.use(notFoundHandler);
   server.use(errorHandler);

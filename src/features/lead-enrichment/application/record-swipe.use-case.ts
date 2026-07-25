@@ -84,20 +84,20 @@ export class RecordSwipeUseCase {
     }
 
     const evento: SwipeEvent = {
+      leadId: input.leadId,
       proyectoId: input.proyectoId,
       accion: input.accion,
       decididoEn: this.deps.clock.now(),
+      dwellMs: input.dwellMs ?? null,
+      abrioDetalle: input.abrioDetalle ?? false,
+      detalleMs: input.detalleMs ?? null,
     };
-    // Telemetria opcional: solo se adjunta lo que el cliente mando.
-    if (typeof input.dwellMs === 'number') evento.dwellMs = input.dwellMs;
-    if (typeof input.abrioDetalle === 'boolean') evento.abrioDetalle = input.abrioDetalle;
-    if (typeof input.detalleMs === 'number') evento.detalleMs = input.detalleMs;
 
     // Contexto del match congelado. Best-effort: si el lead no se encuentra, se
     // registra el swipe igual (la baraja ya paso los gates en build-deck).
     const contexto = await this.contextoDeMatch(input.leadId, ficha.value);
 
-    const guardados = await this.deps.swipes.record(input.leadId, evento, contexto);
+    const guardados = await this.deps.swipes.record(evento, contexto);
     if (!guardados.ok) {
       return guardados;
     }

@@ -342,6 +342,7 @@ function aFactores(ejes: readonly Eje[]): Factor[] {
     valor: aporte.valor,
     // En puntos sobre 100, que es como se lee un score en la UI.
     contribucion: redondear(aporte.ajuste * peso * 100),
+    intensidad: Math.round(Math.min(1, Math.max(0, aporte.ajuste)) * 100),
   }));
 }
 
@@ -423,6 +424,11 @@ export function matchProjects(
       proyectoId: ficha.proyectoId,
       similitud: similitudDe(factores),
       razon: explicarDesdeEjes(ejes, ficha),
+      nombre: ficha.nombre,
+      etapa: 'Por confirmar',
+      precioDesde: ficha.precio.desde,
+      tipologia:
+        ficha.tipologias.map((tipologia) => tipologia.nombre).join(' / ') || 'Por confirmar',
     };
     return {
       ficha,

@@ -13,7 +13,7 @@ import type { Result } from '../../../../shared/kernel/result.js';
 
 export interface TelemetryStorePort {
   /** Intervalos de atencion (cuanto miro cada parte). */
-  recordViews(leadId: string, vistas: readonly ViewEvent[]): Promise<Result<void>>;
+  recordViews(views: readonly ViewEvent[]): Promise<Result<void>>;
   /** Resumen agregado de la sesion (conteos, intencion, tiempo total). */
-  recordSession(leadId: string, sesion: EnrichmentSessionSummary): Promise<Result<void>>;
+  recordSession(session: EnrichmentSessionSummary): Promise<Result<void>>;
 }

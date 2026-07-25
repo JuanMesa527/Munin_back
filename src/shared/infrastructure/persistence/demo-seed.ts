@@ -6,15 +6,15 @@
  * mostrar y la pantalla no se puede ni abrir. Cuando F1 entre, estos leads
  * dejan de ser el camino principal y quedan solo como datos de prueba.
  *
- * PROHIBICION DURA (EQUIPO.md seccion 8): cero PII real. Los nombres son
- * claramente ficticios y NO hay cedula, telefono ni correo en ningun campo:
- * `LeadProfile` no tiene esos campos justamente por minimizacion de datos, y la
- * identidad de contacto la captura F2.1 detras de `ContactVaultPort`.
+ * PROHIBICION DURA (EQUIPO.md seccion 8): cero PII real. Los contactos son
+ * completamente ficticios y el telefono solo se entrega al `ContactVaultPort`;
+ * nunca se registra ni se incorpora directamente al perfil.
  *
  * Solo se siembra fuera de produccion. `app.ts` lo hace explicito.
  */
 
 import type { ConsentRecord, LeadProfile } from '@contracts';
+import type { ContactVaultPort } from '../../application/ports/contact-vault.port.js';
 import type { LeadRepository } from '../../application/ports/lead-repository.port.js';
 import { logger } from '../logging/logger.js';
 
@@ -34,6 +34,12 @@ const consentimiento: ConsentRecord = {
   canal: 'seed-demo',
 };
 
+const CONTACTOS_DEMO: Readonly<Record<string, { nombre: string; telefono: string }>> = {
+  'demo-familia-soacha': { nombre: 'DemoFamilia', telefono: '+57 300 000 0042' },
+  'demo-joven-bogota': { nombre: 'DemoJoven', telefono: '+57 300 000 0057' },
+  'demo-alto-bogota': { nombre: 'DemoAlto', telefono: '+57 300 000 0081' },
+};
+
 /**
  * Tres perfiles que ejercitan carriles distintos del matching:
  *   - familia con dependientes y presupuesto ajustado -> VIS con 3 habitaciones;
@@ -46,6 +52,7 @@ export const LEADS_DEMO: readonly LeadProfile[] = [
   {
     id: 'demo-familia-soacha',
     consentimiento: { ...consentimiento, finalidades: [...consentimiento.finalidades] },
+    identidad: null,
     esAfiliado: true,
     rangoSalarial: '2-4 SMMLV',
     segmento: 'Basico',
@@ -79,6 +86,7 @@ export const LEADS_DEMO: readonly LeadProfile[] = [
   {
     id: 'demo-joven-bogota',
     consentimiento: { ...consentimiento, finalidades: [...consentimiento.finalidades] },
+    identidad: null,
     esAfiliado: true,
     rangoSalarial: '2-4 SMMLV',
     segmento: 'Joven',
@@ -112,6 +120,7 @@ export const LEADS_DEMO: readonly LeadProfile[] = [
   {
     id: 'demo-alto-bogota',
     consentimiento: { ...consentimiento, finalidades: [...consentimiento.finalidades] },
+    identidad: null,
     esAfiliado: true,
     rangoSalarial: '6-10 SMMLV',
     segmento: 'Alto',
@@ -144,10 +153,20 @@ export const LEADS_DEMO: readonly LeadProfile[] = [
   },
 ];
 
-/** Siembra los leads de demo. Llamalo solo fuera de produccion. */
-export async function seedDemoLeads(leads: LeadRepository): Promise<void> {
+/** Siembra los leads de demo y sus contactos ficticios. Llamalo solo fuera de produccion. */
+export async function seedDemoLeads(leads: LeadRepository, vault: ContactVaultPort): Promise<void> {
   for (const lead of LEADS_DEMO) {
-    const guardado = await leads.save(lead);
+    const contacto = CONTACTOS_DEMO[lead.id];
+    if (contacto === undefined) {
+      logger.error({ leadId: lead.id }, 'falta el contacto ficticio del lead de demo');
+      return;
+    }
+    const identidad = await vault.store(contacto);
+    if (!identidad.ok) {
+      logger.error({ leadId: lead.id }, 'no se pudo guardar el contacto ficticio de demo');
+      return;
+    }
+    const guardado = await leads.save({ ...lead, identidad: identidad.value });
     if (!guardado.ok) {
       logger.error({ leadId: lead.id }, 'no se pudo sembrar el lead de demo');
       return;

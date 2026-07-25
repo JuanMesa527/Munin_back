@@ -22,6 +22,7 @@ export function createEmptyLeadProfile(id: string, now: IsoDateTime): LeadProfil
   return {
     id,
     consentimiento: null,
+    identidad: null,
     esAfiliado: null,
     rangoSalarial: null,
     segmento: null,

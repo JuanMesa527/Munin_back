@@ -14,7 +14,9 @@ import { ValidationError } from '../../kernel/errors.js';
 import { sendError } from './api-response.js';
 
 /** Convierte los issues de zod en el `fields` de `ApiError` (campo -> mensaje). */
-function aFields(issues: readonly { path: PropertyKey[]; message: string }[]): Record<string, string> {
+function aFields(
+  issues: readonly { path: PropertyKey[]; message: string }[],
+): Record<string, string> {
   const fields: Record<string, string> = {};
   for (const issue of issues) {
     const campo = issue.path.map(String).join('.');
@@ -33,7 +35,10 @@ export function validateBody<S extends ZodType>(schema: S): RequestHandler {
   return (req: Request, res: Response, next: NextFunction): void => {
     const resultado = schema.safeParse(req.body);
     if (!resultado.success) {
-      sendError(res, new ValidationError('Datos de entrada no validos', aFields(resultado.error.issues)));
+      sendError(
+        res,
+        new ValidationError('Datos de entrada no validos', aFields(resultado.error.issues)),
+      );
       return;
     }
     req.body = resultado.data;

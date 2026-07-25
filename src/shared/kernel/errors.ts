@@ -91,12 +91,18 @@ export class ConflictError extends DomainError {
  * Los datos calibrados de `data/` no estan listos (archivo ausente, corrupto o
  * todavia marcado como placeholder). No es culpa del cliente: es 503.
  */
-export class DataUnavailableError extends DomainError {
+export class InfrastructureError extends DomainError {
+  constructor(message = 'El servicio de datos no esta disponible', fields: ErrorFields = null) {
+    super(ERROR_CODES.dataUnavailable, message, fields);
+  }
+}
+
+export class DataUnavailableError extends InfrastructureError {
   constructor(
     message = 'Los datos calibrados no estan disponibles todavia',
     fields: ErrorFields = null,
   ) {
-    super(ERROR_CODES.dataUnavailable, message, fields);
+    super(message, fields);
   }
 }
 

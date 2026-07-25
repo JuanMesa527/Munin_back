@@ -26,9 +26,7 @@ const VERSION_POLITICA_SIN_CONFIGURAR = 'sin-configurar';
 const EnvSchema = z.object({
   NODE_ENV: z.enum(['development', 'test', 'production']).default('development'),
   PORT: z.coerce.number().int().min(1).max(65_535).default(3000),
-  LOG_LEVEL: z
-    .enum(['fatal', 'error', 'warn', 'info', 'debug', 'trace', 'silent'])
-    .default('info'),
+  LOG_LEVEL: z.enum(['fatal', 'error', 'warn', 'info', 'debug', 'trace', 'silent']).default('info'),
 
   /** Lista separada por coma. Se parsea a `string[]` fuera del schema. */
   CORS_ORIGINS: z.string().default('http://localhost:5173'),
@@ -39,6 +37,8 @@ const EnvSchema = z.object({
 
   CLOSER_SESSION_SECRET: z.string().min(1, 'falta el secreto de sesion del closer'),
   CLOSER_SESSION_TTL_MINUTES: z.coerce.number().int().positive().max(1440).default(480),
+  CLOSER_USERNAME: z.string().trim().min(1, 'falta el usuario del closer'),
+  CLOSER_PASSWORD: z.string().min(1, 'falta la contrasena del closer'),
 
   PERSISTENCE_DRIVER: z.enum(['memory', 'supabase']).default('memory'),
 
@@ -74,6 +74,8 @@ export interface AppEnv {
   readonly llmModel: string;
   readonly closerSessionSecret: string;
   readonly closerSessionTtlMinutes: number;
+  readonly closerUsername: string;
+  readonly closerPassword: string;
   readonly persistenceDriver: 'memory' | 'supabase';
   /** URL del proyecto Supabase. `null` con el driver `memory`. */
   readonly supabaseUrl: string | null;
@@ -106,7 +108,12 @@ function problemasDeProduccion(env: AppEnv): string[] {
     problemas.push('CLOSER_SESSION_SECRET sigue siendo el valor de ejemplo de .env.example');
   }
   if (env.closerSessionSecret.length < LARGO_MINIMO_SECRETO) {
-    problemas.push(`CLOSER_SESSION_SECRET debe tener al menos ${String(LARGO_MINIMO_SECRETO)} caracteres`);
+    problemas.push(
+      `CLOSER_SESSION_SECRET debe tener al menos ${String(LARGO_MINIMO_SECRETO)} caracteres`,
+    );
+  }
+  if (env.closerPassword.length < 12) {
+    problemas.push('CLOSER_PASSWORD debe tener al menos 12 caracteres');
   }
   if (env.corsOrigins.includes('*')) {
     problemas.push('CORS_ORIGINS no puede contener "*": la allowlist debe ser explicita');
@@ -154,6 +161,8 @@ export function loadEnv(): AppEnv {
     llmModel: raw.LLM_MODEL,
     closerSessionSecret: raw.CLOSER_SESSION_SECRET,
     closerSessionTtlMinutes: raw.CLOSER_SESSION_TTL_MINUTES,
+    closerUsername: raw.CLOSER_USERNAME,
+    closerPassword: raw.CLOSER_PASSWORD,
     persistenceDriver: raw.PERSISTENCE_DRIVER,
     supabaseUrl: raw.SUPABASE_URL.length > 0 ? raw.SUPABASE_URL : null,
     supabaseServiceRoleKey:

@@ -15,10 +15,7 @@ export interface CloserAuthPort {
    * Verifica credenciales. Devuelve el MISMO error para usuario inexistente y
    * para contrasena incorrecta: distinguirlos permite enumerar usuarios.
    */
-  verifyCredentials(input: {
-    usuario: string;
-    contrasena: string;
-  }): Promise<Result<CloserSession>>;
+  verifyCredentials(input: { usuario: string; contrasena: string }): Promise<Result<CloserSession>>;
 }
 
 export interface SessionStorePort {

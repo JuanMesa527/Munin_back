@@ -159,9 +159,7 @@ export type Banda = 'alta' | 'media' | 'baja';
  * acotadas: no se puede pedir consentimiento "para todo".
  */
 export type FinalidadTratamiento =
-  | 'perfilamiento_vivienda'
-  | 'contacto_comercial'
-  | 'educacion_financiera';
+  'perfilamiento_vivienda' | 'contacto_comercial' | 'educacion_financiera';
 
 /**
  * Evidencia de consentimiento previo, expreso e informado (Ley 1581 de 2012,
@@ -274,6 +272,8 @@ export interface LeadProfile {
 
   /** Gate legal. Se captura ANTES de cualquier pregunta de perfilamiento. */
   consentimiento: ConsentRecord | null;
+  /** Identidad tokenizada capturada por F1; el telefono real queda en el vault. */
+  identidad: ContactIdentity | null;
 
   /** --- Se llena en la conversacion (F1) --- */
   esAfiliado: boolean | null;
@@ -374,6 +374,64 @@ export interface RoutingDecision {
  *  6. F2.1 · lead-enrichment
  * ========================================================================== */
 
+export type SwipeAction = 'pass' | 'like' | 'favorito';
+
+export interface ProjectMatchCard {
+  ficha: ProjectCard;
+  match: ProjectMatch;
+  factores: Factor[];
+  cabeEnCapacidad: boolean;
+}
+
+export interface EnrichmentDeck {
+  leadId: string;
+  tarjetas: ProjectMatchCard[];
+  catalogoVersion: string;
+  generadoEn: IsoDateTime;
+}
+
+export interface SwipeEvent {
+  leadId: string;
+  proyectoId: string;
+  accion: SwipeAction;
+  decididoEn: IsoDateTime;
+  dwellMs: number | null;
+  abrioDetalle: boolean;
+  detalleMs: number | null;
+}
+
+export interface ViewEvent {
+  leadId: string;
+  proyectoId: string | null;
+  seccion: string;
+  dwellMs: number;
+  ocurridoEn: IsoDateTime;
+}
+
+export interface EnrichmentSessionSummary {
+  leadId: string;
+  startedAt: IsoDateTime;
+  endedAt: IsoDateTime;
+  totalTarjetas: number;
+  decididas: number;
+  likes: number;
+  favoritos: number;
+  passes: number;
+  intentScore: number;
+  tiempoTotalMs: number;
+}
+
+export interface EnrichmentTelemetry {
+  views: ViewEvent[];
+  session: EnrichmentSessionSummary;
+}
+
+export interface EnrichmentSummary {
+  lead: EnrichedLead;
+  guardados: ProjectCard[];
+  swipes: SwipeEvent[];
+}
+
 export interface ContactPreference {
   canalPreferido: string;
   mejorHorario: string;
@@ -387,12 +445,7 @@ export interface ContactabilidadDia {
 }
 
 /** Hito del recorrido del lead, para que el closer sepa de donde viene. */
-export type TipoHito =
-  | 'ingreso'
-  | 'consentimiento'
-  | 'perfilamiento'
-  | 'nutricion'
-  | 'viable';
+export type TipoHito = 'ingreso' | 'consentimiento' | 'perfilamiento' | 'nutricion' | 'viable';
 
 /** Evento del recorrido del lead. Adenda A8. */
 export interface LeadTimelineEvent {
@@ -403,8 +456,6 @@ export interface LeadTimelineEvent {
 }
 
 export interface EnrichedLead extends LeadProfile {
-  /** Identidad minima para que el closer pueda llamar (ver adenda A2). */
-  identidad: ContactIdentity | null;
   intereses: string[];
   zonaPreferida: string | null;
   timingCompra: string | null;
@@ -551,11 +602,7 @@ export interface LeadListFilters {
   busqueda: string | null;
 }
 
-export type LeadListSort =
-  | 'score_desc'
-  | 'capacidad_desc'
-  | 'intent_desc'
-  | 'recencia_desc';
+export type LeadListSort = 'score_desc' | 'capacidad_desc' | 'intent_desc' | 'recencia_desc';
 
 export interface LeadListPage {
   items: ViableLeadListItem[];

@@ -99,8 +99,8 @@ export function createLeadEnrichmentRouter(deps: LeadEnrichmentControllerDeps): 
     API_ROUTES.enrichment.telemetry,
     validateBody(TelemetryBodySchema),
     asyncHandler(async (req: Request, res: Response) => {
-      const body = req.body as TelemetryBody;
-      const resultado = await deps.recordTelemetry.execute(body);
+      const telemetry = req.body as TelemetryBody;
+      const resultado = await deps.recordTelemetry.execute(telemetry);
 
       if (!resultado.ok) {
         sendError(res, resultado.error);

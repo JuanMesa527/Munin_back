@@ -13,10 +13,7 @@ import { readFile } from 'node:fs/promises';
 import { resolve } from 'node:path';
 import { z } from 'zod';
 import type { ProjectCard, ProjectProfile, ScoringWeights } from '@contracts';
-import type {
-  DataCatalogPort,
-  ProjectCatalog,
-} from '../../application/ports/data-catalog.port.js';
+import type { DataCatalogPort, ProjectCatalog } from '../../application/ports/data-catalog.port.js';
 import { DataUnavailableError, NotFoundError } from '../../kernel/errors.js';
 import type { Result } from '../../kernel/result.js';
 import { err, ok } from '../../kernel/result.js';
@@ -289,13 +286,14 @@ export class FileDataCatalogAdapter implements DataCatalogPort {
         { err: error, artefacto, ruta: rutaAbsoluta },
         'no se pudo leer el artefacto de datos calibrados',
       );
-      return err(
-        new DataUnavailableError('No hay datos calibrados disponibles', { artefacto }),
-      );
+      return err(new DataUnavailableError('No hay datos calibrados disponibles', { artefacto }));
     }
   }
 
-  private artefactoInvalido(artefacto: Artefacto, issues: readonly { message: string }[]): DataUnavailableError {
+  private artefactoInvalido(
+    artefacto: Artefacto,
+    issues: readonly { message: string }[],
+  ): DataUnavailableError {
     logger.error(
       { artefacto, problemas: issues.map((issue) => issue.message) },
       'el artefacto de datos calibrados no cumple el contrato',

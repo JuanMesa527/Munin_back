@@ -94,26 +94,24 @@ export function inferirIntereses(swipes: readonly SwipeResuelto[]): string[] {
     return [];
   }
 
-  const minimo =
-    positivos.length === 1 ? 1 : Math.max(2, Math.ceil(positivos.length / 2));
+  const minimo = positivos.length === 1 ? 1 : Math.max(2, Math.ceil(positivos.length / 2));
 
-  return INTERESES_RASTREABLES.map(({ etiqueta, patrones }) => {
-    const cuantos = positivos.filter((swipe) => {
-      const texto = [
-        ...swipe.ficha.amenidades,
-        swipe.ficha.certificacionEdge ? 'EDGE' : '',
-      ]
-        .join(' | ')
-        .toLowerCase();
-      return patrones.some((patron) => texto.includes(patron));
-    }).length;
-    return { etiqueta, cuantos };
-  })
-    .filter(({ cuantos }) => cuantos >= minimo)
-    // Los que mas se repiten primero: son los que mejor describen al lead.
-    .sort((a, b) => b.cuantos - a.cuantos)
-    .slice(0, MAX_INTERESES)
-    .map(({ etiqueta }) => etiqueta);
+  return (
+    INTERESES_RASTREABLES.map(({ etiqueta, patrones }) => {
+      const cuantos = positivos.filter((swipe) => {
+        const texto = [...swipe.ficha.amenidades, swipe.ficha.certificacionEdge ? 'EDGE' : '']
+          .join(' | ')
+          .toLowerCase();
+        return patrones.some((patron) => texto.includes(patron));
+      }).length;
+      return { etiqueta, cuantos };
+    })
+      .filter(({ cuantos }) => cuantos >= minimo)
+      // Los que mas se repiten primero: son los que mejor describen al lead.
+      .sort((a, b) => b.cuantos - a.cuantos)
+      .slice(0, MAX_INTERESES)
+      .map(({ etiqueta }) => etiqueta)
+  );
 }
 
 /**
@@ -157,10 +155,7 @@ export function calcularIntentScore(swipes: readonly SwipeResuelto[]): number {
 
   const decision = Math.min(1, swipes.length / SWIPES_PARA_SENAL_COMPLETA);
 
-  const pesoTotal = swipes.reduce(
-    (suma, swipe) => suma + VALOR_INTENCION[swipe.evento.accion],
-    0,
-  );
+  const pesoTotal = swipes.reduce((suma, swipe) => suma + VALOR_INTENCION[swipe.evento.accion], 0);
   const interes = Math.min(1, pesoTotal / (SWIPES_PARA_SENAL_COMPLETA * VALOR_INTENCION.like));
 
   const positivos = guardados(swipes).length;
@@ -195,7 +190,7 @@ export function enriquecerConSwipes(
 
   return {
     ...lead,
-    identidad: null,
+    identidad: lead.identidad,
     intereses: inferirIntereses(swipes),
     zonaPreferida: zona,
     timingCompra: null,
@@ -203,6 +198,17 @@ export function enriquecerConSwipes(
     contacto: null,
     intentScore: calcularIntentScore(swipes),
     enriquecidoEn: ahora,
+    edad: null,
+    ocupacion: null,
+    hogar:
+      lead.segmentoFamiliar ??
+      (lead.personasACargo === null ? null : `${String(lead.personasACargo)} personas a cargo`),
+    ingresosSmmlv: null,
+    subsidioEstimado: null,
+    citaTextual: null,
+    contactabilidad: [],
+    horarioRazon: null,
+    timeline: [],
     updatedAt: ahora,
   };
 }

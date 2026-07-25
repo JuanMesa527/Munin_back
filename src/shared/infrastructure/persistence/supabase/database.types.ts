@@ -66,6 +66,16 @@ type EnrichmentSessionsRow = {
   created_at: Timestamptz;
 };
 
+type LeadProfilesRow = {
+  lead_id: string;
+  base_payload: unknown;
+  enriched_payload: unknown;
+  carril: string | null;
+  score: number | null;
+  intent_score: number | null;
+  updated_at: Timestamptz;
+};
+
 /** Los `id`/`created_at` los pone la base (default): opcionales al insertar. */
 type Insertable<T extends { id: string; created_at: Timestamptz }> = Omit<
   T,
@@ -91,6 +101,16 @@ export interface Database {
         Row: EnrichmentSessionsRow;
         Insert: Insertable<EnrichmentSessionsRow>;
         Update: Partial<Insertable<EnrichmentSessionsRow>>;
+        Relationships: [];
+      };
+      lead_profiles: {
+        Row: LeadProfilesRow;
+        Insert: Omit<LeadProfilesRow, 'enriched_payload' | 'intent_score' | 'updated_at'> & {
+          enriched_payload?: unknown;
+          intent_score?: number | null;
+          updated_at?: Timestamptz;
+        };
+        Update: Partial<LeadProfilesRow>;
         Relationships: [];
       };
     };
