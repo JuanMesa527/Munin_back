@@ -259,11 +259,11 @@ export class SupabaseLeadRepository implements LeadRepository {
     return ok(toDomain(respuesta.data));
   }
 
-  /* eslint-disable @typescript-eslint/no-unused-vars --
-     Convencion de scaffolding del repo (ver in-memory-lead.repository.ts):
-     parametro con prefijo `_` = "el cuerpo todavia es un stub". El lint de
-     parametros no usados queda apagado solo en estos 3 stubs, igual que en
-     el adapter en memoria, para no fingir una firma distinta a la del puerto. */
+  /*
+   * Convencion de scaffolding del repo (ver in-memory-lead.repository.ts):
+   * parametro con prefijo `_` = "el cuerpo todavia es un stub". El lint ya
+   * ignora los `_`-prefijados, asi que no hace falta apagar la regla aqui.
+   */
 
   /**
    * TODO(F2.1): sin tabla `enriched_leads` todavia. Mismo stub que
@@ -286,5 +286,4 @@ export class SupabaseLeadRepository implements LeadRepository {
   ): Promise<Result<LeadListPage>> {
     throw new Error('TODO: not implemented');
   }
-  /* eslint-enable @typescript-eslint/no-unused-vars */
 }

@@ -414,6 +414,17 @@ export interface EnrichmentSessionSummary {
   dispositivo: string | null;
 }
 
+/**
+ * Lote de telemetria que el front manda al cerrar/pausar la sesion (via
+ * `sendBeacon`). Misma forma que `TelemetryBodySchema` del backend. Best-effort:
+ * su fallo nunca rompe el flujo del usuario.
+ */
+export interface EnrichmentTelemetry {
+  leadId: string;
+  vistas: ViewEvent[];
+  sesion: EnrichmentSessionSummary | null;
+}
+
 /** Dia de la semana con que tan contactable ha sido el lead ahi. Adenda A8. */
 export interface ContactabilidadDia {
   dia: 'L' | 'M' | 'X' | 'J' | 'V' | 'S' | 'D';
