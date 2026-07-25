@@ -7,6 +7,38 @@ Nadie los edita a mano.
 | ----------------------- | ----------------------------- | -------------------------------------------------------------------------- |
 | `weights.json`          | `ScoringWeights`              | `analysis/scripts/03_calibrate_weights.py` → `05_export_artifacts.py`      |
 | `project_profiles.json` | `ProjectProfile[]` (envuelto) | `analysis/scripts/04_build_project_profiles.py` → `05_export_artifacts.py` |
+| `projects_catalog.json` | `ProjectCard[]` (envuelto)    | `analysis/scripts/06_build_projects_catalog.py`                            |
+
+## `projects_catalog.json` no sale del Excel
+
+Los otros dos artefactos salen de los 4.142 compradores. **Este sale de los
+brochures públicos** enlazados en el sheet del reto, transcritos a mano en el
+script (sin scraping). Por eso lo genera su propia etapa y no pasa por
+`05_export_artifacts.py`: un brochure nuevo no puede obligar a recalibrar el
+scoring.
+
+`ProjectProfile` decide **a quién** se le muestra un proyecto (buyer persona
+real); `ProjectCard` es **qué se ve** de ese proyecto (render, área,
+tipologías, amenidades, precio). Ver adenda A8 de `contracts.ts`.
+
+**Es el único de los tres que hoy tiene datos reales** — los otros dos siguen
+en placeholder. Eso es lo que permite que F2.1 muestre proyectos aunque el
+scoring todavía no esté calibrado.
+
+### Precio: 15 de 16 son estimados
+
+Solo Vibo Once publica precio en su brochure. Para el resto, la banda se deriva
+del **tope legal VIS** (150 SMMLV en la aglomeración urbana de Bogotá — que
+incluye Soacha, Chía y Tocancipá —, 135 SMMLV en el resto del país), escalado
+por el área publicada del proyecto.
+
+Cada ficha viaja con `precio.esEstimado` y `precio.metodo`, y **la UI está
+obligada a rotular el número como estimado**. Prometer precio es exactamente lo
+que una caja Vigilada Supersubsidio no puede hacer.
+
+Reemplazar `TECHO_VIS_MIN_AREA` del script por el valor de vivienda real por
+proyecto cuando el pipeline procese el Excel: esa columna sí existe en el
+dataset del reto.
 
 Los tipos viven en `src/shared/contracts.ts`. Quien lee estos archivos es
 `src/shared/infrastructure/catalog/file-data-catalog.adapter.ts`, que los valida

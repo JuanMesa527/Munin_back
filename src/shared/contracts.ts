@@ -44,6 +44,25 @@
  *      A PROPOSITO: su vocabulario real sale del Excel de 4.142 compradores y
  *      todavia no esta confirmado. Ver `RANGOS_SALARIALES_SMMLV` mas abajo:
  *      cerrar el tipo cuando data/analisis confirme las bandas.
+ *  A8. Datos que exige la consola del closer (F3/F4). El diseno aprobado de la
+ *      ficha de llamada muestra informacion que el contrato original no
+ *      modelaba y que sin ella no se puede armar:
+ *        - `Factor.intensidad`  -> largo de la barra (0-100). `contribucion`
+ *          son puntos con signo y `peso` es el peso del factor; ninguno de los
+ *          dos sirve para dibujar la barra sin normalizar.
+ *        - `ProjectMatch` gana `nombre`, `etapa`, `precioDesde` y `tipologia`:
+ *          el closer lee el match en voz alta durante la llamada y no puede
+ *          esperar a que el front resuelva un `proyectoId` contra otro endpoint.
+ *        - `EnrichedLead` gana `edad`, `ocupacion`, `hogar`, `ingresosSmmlv`,
+ *          `subsidioEstimado`, `citaTextual`, `contactabilidad`, `horarioRazon`
+ *          y `timeline`.
+ *        - `ViableLeadListItem` gana `edad`, `ocupacion`, `capacidadEstimada`,
+ *          `cuotaEstimada`, y cambia `proyectoTopId` por `proyectoTop`.
+ *        - `BriefingSheet` gana `resumenScore` y `objeciones`.
+ *        - `LeadListFilters` gana `soloNutridos` y `busqueda`;
+ *          `LeadListSort` gana `capacidad_desc`.
+ *      Nuevos tipos: `ContactabilidadDia`, `LeadTimelineEvent`,
+ *      `ObjecionSugerida`.
  * ============================================================================
  */
 
@@ -193,6 +212,12 @@ export interface Factor {
    * y mostrar que factores SUMAN y cuales RESTAN.
    */
   contribucion: number;
+  /**
+   * Que tan bien puntua el lead en ESTE factor, 0-100. Es lo unico que se
+   * puede dibujar como barra: `contribucion` trae signo y `peso` describe al
+   * modelo, no al lead. Adenda A8.
+   */
+  intensidad: number;
 }
 
 /**
@@ -220,12 +245,24 @@ export interface CapacityBand {
   precioMaximoEstimado: COP | null;
 }
 
-/** Proyecto afin al lead + el porque, en lenguaje natural. */
+/**
+ * Proyecto afin al lead + el porque, en lenguaje natural.
+ *
+ * Trae el proyecto ya resuelto (nombre, etapa, precio, tipologia) y no solo su
+ * id: el closer lo lee en voz alta mientras habla con el cliente y no puede
+ * depender de que el front cruce el id contra otro endpoint. Adenda A8.
+ */
 export interface ProjectMatch {
   proyectoId: string;
   /** 0-1. Similitud contra el buyer persona real del proyecto. */
   similitud: number;
   razon: string;
+  nombre: string;
+  /** Etapa comercial, p. ej. `Etapa 3`. */
+  etapa: string;
+  precioDesde: COP;
+  /** Tipologia legible, p. ej. `VIS · 3 hab`. */
+  tipologia: string;
 }
 
 /* ==========================================================================
@@ -342,6 +379,64 @@ export interface ContactPreference {
   mejorHorario: string;
 }
 
+/* --------------------------------------------------------------------------
+ *  Telemetria de atencion (adenda A10)
+ *
+ *  Tipos canonicos de `ViewEvent`/`EnrichmentSessionSummary`. La telemetria de
+ *  F2.1 (`telemetry.port.ts`, stores, use case) ya los importaba de `@contracts`
+ *  pero el contrato no los declaraba: se agregan aqui con la MISMA forma de
+ *  `ViewEventSchema`/`SessionSummarySchema` (lead-enrichment.dto.ts). Senal de
+ *  comportamiento agregada, NUNCA PII.
+ * ------------------------------------------------------------------------ */
+
+/** Intervalo de atencion: cuanto miro el usuario una seccion. */
+export interface ViewEvent {
+  /** `null` cuando la seccion no es de un proyecto puntual (deck, resumen). */
+  proyectoId: string | null;
+  seccion: 'deck' | 'card' | 'detalle' | 'factores' | 'resumen';
+  dwellMs: number;
+  ocurridoEn: IsoDateTime;
+}
+
+/** Resumen agregado de una sesion de enriquecimiento: conteos, intencion, tiempo. */
+export interface EnrichmentSessionSummary {
+  startedEn: IsoDateTime;
+  endedEn: IsoDateTime;
+  totalTarjetas: number;
+  decididas: number;
+  likes: number;
+  favoritos: number;
+  passes: number;
+  intentScore: number;
+  tiempoTotalMs: number;
+  /** Senal gruesa de dispositivo, no PII. */
+  viewport: string | null;
+  dispositivo: string | null;
+}
+
+/** Dia de la semana con que tan contactable ha sido el lead ahi. Adenda A8. */
+export interface ContactabilidadDia {
+  dia: 'L' | 'M' | 'X' | 'J' | 'V' | 'S' | 'D';
+  /** 0-100, relativo a la mejor franja del propio lead. */
+  intensidad: number;
+}
+
+/** Hito del recorrido del lead, para que el closer sepa de donde viene. */
+export type TipoHito =
+  | 'ingreso'
+  | 'consentimiento'
+  | 'perfilamiento'
+  | 'nutricion'
+  | 'viable';
+
+/** Evento del recorrido del lead. Adenda A8. */
+export interface LeadTimelineEvent {
+  label: string;
+  /** Ya formateada para mostrar: el backend conoce la zona horaria, el front no. */
+  fecha: string;
+  hito: TipoHito;
+}
+
 export interface EnrichedLead extends LeadProfile {
   /** Identidad minima para que el closer pueda llamar (ver adenda A2). */
   identidad: ContactIdentity | null;
@@ -353,6 +448,22 @@ export interface EnrichedLead extends LeadProfile {
   /** 0-100. Intencion de compra. Determinista, igual que el score. */
   intentScore: number;
   enriquecidoEn: IsoDateTime;
+
+  /** --- Adenda A8: lo que la ficha de llamada (F4) necesita mostrar --- */
+  edad: number | null;
+  ocupacion: string | null;
+  /** Composicion del hogar en texto, p. ej. `2 personas a cargo`. */
+  hogar: string | null;
+  /** Ingresos en multiplos de SMMLV. Decide si aplica al SFV (tope 4). */
+  ingresosSmmlv: number | null;
+  /** SFV ESTIMADO. `null` si no aplica. Jamas presentarlo como aprobado. */
+  subsidioEstimado: COP | null;
+  /** Cita textual del lead. Le da al closer sus propias palabras. */
+  citaTextual: string | null;
+  contactabilidad: ContactabilidadDia[];
+  /** Por que ese es el mejor horario. Sin el, el dato no es accionable. */
+  horarioRazon: string | null;
+  timeline: LeadTimelineEvent[];
 }
 
 /* ==========================================================================
@@ -446,10 +557,21 @@ export interface ViableLeadListItem {
   banda: Banda | null;
   /** Top-3 factores, ya ordenados por contribucion. */
   topFactores: Factor[];
-  proyectoTopId: string | null;
   /** `true` si llego reclasificado desde F2.2. Senal fuerte de intencion. */
   vieneDeNutricion: boolean;
   actualizadoEn: IsoDateTime;
+
+  /** --- Adenda A8: lo que la fila del dashboard (F3) necesita mostrar --- */
+  edad: number | null;
+  ocupacion: string | null;
+  /** Techo de precio alcanzable. Espejo de `CapacityBand.precioMaximoEstimado`. */
+  capacidadEstimada: COP | null;
+  cuotaEstimada: COP | null;
+  /**
+   * Mejor match ya resuelto. Reemplaza al `proyectoTopId` original: la fila
+   * muestra nombre, etapa y afinidad, y resolver un id por fila seria N+1.
+   */
+  proyectoTop: ProjectMatch | null;
 }
 
 export interface LeadListFilters {
@@ -458,9 +580,17 @@ export interface LeadListFilters {
   ciudad: string | null;
   scoreMinimo: number | null;
   banda: Banda | null;
+  /** Solo leads recuperados por el carril de nutricion (F2.2). Adenda A8. */
+  soloNutridos: boolean | null;
+  /** Texto libre sobre nombre, zona, ocupacion y proyecto. Adenda A8. */
+  busqueda: string | null;
 }
 
-export type LeadListSort = 'score_desc' | 'intent_desc' | 'recencia_desc';
+export type LeadListSort =
+  | 'score_desc'
+  | 'capacidad_desc'
+  | 'intent_desc'
+  | 'recencia_desc';
 
 export interface LeadListPage {
   items: ViableLeadListItem[];
@@ -482,6 +612,14 @@ export interface TalkingPoint {
   prioridad: number;
 }
 
+/** Objecion probable del lead + como responderla. Adenda A8. */
+export interface ObjecionSugerida {
+  /** Lo que probablemente diga el lead, en sus palabras. */
+  pregunta: string;
+  /** Como responder. Nunca prometer aprobacion de credito ni de subsidio. */
+  respuesta: string;
+}
+
 /**
  * Ficha tecnica read-optimized. Se mira DURANTE una llamada: densa pero
  * escaneable. La arma un solo caso de uso para que el front no orqueste.
@@ -494,6 +632,14 @@ export interface BriefingSheet {
   /** Alertas duras: p. ej. cupo 90/10, o consentimiento vencido. */
   alertas: string[];
   generadoEn: IsoDateTime;
+
+  /**
+   * Una frase que explica el score en lenguaje natural. Adenda A8.
+   * Lo REDACTA el LLM a partir de los factores ya calculados; no los calcula
+   * (regla 12, glass-box).
+   */
+  resumenScore: string;
+  objeciones: ObjecionSugerida[];
 }
 
 /* ==========================================================================
@@ -518,12 +664,15 @@ export interface ScoringWeights {
   generadoEn: IsoDateTime;
 }
 
+/** Zona comercial del proyecto. */
+export type Zona = 'norte' | 'sur' | 'centro' | 'otra';
+
 /** Buyer persona real de un proyecto, derivado del PPT + Excel. */
 export interface ProjectProfile {
   proyectoId: string;
   nombre: string;
   ciudad: string;
-  zona: 'norte' | 'sur' | 'centro' | 'otra';
+  zona: Zona;
   precioDesde: COP;
   precioHasta: COP;
   /** `true` si el proyecto califica como Vivienda de Interes Social. */
@@ -532,6 +681,128 @@ export interface ProjectProfile {
   perfilComprador: Record<string, Record<string, number>>;
   /** Proporcion de compradores afiliados. Insumo de la regla 90/10. */
   proporcionAfiliados: number;
+}
+
+/** Una tipologia de apartamento publicada en el brochure. */
+export interface Tipologia {
+  nombre: string;
+  /** Area construida en m2, tal como la publica el brochure. */
+  areaConstruida: number;
+  areaPrivada: number | null;
+  habitaciones: number;
+  banos: number;
+  /** Precio publicado por el constructor, en SMMLV. `null` si no lo publica. */
+  precioSMMLV: number | null;
+}
+
+/**
+ * Banda de precio de un proyecto (adenda A8).
+ *
+ * `esEstimado` OBLIGA a la UI: si es `true`, el numero se rotula como estimado
+ * y jamas como oferta. 15 de los 16 brochures no publican precio y dicen
+ * explicitamente que el valor definitivo es el de la promesa de compraventa.
+ * `metodo` existe para poder responderle a un jurado que pregunte de donde
+ * salio la cifra.
+ */
+export interface PriceBand {
+  desde: COP;
+  /** `null` en proyectos NO VIS: no tienen techo regulado. */
+  hasta: COP | null;
+  esEstimado: boolean;
+  metodo: string;
+}
+
+/**
+ * Ficha comercial de un proyecto (adenda A8).
+ *
+ * Sale de `data/projects_catalog.json`, que genera
+ * `analysis/scripts/06_build_projects_catalog.py` transcribiendo los brochures
+ * publicos enlazados por la organizacion. SIN scraping de portales.
+ *
+ * Es la cara visible del proyecto; `ProjectProfile` es su buyer persona. No se
+ * fusionan: tienen fuente, cadencia y nivel de confianza distintos.
+ */
+export interface ProjectCard {
+  proyectoId: string;
+  nombre: string;
+  /** Sector comercial, p. ej. `Ciudadela Colsubsidio Maipore`. */
+  ubicacion: string;
+  ciudad: string;
+  zona: Zona;
+  esVIS: boolean;
+  descripcion: string;
+  unidades: number | null;
+  torres: number | null;
+  /** Texto libre: los brochures describen los pisos de formas distintas. */
+  pisos: string | null;
+  areaDesde: number;
+  /** `null` cuando el proyecto publica una sola tipologia. */
+  areaHasta: number | null;
+  habitacionesDesde: number;
+  habitacionesHasta: number;
+  tipologias: Tipologia[];
+  amenidades: string[];
+  lugaresCercanos: string[];
+  entrega: string | null;
+  certificacionEdge: boolean;
+  salaDeVentas: string | null;
+  /** Brochure publico del proyecto. Se abre en pestana nueva. */
+  brochureUrl: string;
+  /** Render extraido del brochure, servido por el frontend desde `public/`. */
+  imagen: string;
+  precio: PriceBand;
+}
+
+/* --------------------------------------------------------------------------
+ *  Swipes y baraja de F2.1 (adendas A9/A10)
+ *
+ *  Tipos que el codigo de F2.1 (matching, swipes, use cases, stores) ya
+ *  importaba de `@contracts` sin que el contrato los declarara. Se agregan con
+ *  la MISMA forma que ese codigo construye/consume; sin ellos el backend no
+ *  compila. Glass-box: `intentScore` y `factores` son deterministas, el LLM no
+ *  participa.
+ * ------------------------------------------------------------------------ */
+
+/** Gesto del usuario sobre una tarjeta de proyecto. */
+export type SwipeAction = 'pass' | 'like' | 'favorito';
+
+/**
+ * Una decision de swipe. La telemetria de atencion (`dwellMs`, `abrioDetalle`,
+ * `detalleMs`) es opcional: solo el driver de Supabase la persiste (adenda A10).
+ */
+export interface SwipeEvent {
+  proyectoId: string;
+  accion: SwipeAction;
+  decididoEn: IsoDateTime;
+  dwellMs?: number;
+  abrioDetalle?: boolean;
+  detalleMs?: number;
+}
+
+/**
+ * Una tarjeta de la baraja: la ficha, su match explicable y si cabe en la
+ * capacidad del lead. `factores` es la evidencia glass-box del `match`.
+ */
+export interface ProjectMatchCard {
+  ficha: ProjectCard;
+  match: ProjectMatch;
+  factores: Factor[];
+  cabeEnCapacidad: boolean;
+}
+
+/** Baraja de proyectos afines a un lead viable (F2.1). */
+export interface EnrichmentDeck {
+  leadId: string;
+  tarjetas: ProjectMatchCard[];
+  catalogoVersion: string;
+  generadoEn: IsoDateTime;
+}
+
+/** Cierre de F2.1: el lead enriquecido persistido + las fichas que eligio. */
+export interface EnrichmentSummary {
+  lead: EnrichedLead;
+  guardados: ProjectCard[];
+  swipes: SwipeEvent[];
 }
 
 /* ==========================================================================
@@ -562,6 +833,14 @@ export const API_ROUTES = {
   enrichment: {
     start: '/api/leads/enrichment/start',
     turn: '/api/leads/enrichment/turn',
+    /** Baraja de proyectos afines al lead viable (adenda A9). */
+    deck: '/api/leads/enrichment/deck',
+    /** Registra una decision sobre una tarjeta. */
+    swipe: '/api/leads/enrichment/swipe',
+    /** Cierra F2.1 y persiste el lead enriquecido. */
+    summary: '/api/leads/enrichment/summary',
+    /** Recibe el lote de telemetria de atencion de la sesion (adenda A10). */
+    telemetry: '/api/leads/enrichment/telemetry',
   },
   education: {
     journey: '/api/leads/education/journey',
@@ -574,5 +853,7 @@ export const API_ROUTES = {
     leads: '/api/closer/leads',
     briefing: '/api/closer/leads/briefing',
     call: '/api/closer/leads/call',
+    /** Revela el telefono real. Accion auditada (F4). Adenda A8. */
+    revealContact: '/api/closer/leads/reveal-contact',
   },
 } as const;

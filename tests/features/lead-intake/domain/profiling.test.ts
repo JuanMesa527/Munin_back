@@ -142,9 +142,9 @@ describe('getTopFactors', () => {
     const score = {
       valor: 70,
       factores: [
-        { nombre: 'a', peso: 0.1, valor: 'x', contribucion: 5 },
-        { nombre: 'b', peso: 0.5, valor: 'y', contribucion: 40 },
-        { nombre: 'c', peso: 0.2, valor: 'z', contribucion: -20 },
+        { nombre: 'a', peso: 0.1, valor: 'x', contribucion: 5, intensidad: 50 },
+        { nombre: 'b', peso: 0.5, valor: 'y', contribucion: 40, intensidad: 80 },
+        { nombre: 'c', peso: 0.2, valor: 'z', contribucion: -20, intensidad: 10 },
       ],
       weightsVersion: 'weights-v1',
       calculadoEn: AHORA,

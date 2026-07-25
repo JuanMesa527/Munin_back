@@ -41,11 +41,23 @@ const FILA_VIABLE: SupabaseLeadRow = {
   },
   score: {
     valor: 82,
-    factores: [{ nombre: 'afiliacion', peso: 0.3, valor: 'si', contribucion: 24.6 }],
+    factores: [
+      { nombre: 'afiliacion', peso: 0.3, valor: 'si', contribucion: 24.6, intensidad: 100 },
+    ],
     weightsVersion: 'v1',
     calculadoEn: '2026-07-20T10:05:00.000Z',
   },
-  proyectos: [{ proyectoId: 'proy-1', similitud: 0.9, razon: 'Coincide con el buyer persona' }],
+  proyectos: [
+    {
+      proyectoId: 'proy-1',
+      similitud: 0.9,
+      razon: 'Coincide con el buyer persona',
+      nombre: 'Proyecto 1',
+      etapa: 'Única etapa',
+      precioDesde: 180_000_000,
+      tipologia: 'VIS',
+    },
+  ],
   carril: 'viable',
   // Postgres devuelve timestamptz con offset, no con "Z" (design.md D10 regla 1).
   created_at: '2026-07-20T10:00:00+00:00',

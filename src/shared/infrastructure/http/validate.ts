@@ -57,12 +57,12 @@ export function validateQuery<S extends ZodType>(schema: S): RequestHandler {
       );
       return;
     }
-    res.locals['query'] = resultado.data;
+    res.locals.query = resultado.data;
     next();
   };
 }
 
 /** Lee lo que dejo `validateQuery`. Llamalo solo detras de ese middleware. */
 export function readValidatedQuery<T>(res: Response): T {
-  return res.locals['query'] as T;
+  return res.locals.query as T;
 }

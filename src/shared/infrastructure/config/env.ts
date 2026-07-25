@@ -41,11 +41,18 @@ const EnvSchema = z.object({
   CLOSER_SESSION_TTL_MINUTES: z.coerce.number().int().positive().max(1440).default(480),
 
   PERSISTENCE_DRIVER: z.enum(['memory', 'supabase']).default('memory'),
+
+  /**
+   * Credenciales de Supabase. Vacias por defecto porque el driver `memory` no
+   * las necesita; se exigen (abajo) solo cuando `PERSISTENCE_DRIVER=supabase`.
+   * `SUPABASE_SERVICE_ROLE_KEY` IGNORA RLS: vive solo aqui, jamas en el front.
+   */
   SUPABASE_URL: z.string().trim().default(''),
   SUPABASE_SERVICE_ROLE_KEY: z.string().trim().default(''),
 
   WEIGHTS_PATH: z.string().trim().min(1).default('./data/weights.json'),
   PROJECT_PROFILES_PATH: z.string().trim().min(1).default('./data/project_profiles.json'),
+  PROJECTS_CATALOG_PATH: z.string().trim().min(1).default('./data/projects_catalog.json'),
 
   PRIVACY_POLICY_VERSION: z.string().trim().min(1).default(VERSION_POLITICA_SIN_CONFIGURAR),
 });
@@ -72,11 +79,14 @@ export interface AppEnv {
   readonly closerSessionSecret: string;
   readonly closerSessionTtlMinutes: number;
   readonly persistenceDriver: PersistenceDriver;
-  /** `null` cuando faltan: solo los exige `PERSISTENCE_DRIVER=supabase` (D10). */
+  /** URL del proyecto Supabase. `null` con el driver `memory` (solo lo exige `supabase`, D10). */
   readonly supabaseUrl: string | null;
+  /** Service role key de Supabase. `null` con el driver `memory`. Nunca se loguea. */
   readonly supabaseServiceRoleKey: string | null;
   readonly weightsPath: string;
   readonly projectProfilesPath: string;
+  /** Fichas comerciales de los proyectos que consume F2.1 (adenda A8). */
+  readonly projectsCatalogPath: string;
   /** Version del aviso que acepta el titular. Queda en `ConsentRecord`. */
   readonly privacyPolicyVersion: string;
 }
@@ -158,6 +168,7 @@ export function loadEnv(): AppEnv {
       raw.SUPABASE_SERVICE_ROLE_KEY.length > 0 ? raw.SUPABASE_SERVICE_ROLE_KEY : null,
     weightsPath: raw.WEIGHTS_PATH,
     projectProfilesPath: raw.PROJECT_PROFILES_PATH,
+    projectsCatalogPath: raw.PROJECTS_CATALOG_PATH,
     privacyPolicyVersion: raw.PRIVACY_POLICY_VERSION,
   };
 

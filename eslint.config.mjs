@@ -11,15 +11,41 @@ import prettier from 'eslint-config-prettier';
  *  - `no-console`                -> usar el logger de pino con redaccion de PII.
  */
 export default tseslint.config(
-  { ignores: ['dist/**', 'coverage/**', 'node_modules/**', 'analysis/**'] },
+  // Los archivos de configuracion y los scripts en JS puro no estan en el
+  // `tsconfig`, asi que el servicio de tipos no los puede analizar. Lintearlos
+  // con reglas que necesitan tipos solo produce ruido de parseo.
+  {
+    ignores: [
+      'dist/**',
+      'coverage/**',
+      'node_modules/**',
+      'analysis/**',
+      '**/*.mjs',
+      'vitest.config.ts',
+    ],
+  },
 
   ...tseslint.configs.strictTypeChecked,
   ...tseslint.configs.stylisticTypeChecked,
 
+  // Las reglas con tipos solo pueden correr sobre archivos que esten en un
+  // tsconfig. Este propio archivo y cualquier .js/.mjs no lo estan, asi que se
+  // les apagan: si no, ESLint muere al arrancar.
   {
+    files: ['**/*.{js,mjs,cjs}'],
+    ...tseslint.configs.disableTypeChecked,
+  },
+
+  {
+    files: ['**/*.ts'],
     languageOptions: {
       parserOptions: {
-        projectService: true,
+        // `allowDefaultProject`: los archivos de config de la raiz no estan en
+        // el `include` del tsconfig (que apunta a src/ y tests/), pero igual
+        // queremos lintearlos.
+        projectService: {
+          allowDefaultProject: ['vitest.config.ts'],
+        },
         tsconfigRootDir: import.meta.dirname,
       },
     },
@@ -30,9 +56,42 @@ export default tseslint.config(
         { allowExpressions: true },
       ],
       '@typescript-eslint/consistent-type-imports': 'error',
+
+      // Este repo es stub-first (regla 28): los casos de uso llegan con la firma
+      // completa y cuerpo `throw new Error('TODO')`, asi que sus parametros aun
+      // no se usan. Prefijar con `_` es la forma de decir "esto va aqui a
+      // proposito" sin apagar la regla para el codigo ya implementado.
+      '@typescript-eslint/no-unused-vars': [
+        'error',
+        {
+          argsIgnorePattern: '^_',
+          varsIgnorePattern: '^_',
+          caughtErrorsIgnorePattern: '^_',
+        },
+      ],
+
+      // `res.locals['query']` y `process.env['LOG_LEVEL']` son accesos a una
+      // firma de indice: con notacion de punto TypeScript pierde el chequeo.
+      '@typescript-eslint/dot-notation': [
+        'error',
+        { allowIndexSignaturePropertyAccess: true },
+      ],
       'no-console': 'error',
       eqeqeq: ['error', 'always'],
       'prefer-const': 'error',
+    },
+  },
+
+  // ---- Helpers del borde HTTP: el generico ES la API ----
+  // `sendOk<T>`, `validateBody<S>` y `readValidatedQuery<T>` usan el parametro
+  // de tipo una sola vez a proposito: sirve para que el LLAMADOR declare la
+  // forma que espera, no para relacionar dos posiciones de la firma. La regla
+  // no distingue ese caso y pedirla cumplir aqui significaria borrar el tipado
+  // del sitio de llamada, que es justo lo que estos helpers aportan.
+  {
+    files: ['src/shared/infrastructure/http/**/*.ts'],
+    rules: {
+      '@typescript-eslint/no-unnecessary-type-parameters': 'off',
     },
   },
 
@@ -104,7 +163,21 @@ export default tseslint.config(
         {
           patterns: [
             {
-              group: ['@features/*/domain/*', '@features/*/application/*', '@features/*/infrastructure/*', '../../*/domain/*', '../../*/application/*', '../../*/infrastructure/*'],
+              // Las negaciones de `shared` NO son una excepcion a la regla 4:
+              // son lo que la regla manda. Sin ellas el patron relativo tambien
+              // atrapaba `../../shared/application/ports/*`, que es justo la via
+              // sancionada por el mensaje de abajo, y una feature quedaba sin
+              // forma legal de leer un puerto compartido.
+              group: [
+                '@features/*/domain/*',
+                '@features/*/application/*',
+                '@features/*/infrastructure/*',
+                '../../*/domain/*',
+                '../../*/application/*',
+                '../../*/infrastructure/*',
+                '!../../shared/**',
+                '!@shared/**',
+              ],
               message:
                 'AISLAMIENTO DE FEATURES (regla 4): no importes internals de otra feature. Comunicate por @contracts o por un puerto en shared/application/ports.',
             },

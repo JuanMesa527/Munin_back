@@ -134,6 +134,15 @@ export function matchProjects(
       proyectoId: proyecto.proyectoId,
       similitud: calcularSimilitud(proyecto, profile),
       razon: explainMatch(proyecto, profile).razon,
+      nombre: proyecto.nombre,
+      precioDesde: proyecto.precioDesde,
+      // `ProjectProfile` (buyer-persona agregado) no trae `etapa` ni `tipologia`:
+      // esos los resuelve el catalogo comercial (`ProjectCard`, adenda A8). Hasta
+      // cablear ese cruce, se derivan del dato disponible y quedan documentados
+      // como el resto de placeholders de calibracion de este feature.
+      // TODO (A8): resolver etapa/tipologia reales desde `getProjectCard`.
+      etapa: 'Única etapa',
+      tipologia: proyecto.esVIS ? 'VIS' : 'No VIS',
     }))
     .sort((a, b) => b.similitud - a.similitud)
     .slice(0, limite);

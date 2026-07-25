@@ -78,6 +78,8 @@ const FactorSchema = z.object({
   peso: z.number(),
   valor: z.string(),
   contribucion: z.number(),
+  // Adenda A8: intensidad 0-100, lo unico dibujable como barra.
+  intensidad: z.number(),
 });
 
 const ScoreSchema = z.object({
@@ -98,6 +100,11 @@ const ProyectoSchema = z.object({
   proyectoId: z.string(),
   similitud: z.number(),
   razon: z.string(),
+  // Adenda A8: el proyecto viaja ya resuelto (nombre/etapa/precio/tipologia).
+  nombre: z.string(),
+  etapa: z.string(),
+  precioDesde: z.number(),
+  tipologia: z.string(),
 });
 
 const ProyectosSchema = z.array(ProyectoSchema);

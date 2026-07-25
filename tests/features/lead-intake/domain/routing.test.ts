@@ -20,7 +20,9 @@ const CAPACIDAD: CapacityBand = {
 function score(valor: number): ScoreResult {
   return {
     valor,
-    factores: [{ nombre: 'afiliacion', peso: 0.4, valor: 'Afiliado', contribucion: 0.4 }],
+    factores: [
+      { nombre: 'afiliacion', peso: 0.4, valor: 'Afiliado', contribucion: 0.4, intensidad: 100 },
+    ],
     weightsVersion: 'weights-v1',
     calculadoEn: AHORA,
   };

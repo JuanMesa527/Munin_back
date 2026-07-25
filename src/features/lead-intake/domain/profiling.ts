@@ -240,6 +240,10 @@ export function scoreLead(
       peso,
       valor: observado.valorLegible,
       contribucion: redondear2(peso * observado.valorNormalizado),
+      // Adenda A8: `intensidad` (0-100) es lo unico dibujable como barra —
+      // que tan bien puntua el lead en ESTE factor, independiente del signo del
+      // aporte. Es el `valorNormalizado` (0-1) llevado a escala 0-100.
+      intensidad: Math.round(observado.valorNormalizado * 100),
     });
   }
 

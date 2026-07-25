@@ -29,6 +29,7 @@ function fakeEnv(overrides: Partial<AppEnv> = {}): AppEnv {
     supabaseServiceRoleKey: null,
     weightsPath: './data/weights.json',
     projectProfilesPath: './data/project_profiles.json',
+    projectsCatalogPath: './data/projects_catalog.json',
     privacyPolicyVersion: 'v1-test',
     ...overrides,
   };
@@ -37,8 +38,8 @@ function fakeEnv(overrides: Partial<AppEnv> = {}): AppEnv {
 let close: (() => Promise<void>) | null = null;
 
 async function startTestApp(env: AppEnv): Promise<string> {
-  const app = createApp(env);
-  const server = createServer(app);
+  const { server: expressApp } = await createApp(env);
+  const server = createServer(expressApp);
   await new Promise<void>((resolve) => {
     server.listen(0, resolve);
   });
@@ -82,16 +83,15 @@ describe('createApp', () => {
     expect(respuesta.status).toBe(200);
   });
 
-  it('no monta ninguna ruta de F2-F4 (enrichment/education/closer)', async () => {
+  it('monta F2.1 (lead-enrichment) tras la integracion: GET /api/leads/enrichment/deck ya no es 404', async () => {
     const baseUrl = await startTestApp(fakeEnv());
 
-    const respuesta = await fetch(`${baseUrl}/api/leads/enrichment/start`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({}),
-    });
+    // `deck` es la ruta real que registra el controller de F2.1 (start/turn
+    // estan en API_ROUTES pero aun sin implementar). Sin leadId respondera
+    // 400 de validacion, pero nunca 404: la ruta existe, el modulo esta montado.
+    const respuesta = await fetch(`${baseUrl}/api/leads/enrichment/deck`);
 
-    expect(respuesta.status).toBe(404);
+    expect(respuesta.status).not.toBe(404);
   });
 
   it('una ruta inexistente responde 404 uniforme via notFoundHandler, nunca HTML por defecto', async () => {
@@ -105,10 +105,13 @@ describe('createApp', () => {
     expect(cuerpo.error.code).toBe('NOT_FOUND');
   });
 
-  it('app.ts solo importa el modulo de la feature, nunca domain/ o application/ directamente (feature isolation)', () => {
+  it('app.ts entra a lead-intake solo por su modulo, nunca por su domain/ o application/ (feature isolation de F1)', () => {
     const fuente = readFileSync(new URL('../src/app.ts', import.meta.url), 'utf8');
-    expect(fuente).not.toMatch(/from ['"][^'"]*\/domain\//u);
-    expect(fuente).not.toMatch(/from ['"][^'"]*\/application\//u);
+    // Aislamiento de F1: el composition root no alcanza los internals de
+    // lead-intake, solo su `{ router }`. (F2.1 usa otra composicion, con sus
+    // puertos cableados aqui — fuera del alcance de esta garantia.)
+    expect(fuente).not.toMatch(/lead-intake\/domain\//u);
+    expect(fuente).not.toMatch(/lead-intake\/application\//u);
     expect(fuente).toMatch(/lead-intake\.module\.js/u);
   });
 });

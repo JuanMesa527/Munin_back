@@ -1,39 +1,109 @@
 /**
- * Composition root del backend. Capa: composicion.
- * ORDEN LOAD-BEARING (ver comentario en `security.ts`): `applySecurity` ->
- * `createHttpLogger()` -> `GET /api/health` -> router de
- * `lead-intake.module.ts` -> `notFoundHandler` -> `errorHandler`. Moverlo
- * deja rutas sin cabeceras/limites o respuestas de error sin envoltura.
+ * COMPOSITION ROOT del backend.
  *
- * Fase 2 (spec app-bootstrap-back): SOLO monta `lead-intake.module.ts`.
- * Nada de F2-F4 todavia — "No F2-F4 wiring present".
+ * Este es el UNICO archivo que sabe que implementacion concreta se usa. Cambiar
+ * memoria por PostgreSQL, o el stub de LLM por Anthropic/DeepSeek, se hace aqui
+ * y en ningun otro lado: los casos de uso solo conocen puertos. Ese desacople es
+ * el argumento del slide de integracion a producto.
+ *
+ * ORDEN DE LOS MIDDLEWARE (no lo cambies sin leer `security.ts`):
+ *   1. applySecurity   -> cabeceras, CORS, parser de JSON con techo
+ *   2. httpLogger      -> despues de las cabeceras, antes de las rutas, con
+ *                         redaccion de PII ya configurada
+ *   3. rate limit + rutas de features (F1 lead-intake + F2.1 lead-enrichment)
+ *   4. notFoundHandler -> 404 en formato `ApiResponse`
+ *   5. errorHandler    -> ultima red, 4 argumentos
  */
 
 import express from 'express';
-import type { Express, Request, Response } from 'express';
+import type { Express } from 'express';
 import { API_ROUTES } from '@contracts';
-import { sendOk } from '@shared/infrastructure/http/api-response.js';
-import type { AppEnv } from '@shared/infrastructure/config/env.js';
-import { errorHandler, notFoundHandler } from '@shared/infrastructure/http/error-handler.js';
-import { applySecurity } from '@shared/infrastructure/http/security.js';
-import { createHttpLogger } from '@shared/infrastructure/logging/logger.js';
 import { createLeadIntakeModule } from './features/lead-intake/lead-intake.module.js';
+import { createLeadEnrichmentModule } from './features/lead-enrichment/lead-enrichment.module.js';
+import type { AppEnv } from './shared/infrastructure/config/env.js';
+import { SystemClock } from './shared/infrastructure/clock/system-clock.adapter.js';
+import { FileDataCatalogAdapter } from './shared/infrastructure/catalog/file-data-catalog.adapter.js';
+import { errorHandler, notFoundHandler } from './shared/infrastructure/http/error-handler.js';
+import { applySecurity, publicRateLimiter } from './shared/infrastructure/http/security.js';
+import { createHttpLogger, logger } from './shared/infrastructure/logging/logger.js';
+import { InMemoryLeadRepository } from './shared/infrastructure/persistence/in-memory/in-memory-lead.repository.js';
+import { seedDemoLeads } from './shared/infrastructure/persistence/demo-seed.js';
+import { createSupabaseClient } from './shared/infrastructure/persistence/supabase/supabase-client.js';
+import type { SwipeStorePort } from './features/lead-enrichment/application/ports/swipe-store.port.js';
+import type { TelemetryStorePort } from './features/lead-enrichment/application/ports/telemetry.port.js';
+import { InMemorySwipeStore } from './features/lead-enrichment/infrastructure/in-memory-swipe.store.js';
+import { NoopTelemetryStore } from './features/lead-enrichment/infrastructure/noop-telemetry.store.js';
+import { SupabaseSwipeStore } from './features/lead-enrichment/infrastructure/supabase-swipe.store.js';
+import { SupabaseTelemetryStore } from './features/lead-enrichment/infrastructure/supabase-telemetry.store.js';
 
-export function createApp(env: AppEnv): Express {
-  const app = express();
+export interface App {
+  readonly server: Express;
+}
 
-  applySecurity(app, env);
-  app.use(createHttpLogger());
+export async function createApp(env: AppEnv): Promise<App> {
+  const server = express();
 
-  app.get(API_ROUTES.health, (_req: Request, res: Response): void => {
-    sendOk(res, { status: 'ok' });
+  applySecurity(server, env);
+  server.use(createHttpLogger());
+
+  // --- Adapters concretos (la unica eleccion de implementacion del backend) ---
+  const clock = new SystemClock();
+  // Los leads de F2.1 siguen en memoria a proposito: los ids de demo son slugs
+  // (`demo-familia-soacha`) y `lead_profiles.id` en Supabase es uuid. F1
+  // persiste su propio lead via `createLeadRepository(env)` dentro de su modulo.
+  // TODO (handoff F1->F2.1): compartir un unico `LeadRepository` para que el
+  // lead que F1 marca `viable` sea el mismo que F2.1 enriquece.
+  const leads = new InMemoryLeadRepository();
+  const catalogo = new FileDataCatalogAdapter({
+    weightsPath: env.weightsPath,
+    projectProfilesPath: env.projectProfilesPath,
+    projectsCatalogPath: env.projectsCatalogPath,
   });
 
-  const { router } = createLeadIntakeModule(env);
-  app.use(router);
+  // Swipes y telemetria: Supabase cuando el driver lo pide, memoria/no-op si no.
+  // Es la unica eleccion memoria-vs-DB de F2.1, y vive solo aqui.
+  let swipes: SwipeStorePort;
+  let telemetry: TelemetryStorePort;
+  if (
+    env.persistenceDriver === 'supabase' &&
+    env.supabaseUrl !== null &&
+    env.supabaseServiceRoleKey !== null
+  ) {
+    const supabase = createSupabaseClient(env.supabaseUrl, env.supabaseServiceRoleKey);
+    swipes = new SupabaseSwipeStore(supabase);
+    telemetry = new SupabaseTelemetryStore(supabase);
+    logger.info({ driver: 'supabase' }, 'persistencia de F2.1 en Supabase');
+  } else {
+    swipes = new InMemorySwipeStore();
+    telemetry = new NoopTelemetryStore();
+    logger.info({ driver: 'memory' }, 'persistencia de F2.1 en memoria');
+  }
 
-  app.use(notFoundHandler);
-  app.use(errorHandler);
+  // Los leads de demo NUNCA se siembran en produccion: alli los leads los crea
+  // F1 con consentimiento real del titular.
+  if (!env.isProduction) {
+    await seedDemoLeads(leads);
+  }
 
-  return app;
+  // --- Health check: sin rate limit, para que el PaaS no se auto-bloquee ---
+  server.get(API_ROUTES.health, (_req, res) => {
+    res.json({ ok: true, data: { estado: 'vivo', at: clock.now() } });
+  });
+
+  // --- Flujo publico del usuario final (sin login, autogestionado) ---
+  // F1 lead-intake: su router aplica su propio rate limit dentro del modulo.
+  const intake = createLeadIntakeModule(env);
+  server.use(intake.router);
+
+  // F2.1 lead-enrichment: expande info del lead viable.
+  const enrichment = createLeadEnrichmentModule({ leads, catalogo, clock, swipes, telemetry });
+  server.use(publicRateLimiter, enrichment.router);
+
+  // TODO: montar lead-education (F2.2), closer-dashboard (F3) y
+  // closer-briefing (F4) cuando existan.
+
+  server.use(notFoundHandler);
+  server.use(errorHandler);
+
+  return { server };
 }

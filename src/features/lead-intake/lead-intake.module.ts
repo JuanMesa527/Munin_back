@@ -37,6 +37,7 @@ export function createLeadIntakeModule(env: AppEnv): LeadIntakeModule {
   const catalog = new FileDataCatalogAdapter({
     weightsPath: env.weightsPath,
     projectProfilesPath: env.projectProfilesPath,
+    projectsCatalogPath: env.projectsCatalogPath,
   });
 
   const startConversation = new StartConversationUseCase({ clock, ids });

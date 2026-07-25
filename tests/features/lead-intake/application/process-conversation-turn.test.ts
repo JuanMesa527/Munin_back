@@ -91,6 +91,10 @@ function fakeCatalog(overrides: Partial<DataCatalogPort> = {}): DataCatalogPort 
     getWeights: () => Promise.resolve(ok(PESOS)),
     getProjectProfiles: () => Promise.resolve(ok(PROYECTOS)),
     getProjectProfile: () => Promise.resolve(err(new DataUnavailableError())),
+    // Adenda A8: el catalogo comercial (`ProjectCard`) no lo consume F1; el mock
+    // lo cumple para satisfacer el puerto, degradando a DATA_UNAVAILABLE.
+    getProjectCatalog: () => Promise.resolve(err(new DataUnavailableError())),
+    getProjectCard: () => Promise.resolve(err(new DataUnavailableError())),
     ...overrides,
   };
 }

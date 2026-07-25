@@ -1,29 +1,47 @@
 /**
- * Entry point del proceso. Capa: composicion.
- * `loadEnv()` (el UNICO lugar que lee `process.env`) -> `createApp(env)` ->
- * `listen` -> apagado ordenado en `SIGTERM`. `npm run dev` (tsx watch) y
- * `npm start` (build de produccion) arrancan aqui.
+ * Punto de entrada del proceso.
+ *
+ * Solo hace tres cosas: cargar configuracion, levantar el servidor y apagarlo
+ * ordenado. Toda la composicion vive en `app.ts`.
  */
 
 import { createApp } from './app.js';
-import { loadEnv } from '@shared/infrastructure/config/env.js';
-import { logger } from '@shared/infrastructure/logging/logger.js';
+import { loadEnv } from './shared/infrastructure/config/env.js';
+import { logger } from './shared/infrastructure/logging/logger.js';
 
-const env = loadEnv();
-const app = createApp(env);
+/** Margen para que las conexiones en vuelo terminen antes de matar el proceso. */
+const CIERRE_FORZADO_MS = 10_000;
 
-const server = app.listen(env.port, (): void => {
-  logger.info({ port: env.port }, 'servidor escuchando');
-});
+async function main(): Promise<void> {
+  // Si la configuracion es invalida esto lanza y el proceso no arranca. Es
+  // deliberado (OWASP A05): mejor no arrancar que arrancar mal configurado.
+  const env = loadEnv();
+  const { server } = await createApp(env);
 
-/**
- * Apagado ordenado: deja de aceptar conexiones nuevas y cierra las
- * existentes antes de salir, para no cortar un turno de conversacion a
- * mitad de camino cuando el orquestador (Railway/Render/Fly.io) recicla el proceso.
- */
-process.on('SIGTERM', (): void => {
-  logger.info('SIGTERM recibido, cerrando servidor');
-  server.close((): void => {
-    process.exit(0);
+  const http = server.listen(env.port, () => {
+    logger.info(
+      { puerto: env.port, entorno: env.nodeEnv },
+      'perfilador de vivienda escuchando',
+    );
   });
+
+  const apagar = (senal: NodeJS.Signals): void => {
+    logger.info({ senal }, 'apagando');
+    http.close(() => {
+      process.exit(0);
+    });
+    // Si algo se queda colgado, no dejamos el contenedor zombie.
+    setTimeout(() => {
+      logger.warn('cierre forzado: habia conexiones sin terminar');
+      process.exit(1);
+    }, CIERRE_FORZADO_MS).unref();
+  };
+
+  process.on('SIGTERM', apagar);
+  process.on('SIGINT', apagar);
+}
+
+main().catch((error: unknown) => {
+  logger.fatal({ err: error }, 'no se pudo arrancar');
+  process.exit(1);
 });
