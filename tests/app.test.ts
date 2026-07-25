@@ -17,6 +17,7 @@ function fakeEnv(overrides: Partial<AppEnv> = {}): AppEnv {
     port: 0,
     logLevel: 'silent',
     corsOrigins: ['http://localhost:5173'],
+    trustProxy: 0,
     llmProvider: 'stub',
     anthropicApiKey: null,
     llmModel: 'claude-sonnet-5',

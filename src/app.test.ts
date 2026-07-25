@@ -19,6 +19,7 @@ const TEST_ENV: AppEnv = {
   port: 3000,
   logLevel: 'silent',
   corsOrigins: ['http://localhost:5173'],
+  trustProxy: 0,
   llmProvider: 'stub',
   anthropicApiKey: null,
   llmModel: 'claude-sonnet-5',

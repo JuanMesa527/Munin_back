@@ -81,10 +81,17 @@ export function applySecurity(app: Express, env: AppEnv): void {
   // `X-Powered-By` regala la version del framework a cualquier escaner.
   app.disable('x-powered-by');
 
-  // No confiamos en cabeceras de proxy (`X-Forwarded-For`) a proposito: con
-  // `trust proxy` activado sin un proxy real delante, cualquiera falsifica su IP
-  // y evade los rate limiters de arriba. Se activa cuando exista el proxy.
-  app.set('trust proxy', false);
+  // `X-Forwarded-For` solo se cree cuando hay un proxy real delante, y solo
+  // hasta `TRUST_PROXY` saltos. Los dos extremos son un fallo distinto:
+  //   - de menos (0 detras de Vercel): `req.ip` es la IP interna del proxy,
+  //     IGUAL para todo el mundo, asi que los limitadores de arriba meten a
+  //     todos los usuarios en el mismo balde y el primer curioso deja al resto
+  //     en 429.
+  //   - de mas (`true`, o mas saltos de los que hay): cualquiera se inventa su
+  //     IP en la cabecera y evade el limitador.
+  // Por eso es configuracion y no una constante: en local vale 0, detras de
+  // Vercel vale 1.
+  app.set('trust proxy', env.trustProxy === 0 ? false : env.trustProxy);
 
   // --- OWASP A05 + A02 (fallas criptograficas) ---
   // helmet pone las cabeceras defensivas. `hsts` obliga a TLS en el navegador

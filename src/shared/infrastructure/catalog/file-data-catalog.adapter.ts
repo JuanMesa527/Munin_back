@@ -10,7 +10,8 @@
  */
 
 import { readFile } from 'node:fs/promises';
-import { resolve } from 'node:path';
+import { isAbsolute, resolve } from 'node:path';
+import { fileURLToPath } from 'node:url';
 import { z } from 'zod';
 import type { ProjectCard, ProjectProfile, ScoringWeights } from '@contracts';
 import type { DataCatalogPort, ProjectCatalog } from '../../application/ports/data-catalog.port.js';
@@ -128,6 +129,17 @@ const ArchivoCatalogoSchema = z.object({
 
 /** Nombre logico del artefacto. Nunca exponemos la ruta real del filesystem. */
 type Artefacto = 'weights' | 'project_profiles' | 'projects_catalog';
+
+/**
+ * Raiz del paquete, calculada desde este modulo y no desde `process.cwd()`.
+ *
+ * `dist/shared/infrastructure/catalog/` y `src/shared/infrastructure/catalog/`
+ * estan a la misma profundidad, asi que subir cuatro niveles da la raiz tanto
+ * compilado como corriendo con `tsx`. Se necesita porque en serverless el cwd
+ * del proceso no tiene por que ser la raiz del bundle, y ahi las rutas
+ * relativas del `.env` (`./data/weights.json`) no resuelven.
+ */
+const RAIZ_DEL_PAQUETE = fileURLToPath(new URL('../../../../', import.meta.url));
 
 export interface FileDataCatalogDeps {
   readonly weightsPath: string;
@@ -277,17 +289,22 @@ export class FileDataCatalogAdapter implements DataCatalogPort {
     ruta: string,
     artefacto: Artefacto,
   ): Promise<Result<unknown, DataUnavailableError>> {
-    const rutaAbsoluta = resolve(ruta);
-    try {
-      const texto = await readFile(rutaAbsoluta, 'utf8');
-      return ok(JSON.parse(texto) as unknown);
-    } catch (error) {
-      logger.error(
-        { err: error, artefacto, ruta: rutaAbsoluta },
-        'no se pudo leer el artefacto de datos calibrados',
-      );
-      return err(new DataUnavailableError('No hay datos calibrados disponibles', { artefacto }));
+    let ultimoError: unknown = null;
+
+    for (const candidata of rutasCandidatas(ruta)) {
+      try {
+        const texto = await readFile(candidata, 'utf8');
+        return ok(JSON.parse(texto) as unknown);
+      } catch (error) {
+        ultimoError = error;
+      }
     }
+
+    logger.error(
+      { err: ultimoError, artefacto, rutas: rutasCandidatas(ruta) },
+      'no se pudo leer el artefacto de datos calibrados',
+    );
+    return err(new DataUnavailableError('No hay datos calibrados disponibles', { artefacto }));
   }
 
   private artefactoInvalido(
@@ -308,6 +325,23 @@ export class FileDataCatalogAdapter implements DataCatalogPort {
       { artefacto },
     );
   }
+}
+
+/**
+ * Rutas donde buscar un artefacto, en orden de preferencia.
+ *
+ * Primero el cwd (el comportamiento de siempre: contenedor, `npm start`, tsx) y
+ * despues la raiz del paquete, que es la que salva el caso serverless. No es
+ * una busqueda "por si acaso": son los dos unicos sitios donde el archivo puede
+ * estar segun quien arranque el proceso.
+ */
+function rutasCandidatas(ruta: string): string[] {
+  if (isAbsolute(ruta)) {
+    return [ruta];
+  }
+  const desdeCwd = resolve(ruta);
+  const desdeRaiz = resolve(RAIZ_DEL_PAQUETE, ruta);
+  return desdeCwd === desdeRaiz ? [desdeCwd] : [desdeCwd, desdeRaiz];
 }
 
 /**

@@ -31,6 +31,13 @@ const EnvSchema = z.object({
   /** Lista separada por coma. Se parsea a `string[]` fuera del schema. */
   CORS_ORIGINS: z.string().default('http://localhost:5173'),
 
+  /**
+   * Saltos de proxy en los que SI confiamos para leer `X-Forwarded-For`.
+   * `0` (default) = no confiar en nadie. Detras de Vercel u otro PaaS con un
+   * unico proxy delante, `1`. Ver el porque en `security.ts`.
+   */
+  TRUST_PROXY: z.coerce.number().int().min(0).max(10).default(0),
+
   LLM_PROVIDER: z.enum(['stub', 'anthropic', 'deepseek']).default('stub'),
   ANTHROPIC_API_KEY: z.string().trim().default(''),
   LLM_MODEL: z.string().trim().min(1).default('claude-sonnet-5'),
@@ -74,6 +81,8 @@ export interface AppEnv {
   readonly logLevel: LogLevel;
   /** Allowlist explicita de CORS. Nunca contiene `*` en produccion. */
   readonly corsOrigins: readonly string[];
+  /** Saltos de proxy confiables. `0` = no confiar en `X-Forwarded-For`. */
+  readonly trustProxy: number;
   readonly llmProvider: LlmProvider;
   /** `null` cuando no hay llave: el provider `stub` no la necesita. */
   readonly anthropicApiKey: string | null;
@@ -165,6 +174,7 @@ export function loadEnv(): AppEnv {
     port: raw.PORT,
     logLevel: raw.LOG_LEVEL,
     corsOrigins: parseOrigins(raw.CORS_ORIGINS),
+    trustProxy: raw.TRUST_PROXY,
     llmProvider: raw.LLM_PROVIDER,
     anthropicApiKey: raw.ANTHROPIC_API_KEY.length > 0 ? raw.ANTHROPIC_API_KEY : null,
     llmModel: raw.LLM_MODEL,
