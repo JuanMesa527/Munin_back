@@ -9,6 +9,7 @@
  */
 
 import type { IsoDateTime, LeadProfile, Slot } from '@contracts';
+import { SLOTS } from '@contracts';
 
 /**
  * Perfil vacio y valido. Todo `null` salvo las colecciones, que arrancan
@@ -41,26 +42,58 @@ export function createEmptyLeadProfile(id: string, now: IsoDateTime): LeadProfil
 }
 
 /**
- * TODO(F1): gate legal, no un simple null-check.
- * Debe exigir `consentimiento.otorgado === true`, que `finalidades` incluya
- * `perfilamiento_vivienda` y que `versionPolitica` sea la vigente
- * (`env.privacyPolicyVersion`). Ley 1581 de 2012: consentimiento previo,
- * expreso e INFORMADO — si el titular acepto otro texto, no vale.
+ * Gate legal (Ley 1581 de 2012): consentimiento previo, expreso e INFORMADO.
+ * `domain/` no puede leer `env`, asi que la version vigente de la politica
+ * llega como parametro — la inyecta `application/` desde `env.privacyPolicyVersion`
+ * (design.md D2). Si el titular acepto un texto de politica distinto al vigente,
+ * no cuenta como consentimiento valido.
  */
-export function hasConsent(_profile: LeadProfile): boolean {
-  throw new Error('TODO: not implemented');
+export function hasConsent(profile: LeadProfile, activePolicyVersion: string): boolean {
+  if (profile.consentimiento === null) {
+    return false;
+  }
+  return (
+    profile.consentimiento.otorgado &&
+    profile.consentimiento.versionPolitica === activePolicyVersion
+  );
 }
 
-/** TODO(F1): `SLOTS` menos `profile.slotsLlenos`, preservando el orden de `SLOTS`. */
-export function missingSlots(_profile: LeadProfile): Slot[] {
-  throw new Error('TODO: not implemented');
+/** `SLOTS` menos `profile.slotsLlenos`, preservando el orden de `SLOTS`. */
+export function missingSlots(profile: LeadProfile): Slot[] {
+  return SLOTS.filter((slot) => !profile.slotsLlenos.includes(slot));
 }
 
 /**
- * TODO(F1): un slot esta lleno cuando aparece en `slotsLlenos` Y su campo tiene
- * valor. La doble comprobacion existe porque `slotsLlenos` es un indice y los
- * indices se desincronizan.
+ * Un slot esta lleno cuando aparece en `slotsLlenos` Y su campo tiene valor.
+ * La doble comprobacion existe porque `slotsLlenos` es un indice y los
+ * indices se desincronizan: si el campo quedo en `null` por alguna razon,
+ * el slot NO cuenta como lleno aunque el indice diga lo contrario.
  */
-export function isSlotFilled(_profile: LeadProfile, _slot: Slot): boolean {
-  throw new Error('TODO: not implemented');
+export function isSlotFilled(profile: LeadProfile, slot: Slot): boolean {
+  if (!profile.slotsLlenos.includes(slot)) {
+    return false;
+  }
+  return slotFieldValue(profile, slot) !== null;
+}
+
+/** Traduce un `Slot` al valor crudo del campo correspondiente en `LeadProfile`. */
+function slotFieldValue(profile: LeadProfile, slot: Slot): unknown {
+  switch (slot) {
+    case 'afiliacion':
+      return profile.esAfiliado;
+    case 'rangoSalarial':
+      return profile.rangoSalarial;
+    case 'segmento':
+      return profile.segmento;
+    case 'personasACargo':
+      return profile.personasACargo;
+    case 'ciudad':
+      return profile.ciudad;
+    case 'segmentoFamiliar':
+      return profile.segmentoFamiliar;
+    case 'ahorro':
+      return profile.ahorroDeclarado;
+    case 'capacidadAhorroMensual':
+      return profile.capacidadAhorroMensual;
+  }
 }

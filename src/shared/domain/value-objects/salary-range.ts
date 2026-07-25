@@ -48,13 +48,35 @@ export function fromEtiqueta(etiqueta: string): Result<SalaryRange, ValidationEr
 }
 
 /**
- * TODO(F1): parsear la etiqueta a cotas numericas.
- *
- * Va como stub y no como parseo rapido a proposito: es la unica puerta entre el
- * texto declarado y la aritmetica del subsidio, y el vocabulario definitivo lo
- * confirma el pipeline de `analysis/` (adenda A7). Un parseo improvisado aqui
- * se convierte en una decision de viabilidad equivocada aguas abajo.
+ * Cotas numericas por etiqueta, en el mismo orden que `RANGOS_SALARIALES_SMMLV`.
+ * Tabla explicita (no un parseo por regex del string) para que el mapeo sea
+ * auditable linea por linea — exactamente lo que pide design.md D8.
  */
-export function toSmmlvBounds(_range: SalaryRange): Result<SmmlvBounds, ValidationError> {
-  throw new Error('TODO: not implemented');
+const COTAS_POR_ETIQUETA: Record<string, SmmlvBounds> = {
+  '0-2 SMMLV': { desde: 0, hasta: 2 },
+  '2-4 SMMLV': { desde: 2, hasta: 4 },
+  '4-6 SMMLV': { desde: 4, hasta: 6 },
+  '6-10 SMMLV': { desde: 6, hasta: 10 },
+  '>10 SMMLV': { desde: 10, hasta: null },
+};
+
+/**
+ * Parsea la etiqueta a cotas numericas.
+ *
+ * Es la unica puerta entre el texto declarado y la aritmetica del subsidio;
+ * el vocabulario definitivo lo confirma el pipeline de `analysis/` (adenda A7).
+ * Si `range.etiqueta` no esta en la tabla (no deberia pasar si vino de
+ * `fromEtiqueta`, pero esta funcion no confia en eso), retorna `err` en vez de
+ * adivinar una cota.
+ */
+export function toSmmlvBounds(range: SalaryRange): Result<SmmlvBounds, ValidationError> {
+  const cotas = COTAS_POR_ETIQUETA[range.etiqueta];
+  if (cotas === undefined) {
+    return err(
+      new ValidationError('Rango salarial fuera del vocabulario conocido', {
+        rangoSalarial: 'valor no reconocido',
+      }),
+    );
+  }
+  return ok(cotas);
 }
