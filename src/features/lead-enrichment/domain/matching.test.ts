@@ -1,0 +1,226 @@
+/**
+ * Tests del matching de F2.1.
+ *
+ * Lo que se protege aqui es la propiedad que le vamos a mostrar al jurado: la
+ * baraja CAMBIA con el perfil y el porque se puede leer. Un matching que
+ * devuelve el mismo orden para todos es indistinguible de no tener matching.
+ */
+
+import { describe, expect, it } from 'vitest';
+import type { LeadProfile, ProjectCard } from '@contracts';
+import { LEADS_DEMO } from '../../../shared/infrastructure/persistence/demo-seed.js';
+import {
+  cabeEnCapacidad,
+  calcularFactores,
+  explicarMatch,
+  matchProjects,
+  similitudDe,
+} from './matching.js';
+
+function ficha(sobrescribe: Partial<ProjectCard> = {}): ProjectCard {
+  return {
+    proyectoId: 'proyecto-prueba',
+    nombre: 'Proyecto Prueba',
+    ubicacion: 'Sector Prueba',
+    ciudad: 'Soacha',
+    zona: 'sur',
+    esVIS: true,
+    descripcion: 'Ficticio, solo para tests.',
+    unidades: 100,
+    torres: 2,
+    pisos: '6 pisos',
+    areaDesde: 48,
+    areaHasta: null,
+    habitacionesDesde: 3,
+    habitacionesHasta: 3,
+    tipologias: [
+      {
+        nombre: 'Tipo unico',
+        areaConstruida: 48,
+        areaPrivada: 43,
+        habitaciones: 3,
+        banos: 2,
+        precioSMMLV: null,
+      },
+    ],
+    amenidades: ['Parque infantil', 'Cancha multiple', 'Salon para ninos'],
+    lugaresCercanos: ['Colegio'],
+    entrega: null,
+    certificacionEdge: false,
+    salaDeVentas: null,
+    brochureUrl: 'https://example.com/brochure.html',
+    imagen: '/proyectos/proyecto-prueba.webp',
+    precio: {
+      desde: 190_000_000,
+      hasta: 240_000_000,
+      esEstimado: true,
+      metodo: 'estimado para el test',
+    },
+    ...sobrescribe,
+  };
+}
+
+const familia = LEADS_DEMO[0]!;
+const joven = LEADS_DEMO[1]!;
+const alto = LEADS_DEMO[2]!;
+
+describe('calcularFactores', () => {
+  it('expone SIEMPRE los cinco ejes, aunque el lead venga incompleto', () => {
+    const vacio: LeadProfile = {
+      ...familia,
+      ciudad: null,
+      personasACargo: null,
+      rangoSalarial: null,
+      capacidad: null,
+    };
+
+    const factores = calcularFactores(vacio, ficha());
+
+    // Glass-box: si no se puede explicar, no se muestra. Nunca menos de 5.
+    expect(factores).toHaveLength(5);
+    expect(factores.every((f) => f.valor.length > 0)).toBe(true);
+  });
+
+  it('los pesos suman 1 para que la similitud viva en 0..1', () => {
+    const factores = calcularFactores(familia, ficha());
+    const suma = factores.reduce((total, f) => total + f.peso, 0);
+    expect(suma).toBeCloseTo(1, 5);
+  });
+
+  it('castiga el proyecto que se sale del techo de capacidad', () => {
+    const barato = calcularFactores(familia, ficha({ precio: { ...ficha().precio, desde: 150_000_000 } }));
+    const caro = calcularFactores(familia, ficha({ precio: { ...ficha().precio, desde: 400_000_000 } }));
+
+    const capacidadDe = (fs: ReturnType<typeof calcularFactores>): number =>
+      fs.find((f) => f.nombre === 'Capacidad estimada')?.contribucion ?? 0;
+
+    expect(capacidadDe(caro)).toBeLessThan(capacidadDe(barato));
+  });
+
+  it('premia la VIS para un hogar bajo el tope del SFV y la castiga arriba', () => {
+    const tipoDe = (lead: LeadProfile, esVIS: boolean): number =>
+      calcularFactores(lead, ficha({ esVIS })).find((f) => f.nombre === 'Tipo de vivienda')
+        ?.contribucion ?? 0;
+
+    // familia gana 2-4 SMMLV: la VIS es su via al subsidio.
+    expect(tipoDe(familia, true)).toBeGreaterThan(tipoDe(familia, false));
+    // alto gana 6-10 SMMLV: la VIS le queda por debajo.
+    expect(tipoDe(alto, false)).toBeGreaterThan(tipoDe(alto, true));
+  });
+
+  it('castiga el apartaestudio para un hogar con tres dependientes', () => {
+    const tamanoDe = (habitaciones: number): number =>
+      calcularFactores(
+        familia,
+        ficha({ habitacionesDesde: habitaciones, habitacionesHasta: habitaciones }),
+      ).find((f) => f.nombre === 'Tamano del hogar')?.contribucion ?? 0;
+
+    expect(tamanoDe(1)).toBeLessThan(tamanoDe(3));
+  });
+});
+
+describe('similitudDe', () => {
+  it('queda entre 0 y 1', () => {
+    for (const lead of [familia, joven, alto]) {
+      const similitud = similitudDe(calcularFactores(lead, ficha()));
+      expect(similitud).toBeGreaterThanOrEqual(0);
+      expect(similitud).toBeLessThanOrEqual(1);
+    }
+  });
+});
+
+describe('explicarMatch', () => {
+  it('cita los factores que empujaron el proyecto hacia arriba', () => {
+    const buena = ficha();
+    const razon = explicarMatch(familia, buena);
+
+    expect(razon).toContain('Te lo mostramos porque');
+    expect(razon).toContain('cabe en tu techo estimado');
+  });
+
+  it('NUNCA presenta una carencia como motivo para mostrar el proyecto', () => {
+    // Fuera de presupuesto, fuera de ciudad y muy chico para el hogar.
+    const mala = ficha({
+      ciudad: 'Ubate',
+      habitacionesDesde: 1,
+      habitacionesHasta: 1,
+      esVIS: false,
+      amenidades: [],
+      precio: { desde: 900_000_000, hasta: null, esEstimado: true, metodo: 'test' },
+    });
+
+    const razon = explicarMatch(familia, mala);
+
+    expect(razon).not.toContain('Te lo mostramos porque');
+    expect(razon).not.toContain('por encima de tu techo estimado');
+    expect(razon).toContain('se aleja de lo que buscas');
+  });
+});
+
+describe('cabeEnCapacidad', () => {
+  it('es false cuando el lead todavia no tiene capacidad estimada', () => {
+    expect(cabeEnCapacidad(null, ficha())).toBe(false);
+  });
+
+  it('compara contra el piso de la banda, no contra el techo', () => {
+    const capacidad = { ...familia.capacidad!, precioMaximoEstimado: 200_000_000 };
+    // desde 190M cabe; el `hasta` de 240M no debe hacerlo fallar.
+    expect(cabeEnCapacidad(capacidad, ficha())).toBe(true);
+  });
+});
+
+describe('matchProjects', () => {
+  const catalogo: ProjectCard[] = [
+    ficha({ proyectoId: 'vis-familiar-soacha', ciudad: 'Soacha', esVIS: true, habitacionesDesde: 3, habitacionesHasta: 3 }),
+    ficha({
+      proyectoId: 'estudio-bogota',
+      ciudad: 'Bogota',
+      zona: 'centro',
+      esVIS: true,
+      habitacionesDesde: 1,
+      habitacionesHasta: 1,
+      amenidades: ['Coworking', 'Gimnasio', 'Social living y coworking'],
+      precio: { desde: 175_000_000, hasta: 200_000_000, esEstimado: true, metodo: 'test' },
+    }),
+    ficha({
+      proyectoId: 'no-vis-grande',
+      ciudad: 'Bogota',
+      zona: 'norte',
+      esVIS: false,
+      habitacionesDesde: 3,
+      habitacionesHasta: 3,
+      precio: { desde: 320_000_000, hasta: null, esEstimado: true, metodo: 'test' },
+    }),
+  ];
+
+  it('ordena distinto segun el perfil: eso es el matching', () => {
+    const paraFamilia = matchProjects(familia, catalogo)[0]?.ficha.proyectoId;
+    const paraJoven = matchProjects(joven, catalogo)[0]?.ficha.proyectoId;
+    const paraAlto = matchProjects(alto, catalogo)[0]?.ficha.proyectoId;
+
+    expect(paraFamilia).toBe('vis-familiar-soacha');
+    expect(paraJoven).toBe('estudio-bogota');
+    expect(paraAlto).toBe('no-vis-grande');
+  });
+
+  it('devuelve el catalogo completo: ver lo que NO calza tambien informa', () => {
+    expect(matchProjects(familia, catalogo)).toHaveLength(catalogo.length);
+  });
+
+  it('respeta el limite', () => {
+    expect(matchProjects(familia, catalogo, 2)).toHaveLength(2);
+  });
+
+  it('es determinista: dos corridas del mismo lead dan el mismo orden', () => {
+    const ids = (): string[] =>
+      matchProjects(familia, catalogo).map((tarjeta) => tarjeta.ficha.proyectoId);
+    expect(ids()).toEqual(ids());
+  });
+
+  it('cada tarjeta trae sus factores, sin excepcion (regla 21)', () => {
+    for (const tarjeta of matchProjects(joven, catalogo)) {
+      expect(tarjeta.factores.length).toBeGreaterThan(0);
+      expect(tarjeta.match.razon.length).toBeGreaterThan(0);
+    }
+  });
+});
