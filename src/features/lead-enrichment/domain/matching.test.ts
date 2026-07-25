@@ -88,8 +88,14 @@ describe('calcularFactores', () => {
   });
 
   it('castiga el proyecto que se sale del techo de capacidad', () => {
-    const barato = calcularFactores(familia, ficha({ precio: { ...ficha().precio, desde: 150_000_000 } }));
-    const caro = calcularFactores(familia, ficha({ precio: { ...ficha().precio, desde: 400_000_000 } }));
+    const barato = calcularFactores(
+      familia,
+      ficha({ precio: { ...ficha().precio, desde: 150_000_000 } }),
+    );
+    const caro = calcularFactores(
+      familia,
+      ficha({ precio: { ...ficha().precio, desde: 400_000_000 } }),
+    );
 
     const capacidadDe = (fs: ReturnType<typeof calcularFactores>): number =>
       fs.find((f) => f.nombre === 'Capacidad estimada')?.contribucion ?? 0;
@@ -171,7 +177,13 @@ describe('cabeEnCapacidad', () => {
 
 describe('matchProjects', () => {
   const catalogo: ProjectCard[] = [
-    ficha({ proyectoId: 'vis-familiar-soacha', ciudad: 'Soacha', esVIS: true, habitacionesDesde: 3, habitacionesHasta: 3 }),
+    ficha({
+      proyectoId: 'vis-familiar-soacha',
+      ciudad: 'Soacha',
+      esVIS: true,
+      habitacionesDesde: 3,
+      habitacionesHasta: 3,
+    }),
     ficha({
       proyectoId: 'estudio-bogota',
       ciudad: 'Bogota',
@@ -222,5 +234,35 @@ describe('matchProjects', () => {
       expect(tarjeta.factores.length).toBeGreaterThan(0);
       expect(tarjeta.match.razon.length).toBeGreaterThan(0);
     }
+  });
+
+  it('resuelve en el match los datos renderizables exigidos por A8', () => {
+    const card = matchProjects(familia, catalogo)[0]!;
+
+    expect(card.match).toMatchObject({
+      proyectoId: card.ficha.proyectoId,
+      nombre: card.ficha.nombre,
+      etapa: expect.any(String),
+      precioDesde: card.ficha.precio.desde,
+      tipologia: expect.any(String),
+    });
+    expect(
+      card.factores.every((factor) => factor.intensidad >= 0 && factor.intensidad <= 100),
+    ).toBe(true);
+  });
+
+  it('no confunde la entrega con la etapa comercial y usa separador ASCII', () => {
+    const card = matchProjects(familia, [
+      ficha({
+        entrega: 'Segundo semestre de 2027',
+        tipologias: [
+          { ...ficha().tipologias[0]!, nombre: 'Tipo A' },
+          { ...ficha().tipologias[0]!, nombre: 'Tipo B' },
+        ],
+      }),
+    ])[0]!;
+
+    expect(card.match.etapa).toBe('Por confirmar');
+    expect(card.match.tipologia).toBe('Tipo A / Tipo B');
   });
 });

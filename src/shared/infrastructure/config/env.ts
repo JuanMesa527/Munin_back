@@ -31,6 +31,13 @@ const EnvSchema = z.object({
   /** Lista separada por coma. Se parsea a `string[]` fuera del schema. */
   CORS_ORIGINS: z.string().default('http://localhost:5173'),
 
+  /**
+   * Saltos de proxy en los que SI confiamos para leer `X-Forwarded-For`.
+   * `0` (default) = no confiar en nadie. Detras de Vercel u otro PaaS con un
+   * unico proxy delante, `1`. Ver el porque en `security.ts`.
+   */
+  TRUST_PROXY: z.coerce.number().int().min(0).max(10).default(0),
+
   LLM_PROVIDER: z.enum(['stub', 'anthropic', 'deepseek']).default('stub'),
   ANTHROPIC_API_KEY: z.string().trim().default(''),
   LLM_MODEL: z.string().trim().min(1).default('claude-sonnet-5'),
@@ -42,6 +49,8 @@ const EnvSchema = z.object({
 
   CLOSER_SESSION_SECRET: z.string().min(1, 'falta el secreto de sesion del closer'),
   CLOSER_SESSION_TTL_MINUTES: z.coerce.number().int().positive().max(1440).default(480),
+  CLOSER_USERNAME: z.string().trim().min(1, 'falta el usuario del closer'),
+  CLOSER_PASSWORD: z.string().min(1, 'falta la contrasena del closer'),
 
   PERSISTENCE_DRIVER: z.enum(['memory', 'supabase']).default('memory'),
 
@@ -58,11 +67,33 @@ const EnvSchema = z.object({
   PROJECTS_CATALOG_PATH: z.string().trim().min(1).default('./data/projects_catalog.json'),
 
   PRIVACY_POLICY_VERSION: z.string().trim().min(1).default(VERSION_POLITICA_SIN_CONFIGURAR),
+
+  /**
+   * F5 · call-simulation. `CALL_SIM_PROVIDER` es independiente de `LLM_PROVIDER`:
+   * el roleplay usa un puerto propio (`CallSimulatorPort`), nunca `LlmPort`
+   * (regla 12, glass-box — ver contracts.ts adenda A11).
+   */
+  CALL_SIM_PROVIDER: z.enum(['stub', 'deepseek']).default('stub'),
+  /** `none` deja `CallTurn.audio` en `null`: la UI cae a solo texto. */
+  SPEECH_PROVIDER: z.enum(['none', 'polly']).default('none'),
+  AWS_REGION: z.string().trim().min(1).default('us-east-1'),
+  POLLY_ENGINE: z.enum(['generative', 'neural', 'standard']).default('generative'),
+  POLLY_VOICE_FEMALE: z.string().trim().min(1).default('Mia'),
+  POLLY_VOICE_MALE: z.string().trim().min(1).default('Andres'),
+  /**
+   * Adenda A12. `none` deja el dictado apagado y el closer escribe; `aws` usa
+   * Amazon Transcribe Streaming con las MISMAS credenciales que Polly.
+   */
+  TRANSCRIPTION_PROVIDER: z.enum(['none', 'aws']).default('none'),
 });
 
 export type LogLevel = z.infer<typeof EnvSchema>['LOG_LEVEL'];
 export type LlmProvider = z.infer<typeof EnvSchema>['LLM_PROVIDER'];
 export type PersistenceDriver = z.infer<typeof EnvSchema>['PERSISTENCE_DRIVER'];
+export type CallSimProvider = z.infer<typeof EnvSchema>['CALL_SIM_PROVIDER'];
+export type SpeechProvider = z.infer<typeof EnvSchema>['SPEECH_PROVIDER'];
+export type PollyEngine = z.infer<typeof EnvSchema>['POLLY_ENGINE'];
+export type TranscriptionProvider = z.infer<typeof EnvSchema>['TRANSCRIPTION_PROVIDER'];
 
 export interface AppEnv {
   readonly nodeEnv: 'development' | 'test' | 'production';
@@ -72,6 +103,8 @@ export interface AppEnv {
   readonly logLevel: LogLevel;
   /** Allowlist explicita de CORS. Nunca contiene `*` en produccion. */
   readonly corsOrigins: readonly string[];
+  /** Saltos de proxy confiables. `0` = no confiar en `X-Forwarded-For`. */
+  readonly trustProxy: number;
   readonly llmProvider: LlmProvider;
   /** `null` cuando no hay llave: el provider `stub` no la necesita. */
   readonly anthropicApiKey: string | null;
@@ -81,6 +114,8 @@ export interface AppEnv {
   readonly deepseekModel: string;
   readonly closerSessionSecret: string;
   readonly closerSessionTtlMinutes: number;
+  readonly closerUsername: string;
+  readonly closerPassword: string;
   readonly persistenceDriver: PersistenceDriver;
   /** URL del proyecto Supabase. `null` con el driver `memory` (solo lo exige `supabase`, D10). */
   readonly supabaseUrl: string | null;
@@ -92,6 +127,16 @@ export interface AppEnv {
   readonly projectsCatalogPath: string;
   /** Version del aviso que acepta el titular. Queda en `ConsentRecord`. */
   readonly privacyPolicyVersion: string;
+
+  /** F5 · call-simulation. `null` cuando `deepseekApiKey` tambien lo es. */
+  readonly callSimProvider: CallSimProvider;
+  readonly speechProvider: SpeechProvider;
+  readonly awsRegion: string;
+  readonly pollyEngine: PollyEngine;
+  readonly pollyVoiceFemale: string;
+  readonly pollyVoiceMale: string;
+  /** Dictado del closer. Comparte `awsRegion` y credenciales con Polly (A12). */
+  readonly transcriptionProvider: TranscriptionProvider;
 }
 
 function parseOrigins(valor: string): readonly string[] {
@@ -116,6 +161,9 @@ function problemasDeProduccion(env: AppEnv): string[] {
     problemas.push(
       `CLOSER_SESSION_SECRET debe tener al menos ${String(LARGO_MINIMO_SECRETO)} caracteres`,
     );
+  }
+  if (env.closerPassword.length < 12) {
+    problemas.push('CLOSER_PASSWORD debe tener al menos 12 caracteres');
   }
   if (env.corsOrigins.includes('*')) {
     problemas.push('CORS_ORIGINS no puede contener "*": la allowlist debe ser explicita');
@@ -158,6 +206,7 @@ export function loadEnv(): AppEnv {
     port: raw.PORT,
     logLevel: raw.LOG_LEVEL,
     corsOrigins: parseOrigins(raw.CORS_ORIGINS),
+    trustProxy: raw.TRUST_PROXY,
     llmProvider: raw.LLM_PROVIDER,
     anthropicApiKey: raw.ANTHROPIC_API_KEY.length > 0 ? raw.ANTHROPIC_API_KEY : null,
     llmModel: raw.LLM_MODEL,
@@ -165,6 +214,8 @@ export function loadEnv(): AppEnv {
     deepseekModel: raw.DEEPSEEK_MODEL,
     closerSessionSecret: raw.CLOSER_SESSION_SECRET,
     closerSessionTtlMinutes: raw.CLOSER_SESSION_TTL_MINUTES,
+    closerUsername: raw.CLOSER_USERNAME,
+    closerPassword: raw.CLOSER_PASSWORD,
     persistenceDriver: raw.PERSISTENCE_DRIVER,
     supabaseUrl: raw.SUPABASE_URL.length > 0 ? raw.SUPABASE_URL : null,
     supabaseServiceRoleKey:
@@ -173,6 +224,13 @@ export function loadEnv(): AppEnv {
     projectProfilesPath: raw.PROJECT_PROFILES_PATH,
     projectsCatalogPath: raw.PROJECTS_CATALOG_PATH,
     privacyPolicyVersion: raw.PRIVACY_POLICY_VERSION,
+    callSimProvider: raw.CALL_SIM_PROVIDER,
+    speechProvider: raw.SPEECH_PROVIDER,
+    awsRegion: raw.AWS_REGION,
+    pollyEngine: raw.POLLY_ENGINE,
+    transcriptionProvider: raw.TRANSCRIPTION_PROVIDER,
+    pollyVoiceFemale: raw.POLLY_VOICE_FEMALE,
+    pollyVoiceMale: raw.POLLY_VOICE_MALE,
   };
 
   // El provider `anthropic` sin llave arrancaria y fallaria en el primer turno
@@ -185,6 +243,13 @@ export function loadEnv(): AppEnv {
   // el primer turno de conversacion, no en el arranque.
   if (env.llmProvider === 'deepseek' && env.deepseekApiKey === null) {
     throw new Error('Configuracion invalida: LLM_PROVIDER=deepseek exige DEEPSEEK_API_KEY');
+  }
+
+  // F5 · call-simulation: mismo puerto DEEPSEEK_API_KEY que arriba (es la
+  // misma cuenta/llave), pero un interruptor independiente de LLM_PROVIDER
+  // porque el roleplay usa `CallSimulatorPort`, no `LlmPort` (regla 12).
+  if (env.callSimProvider === 'deepseek' && env.deepseekApiKey === null) {
+    throw new Error('Configuracion invalida: CALL_SIM_PROVIDER=deepseek exige DEEPSEEK_API_KEY');
   }
 
   // `supabase` sin URL o sin service_role key fallaria en el primer `/consent`

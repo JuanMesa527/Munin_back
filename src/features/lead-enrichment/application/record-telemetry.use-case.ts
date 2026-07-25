@@ -8,7 +8,7 @@
  * los `Result` de los sub-guardados se consumen aqui y no se propagan.
  */
 
-import type { EnrichmentSessionSummary, ViewEvent } from '@contracts';
+import type { EnrichmentTelemetry } from '@contracts';
 import type { Result } from '../../../shared/kernel/result.js';
 import { ok } from '../../../shared/kernel/result.js';
 import { logger } from '../../../shared/infrastructure/logging/logger.js';
@@ -18,33 +18,27 @@ export interface RecordTelemetryDeps {
   readonly telemetry: TelemetryStorePort;
 }
 
-export interface RecordTelemetryInput {
-  readonly leadId: string;
-  readonly vistas: readonly ViewEvent[];
-  readonly sesion: EnrichmentSessionSummary | null;
-}
+export type RecordTelemetryInput = EnrichmentTelemetry;
 
 export interface RecordTelemetryOutput {
-  vistas: number;
-  sesion: boolean;
+  views: number;
+  session: boolean;
 }
 
 export class RecordTelemetryUseCase {
   constructor(private readonly deps: RecordTelemetryDeps) {}
 
   async execute(input: RecordTelemetryInput): Promise<Result<RecordTelemetryOutput>> {
-    const vistas = await this.deps.telemetry.recordViews(input.leadId, input.vistas);
-    if (!vistas.ok) {
-      logger.warn({ leadId: input.leadId }, 'telemetria de vistas no persistio');
+    const views = await this.deps.telemetry.recordViews(input.views);
+    if (!views.ok) {
+      logger.warn({ leadId: input.session.leadId }, 'telemetria de vistas no persistio');
     }
 
-    if (input.sesion !== null) {
-      const sesion = await this.deps.telemetry.recordSession(input.leadId, input.sesion);
-      if (!sesion.ok) {
-        logger.warn({ leadId: input.leadId }, 'telemetria de sesion no persistio');
-      }
+    const session = await this.deps.telemetry.recordSession(input.session);
+    if (!session.ok) {
+      logger.warn({ leadId: input.session.leadId }, 'telemetria de sesion no persistio');
     }
 
-    return ok({ vistas: input.vistas.length, sesion: input.sesion !== null });
+    return ok({ views: input.views.length, session: true });
   }
 }

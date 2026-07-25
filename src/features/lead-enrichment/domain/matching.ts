@@ -426,13 +426,11 @@ export function matchProjects(
       proyectoId: ficha.proyectoId,
       similitud: similitudDe(factores),
       razon: explicarDesdeEjes(ejes, ficha),
-      // Adenda A8: el match viaja con el proyecto ya resuelto. La `ficha`
-      // completa va aparte en `ProjectMatchCard`; aqui se copian los campos
-      // que F3/F4 leen sin cruzar por id. `ProjectCard` no modela `etapa`.
       nombre: ficha.nombre,
-      etapa: 'Única etapa',
+      etapa: 'Por confirmar',
       precioDesde: ficha.precio.desde,
-      tipologia: ficha.tipologias[0]?.nombre ?? (ficha.esVIS ? 'VIS' : 'No VIS'),
+      tipologia:
+        ficha.tipologias.map((tipologia) => tipologia.nombre).join(' / ') || 'Por confirmar',
     };
     return {
       ficha,

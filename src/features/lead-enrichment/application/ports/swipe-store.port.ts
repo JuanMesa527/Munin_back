@@ -30,11 +30,7 @@ export interface SwipeStorePort {
    * sobre la misma tarjeta REEMPLAZA la decision anterior, porque el usuario
    * puede devolverse y cambiar de opinion.
    */
-  record(
-    leadId: string,
-    evento: SwipeEvent,
-    contexto?: SwipeMatchContext,
-  ): Promise<Result<SwipeEvent[]>>;
+  record(evento: SwipeEvent, contexto?: SwipeMatchContext): Promise<Result<SwipeEvent[]>>;
   /** Swipes del lead, en el orden en que se decidieron. */
   listByLead(leadId: string): Promise<Result<SwipeEvent[]>>;
 }

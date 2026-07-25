@@ -4,7 +4,10 @@
  */
 
 import { describe, expect, it } from 'vitest';
-import { fromEtiqueta, toSmmlvBounds } from '../../../../src/shared/domain/value-objects/salary-range.js';
+import {
+  fromEtiqueta,
+  toSmmlvBounds,
+} from '../../../../src/shared/domain/value-objects/salary-range.js';
 
 function bounds(etiqueta: string): ReturnType<typeof toSmmlvBounds> {
   const range = fromEtiqueta(etiqueta);

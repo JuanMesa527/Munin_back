@@ -65,9 +65,7 @@ describe('parseExtractSlotValueContent', () => {
   });
 
   it('normaliza a string un valor boolean (comportamiento real verificado contra la API de DeepSeek: para slots si/no el modelo devuelve el tipo JSON nativo, no la cadena "true")', () => {
-    const resultado = parseExtractSlotValueContent(
-      JSON.stringify({ valor: true, confianza: 1 }),
-    );
+    const resultado = parseExtractSlotValueContent(JSON.stringify({ valor: true, confianza: 1 }));
     expect(resultado.ok).toBe(true);
     if (resultado.ok) {
       expect(resultado.value).toEqual({ valor: 'true', confianza: 1 });
@@ -75,9 +73,7 @@ describe('parseExtractSlotValueContent', () => {
   });
 
   it('normaliza a string un valor numerico', () => {
-    const resultado = parseExtractSlotValueContent(
-      JSON.stringify({ valor: 3, confianza: 0.8 }),
-    );
+    const resultado = parseExtractSlotValueContent(JSON.stringify({ valor: 3, confianza: 0.8 }));
     expect(resultado.ok).toBe(true);
     if (resultado.ok) {
       expect(resultado.value).toEqual({ valor: '3', confianza: 0.8 });

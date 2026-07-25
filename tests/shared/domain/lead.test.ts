@@ -5,7 +5,12 @@
 
 import { describe, expect, it } from 'vitest';
 import type { LeadProfile } from '@contracts';
-import { createEmptyLeadProfile, hasConsent, isSlotFilled, missingSlots } from '../../../src/shared/domain/lead.js';
+import {
+  createEmptyLeadProfile,
+  hasConsent,
+  isSlotFilled,
+  missingSlots,
+} from '../../../src/shared/domain/lead.js';
 
 const AHORA = '2026-07-25T00:00:00.000Z';
 const VERSION_ACTIVA = 'v1';

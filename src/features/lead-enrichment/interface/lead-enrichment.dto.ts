@@ -7,6 +7,7 @@
  */
 
 import { z } from 'zod';
+import type { EnrichmentSessionSummary, EnrichmentTelemetry, ViewEvent } from '@contracts';
 
 /**
  * Los ids del dominio son opacos (`IdGeneratorPort`), asi que se acotan a
@@ -57,16 +58,18 @@ export type SummaryBody = z.infer<typeof SummaryBodySchema>;
  * ------------------------------------------------------------------------ */
 
 const ViewEventSchema = z.object({
+  leadId: IdSchema,
   // `null` cuando la seccion no es de un proyecto puntual (deck, resumen).
   proyectoId: IdSchema.nullable(),
   seccion: z.enum(['deck', 'card', 'detalle', 'factores', 'resumen']),
   dwellMs: z.number().int().nonnegative().max(MAX_DWELL_MS),
   ocurridoEn: z.iso.datetime(),
-});
+}) satisfies z.ZodType<ViewEvent>;
 
 const SessionSummarySchema = z.object({
-  startedEn: z.iso.datetime(),
-  endedEn: z.iso.datetime(),
+  leadId: IdSchema,
+  startedAt: z.iso.datetime(),
+  endedAt: z.iso.datetime(),
   totalTarjetas: z.number().int().nonnegative().max(1000),
   decididas: z.number().int().nonnegative().max(1000),
   likes: z.number().int().nonnegative().max(1000),
@@ -74,16 +77,24 @@ const SessionSummarySchema = z.object({
   passes: z.number().int().nonnegative().max(1000),
   intentScore: z.number().int().min(0).max(100),
   tiempoTotalMs: z.number().int().nonnegative().max(MAX_DWELL_MS),
-  // Senal gruesa de dispositivo, no PII: se acota el largo por higiene (A03).
-  viewport: z.string().trim().max(20).nullable(),
-  dispositivo: z.string().trim().max(20).nullable(),
-});
+}) satisfies z.ZodType<EnrichmentSessionSummary>;
 
-export const TelemetryBodySchema = z.object({
-  leadId: IdSchema,
-  // Tope duro: la baraja tiene ~12 tarjetas; 500 vistas es de sobra y acota abuso.
-  vistas: z.array(ViewEventSchema).max(500),
-  sesion: SessionSummarySchema.nullable(),
-});
+export const TelemetryBodySchema = z
+  .object({
+    // Tope duro: la baraja tiene ~12 tarjetas; 500 vistas es de sobra y acota abuso.
+    views: z.array(ViewEventSchema).max(500),
+    session: SessionSummarySchema,
+  })
+  .superRefine((telemetry, context) => {
+    telemetry.views.forEach((view, index) => {
+      if (view.leadId !== telemetry.session.leadId) {
+        context.addIssue({
+          code: 'custom',
+          path: ['views', index, 'leadId'],
+          message: 'el leadId de la vista debe coincidir con el de la sesion',
+        });
+      }
+    });
+  }) satisfies z.ZodType<EnrichmentTelemetry>;
 
 export type TelemetryBody = z.infer<typeof TelemetryBodySchema>;

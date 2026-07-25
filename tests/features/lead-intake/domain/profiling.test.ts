@@ -72,7 +72,9 @@ describe('estimateCapacity', () => {
     expect(bajo.ok).toBe(true);
     expect(alto.ok).toBe(true);
     if (bajo.ok && alto.ok) {
-      expect(alto.value.cuotaMensualEstimada ?? 0).toBeGreaterThan(bajo.value.cuotaMensualEstimada ?? 0);
+      expect(alto.value.cuotaMensualEstimada ?? 0).toBeGreaterThan(
+        bajo.value.cuotaMensualEstimada ?? 0,
+      );
     }
   });
 
@@ -112,12 +114,18 @@ describe('scoreLead', () => {
     const resultado = scoreLead(perfil, pesosConEstrato, AHORA);
     expect(resultado.ok).toBe(true);
     if (resultado.ok) {
-      expect(resultado.value.factores.some((factor) => /estrato/iu.test(factor.nombre))).toBe(false);
+      expect(resultado.value.factores.some((factor) => /estrato/iu.test(factor.nombre))).toBe(
+        false,
+      );
     }
   });
 
   it('un no-afiliado con todos los demas datos igual recibe un ScoreResult completo, no un rechazo temprano', () => {
-    const perfil = perfilBase({ esAfiliado: false, ahorroDeclarado: 5_000_000, capacidadAhorroMensual: 500_000 });
+    const perfil = perfilBase({
+      esAfiliado: false,
+      ahorroDeclarado: 5_000_000,
+      capacidadAhorroMensual: 500_000,
+    });
     const resultado = scoreLead(perfil, pesosBase(), AHORA);
     expect(resultado.ok).toBe(true);
     if (resultado.ok) {

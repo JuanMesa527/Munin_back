@@ -27,6 +27,7 @@ function turnoVacio(): ConversationTurn {
     profile: {
       id: 'lead-1',
       consentimiento: null,
+      identidad: null,
       nombre: null,
       email: null,
       telefono: null,
@@ -78,7 +79,12 @@ async function startTestApp(deps: IntakeControllerDeps): Promise<void> {
   await new Promise<void>((resolve) => server.listen(0, resolve));
   const { port } = server.address() as AddressInfo;
   baseUrl = `http://127.0.0.1:${String(port)}`;
-  close = () => new Promise<void>((resolve) => server.close(() => { resolve(); }));
+  close = () =>
+    new Promise<void>((resolve) =>
+      server.close(() => {
+        resolve();
+      }),
+    );
 }
 
 describe('createIntakeRouter', () => {
@@ -106,7 +112,9 @@ describe('createIntakeRouter', () => {
   it('un fallo inesperado del caso de uso nunca filtra stack ni ruta interna en el body', async () => {
     const deps = fakeDeps({
       processConversationTurn: {
-        execute: vi.fn(() => Promise.reject(new Error('fallo inesperado del adapter en /Users/algo/secreto.ts'))),
+        execute: vi.fn(() =>
+          Promise.reject(new Error('fallo inesperado del adapter en /Users/algo/secreto.ts')),
+        ),
       },
     });
     await startTestApp(deps);

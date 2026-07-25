@@ -21,17 +21,17 @@ import type { TelemetryStorePort } from '../application/ports/telemetry.port.js'
 export class SupabaseTelemetryStore implements TelemetryStorePort {
   constructor(private readonly client: AppSupabaseClient) {}
 
-  async recordViews(leadId: string, vistas: readonly ViewEvent[]): Promise<Result<void>> {
-    if (vistas.length === 0) {
+  async recordViews(views: readonly ViewEvent[]): Promise<Result<void>> {
+    if (views.length === 0) {
       return ok(undefined);
     }
 
-    const filas = vistas.map((vista) => ({
-      lead_id: leadId,
-      proyecto_id: vista.proyectoId,
-      seccion: vista.seccion,
-      dwell_ms: vista.dwellMs,
-      ocurrido_en: vista.ocurridoEn,
+    const filas = views.map((view) => ({
+      lead_id: view.leadId,
+      proyecto_id: view.proyectoId,
+      seccion: view.seccion,
+      dwell_ms: view.dwellMs,
+      ocurrido_en: view.ocurridoEn,
     }));
 
     const { error } = await this.client.from('view_events').insert(filas);
@@ -42,23 +42,20 @@ export class SupabaseTelemetryStore implements TelemetryStorePort {
     return ok(undefined);
   }
 
-  async recordSession(
-    leadId: string,
-    sesion: EnrichmentSessionSummary,
-  ): Promise<Result<void>> {
+  async recordSession(session: EnrichmentSessionSummary): Promise<Result<void>> {
     const fila = {
-      lead_id: leadId,
-      started_at: sesion.startedEn,
-      ended_at: sesion.endedEn,
-      total_tarjetas: sesion.totalTarjetas,
-      decididas: sesion.decididas,
-      likes: sesion.likes,
-      favoritos: sesion.favoritos,
-      passes: sesion.passes,
-      intent_score: sesion.intentScore,
-      tiempo_total_ms: sesion.tiempoTotalMs,
-      dispositivo: sesion.dispositivo,
-      viewport: sesion.viewport,
+      lead_id: session.leadId,
+      started_at: session.startedAt,
+      ended_at: session.endedAt,
+      total_tarjetas: session.totalTarjetas,
+      decididas: session.decididas,
+      likes: session.likes,
+      favoritos: session.favoritos,
+      passes: session.passes,
+      intent_score: session.intentScore,
+      tiempo_total_ms: session.tiempoTotalMs,
+      dispositivo: null,
+      viewport: null,
     };
 
     const { error } = await this.client.from('enrichment_sessions').insert(fila);

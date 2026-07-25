@@ -164,7 +164,10 @@ function copyFor(slot: AskedSlot): { texto: string; quickReplies: QuickReply[] }
     case 'segmentoFamiliar':
       return {
         texto: '¿Cómo es tu núcleo familiar?',
-        quickReplies: SEGMENTOS_FAMILIARES.map((segmento) => ({ label: segmento, value: segmento })),
+        quickReplies: SEGMENTOS_FAMILIARES.map((segmento) => ({
+          label: segmento,
+          value: segmento,
+        })),
       };
     case 'ciudad':
       return {
@@ -397,12 +400,10 @@ export function parseAnswer(slot: Slot, texto: string): Result<SlotValue, Valida
         valor,
       }));
     case 'segmentoFamiliar':
-      return parseVocabulario(
-        normalizado,
-        SEGMENTOS_FAMILIARES,
-        'segmentoFamiliar',
-        (valor) => ({ slot: 'segmentoFamiliar', valor }),
-      );
+      return parseVocabulario(normalizado, SEGMENTOS_FAMILIARES, 'segmentoFamiliar', (valor) => ({
+        slot: 'segmentoFamiliar',
+        valor,
+      }));
     case 'segmento':
       return parseVocabulario(normalizado, SEGMENTOS, 'segmento', (valor) => ({
         slot: 'segmento',
@@ -509,7 +510,11 @@ function inferirPersonasACargo(profile: LeadProfile, segmentoFamiliar: string): 
  * tabla de inferencia D8 cuando corresponde. Nunca lanza para un `SlotValue`
  * bien formado: los estados imposibles se modelan por tipos, no por excepciones.
  */
-export function updateProfile(profile: LeadProfile, valor: SlotValue, now: IsoDateTime): LeadProfile {
+export function updateProfile(
+  profile: LeadProfile,
+  valor: SlotValue,
+  now: IsoDateTime,
+): LeadProfile {
   let siguiente = applyDirectValue(profile, valor);
   siguiente = { ...siguiente, slotsLlenos: addSlot(siguiente.slotsLlenos, valor.slot) };
 

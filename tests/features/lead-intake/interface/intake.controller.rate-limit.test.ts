@@ -24,6 +24,7 @@ function turnoVacio(): ConversationTurn {
     profile: {
       id: 'lead-1',
       consentimiento: null,
+      identidad: null,
       nombre: null,
       email: null,
       telefono: null,
@@ -82,7 +83,11 @@ describe('createIntakeRouter — publicRateLimiter', () => {
 
       expect(ultimaRespuesta?.status).toBe(429);
     } finally {
-      await new Promise<void>((resolve) => server.close(() => { resolve(); }));
+      await new Promise<void>((resolve) =>
+        server.close(() => {
+          resolve();
+        }),
+      );
     }
   }, 20_000);
 });

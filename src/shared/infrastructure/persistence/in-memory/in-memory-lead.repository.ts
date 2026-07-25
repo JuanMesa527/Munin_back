@@ -18,6 +18,7 @@ import type {
   LeadListSort,
   LeadProfile,
 } from '@contracts';
+import { rankAndPageViableLeads } from '../../../../features/closer-dashboard/domain/lead-ranking.js';
 import type { LeadRepository } from '../../../application/ports/lead-repository.port.js';
 import { NotFoundError } from '../../../kernel/errors.js';
 import type { Result } from '../../../kernel/result.js';
@@ -61,20 +62,14 @@ export class InMemoryLeadRepository implements LeadRepository {
     return Promise.resolve(ok(structuredClone(encontrado)));
   }
 
-  /**
-   * TODO(F3): filtrar, ordenar y paginar.
-   *
-   * Va como stub y no como plomeria porque el "que cuenta como viable", el orden
-   * por score/intencion/recencia y los filtros SON logica de negocio de F3
-   * (`lead-ranking.ts`). Implementarlo aqui la esconderia en un adapter, donde
-   * nadie la puede testear como funcion pura.
-   */
   listViable(
-    _filters: LeadListFilters,
-    _sort: LeadListSort,
-    _pagina: number,
-    _porPagina: number,
+    filters: LeadListFilters,
+    sort: LeadListSort,
+    pagina: number,
+    porPagina: number,
   ): Promise<Result<LeadListPage>> {
-    throw new Error('TODO: not implemented');
+    const leads = [...this.enriquecidos.values()].map((lead) => structuredClone(lead));
+    const page = rankAndPageViableLeads(leads, filters, sort, pagina, porPagina);
+    return Promise.resolve(ok(structuredClone(page)));
   }
 }

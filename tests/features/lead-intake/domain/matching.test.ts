@@ -48,13 +48,21 @@ describe('filterByEligibility', () => {
       cuotaMensualEstimada: 200_000,
       precioMaximoEstimado: 50_000_000,
     };
-    const elegibles = filterByEligibility([proyecto({ precioDesde: 100_000_000 })], perfil, capacidadBaja);
+    const elegibles = filterByEligibility(
+      [proyecto({ precioDesde: 100_000_000 })],
+      perfil,
+      capacidadBaja,
+    );
     expect(elegibles).toHaveLength(0);
   });
 
   it('incluye proyectos dentro del precio maximo estimado', () => {
     const perfil = perfilBase();
-    const elegibles = filterByEligibility([proyecto({ precioDesde: 100_000_000 })], perfil, CAPACIDAD_ALTA);
+    const elegibles = filterByEligibility(
+      [proyecto({ precioDesde: 100_000_000 })],
+      perfil,
+      CAPACIDAD_ALTA,
+    );
     expect(elegibles).toHaveLength(1);
   });
 
@@ -83,7 +91,11 @@ describe('filterByEligibility', () => {
 
   it('excluye proyectos casi exclusivos de afiliados para un lead no-afiliado (margen 90/10)', () => {
     const perfil = perfilBase({ esAfiliado: false });
-    const elegibles = filterByEligibility([proyecto({ proporcionAfiliados: 0.98 })], perfil, CAPACIDAD_ALTA);
+    const elegibles = filterByEligibility(
+      [proyecto({ proporcionAfiliados: 0.98 })],
+      perfil,
+      CAPACIDAD_ALTA,
+    );
     expect(elegibles).toHaveLength(0);
   });
 });
@@ -117,7 +129,11 @@ describe('matchProjects', () => {
 
   it('respeta el limite de resultados', () => {
     const perfil = perfilBase({ segmento: 'Medio' });
-    const proyectos = [proyecto({ proyectoId: 'p1' }), proyecto({ proyectoId: 'p2' }), proyecto({ proyectoId: 'p3' })];
+    const proyectos = [
+      proyecto({ proyectoId: 'p1' }),
+      proyecto({ proyectoId: 'p2' }),
+      proyecto({ proyectoId: 'p3' }),
+    ];
     expect(matchProjects(proyectos, perfil, 2)).toHaveLength(2);
   });
 });

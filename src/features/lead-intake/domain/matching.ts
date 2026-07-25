@@ -38,7 +38,10 @@ export function filterByEligibility(
     if (profile.ciudad !== null && proyecto.ciudad.toLowerCase() !== profile.ciudad.toLowerCase()) {
       return false;
     }
-    if (profile.esAfiliado === false && proyecto.proporcionAfiliados >= UMBRAL_PROPORCION_AFILIADOS_SIN_MARGEN) {
+    if (
+      profile.esAfiliado === false &&
+      proyecto.proporcionAfiliados >= UMBRAL_PROPORCION_AFILIADOS_SIN_MARGEN
+    ) {
       return false;
     }
     return true;
@@ -83,7 +86,10 @@ function calcularSimilitud(proyecto: ProjectProfile, profile: LeadProfile): numb
   if (coincidencias.length === 0) {
     return 0;
   }
-  const suma = coincidencias.reduce((acumulado, coincidencia) => acumulado + coincidencia.proporcion, 0);
+  const suma = coincidencias.reduce(
+    (acumulado, coincidencia) => acumulado + coincidencia.proporcion,
+    0,
+  );
   return suma / coincidencias.length;
 }
 
@@ -101,7 +107,9 @@ export function explainMatch(
   const coincidencias = calcularCoincidencias(proyecto, profile);
 
   if (coincidencias.length > 0) {
-    const mejor = coincidencias.reduce((max, actual) => (actual.proporcion > max.proporcion ? actual : max));
+    const mejor = coincidencias.reduce((max, actual) =>
+      actual.proporcion > max.proporcion ? actual : max,
+    );
     const porcentaje = String(Math.round(mejor.proporcion * 100));
     const hechos: Record<string, string> = {};
     for (const coincidencia of coincidencias) {

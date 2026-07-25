@@ -6,10 +6,12 @@
  */
 
 import { describe, expect, it } from 'vitest';
-import type { ProjectCard, SwipeAction } from '@contracts';
+import type { ContactIdentity, LeadProfile, ProjectCard, SwipeAction } from '@contracts';
+import { LEADS_DEMO } from '../../../shared/infrastructure/persistence/demo-seed.js';
 import type { SwipeResuelto } from './swipes.js';
 import {
   calcularIntentScore,
+  enriquecerConSwipes,
   fichasGuardadas,
   inferirIntereses,
   inferirZonaPreferida,
@@ -32,7 +34,14 @@ function ficha(id: string, sobrescribe: Partial<ProjectCard> = {}): ProjectCard 
     habitacionesDesde: 2,
     habitacionesHasta: 2,
     tipologias: [
-      { nombre: 'A', areaConstruida: 45, areaPrivada: 40, habitaciones: 2, banos: 1, precioSMMLV: null },
+      {
+        nombre: 'A',
+        areaConstruida: 45,
+        areaPrivada: 40,
+        habitaciones: 2,
+        banos: 1,
+        precioSMMLV: null,
+      },
     ],
     amenidades: ['Gimnasio'],
     lugaresCercanos: [],
@@ -48,7 +57,15 @@ function ficha(id: string, sobrescribe: Partial<ProjectCard> = {}): ProjectCard 
 
 function swipe(id: string, accion: SwipeAction, card = ficha(id)): SwipeResuelto {
   return {
-    evento: { proyectoId: id, accion, decididoEn: '2026-07-25T10:00:00.000Z' },
+    evento: {
+      leadId: 'lead-prueba',
+      proyectoId: id,
+      accion,
+      decididoEn: '2026-07-25T10:00:00.000Z',
+      dwellMs: null,
+      abrioDetalle: false,
+      detalleMs: null,
+    },
     ficha: card,
   };
 }
@@ -137,9 +154,7 @@ describe('calcularIntentScore', () => {
     ];
     const indiscriminado = Array.from({ length: 6 }, (_, i) => swipe(`p${String(i)}`, 'like'));
 
-    expect(calcularIntentScore(selectivo)).toBeGreaterThan(
-      calcularIntentScore(indiscriminado),
-    );
+    expect(calcularIntentScore(selectivo)).toBeGreaterThan(calcularIntentScore(indiscriminado));
   });
 });
 
@@ -151,5 +166,38 @@ describe('fichasGuardadas', () => {
       swipe('favorito-1', 'favorito'),
     ]);
     expect(guardadas.map((f) => f.proyectoId)).toEqual(['favorito-1', 'like-1']);
+  });
+});
+
+describe('enriquecerConSwipes', () => {
+  it('conserva la identidad tokenizada capturada por F1', () => {
+    const identidad: ContactIdentity = {
+      nombre: 'Familia Ficticia',
+      telefonoEnmascarado: '+57 3.. ... ..42',
+      contactoTokenId: 'contacto-ficticio',
+    };
+    const profile = { ...LEADS_DEMO[0]!, identidad } as LeadProfile & {
+      identidad: ContactIdentity;
+    };
+
+    const enriched = enriquecerConSwipes(profile, [], '2026-07-25T11:00:00.000Z');
+
+    expect(enriched.identidad).toEqual(identidad);
+  });
+
+  it('conserva completos los campos A8 aunque el swipe no los pueda inferir', () => {
+    const enriched = enriquecerConSwipes(
+      LEADS_DEMO[0]!,
+      [swipe('favorito-1', 'favorito')],
+      '2026-07-25T11:00:00.000Z',
+    );
+
+    expect(enriched).toMatchObject({
+      edad: null,
+      ocupacion: null,
+      hogar: expect.any(String),
+      contactabilidad: expect.any(Array),
+      timeline: expect.any(Array),
+    });
   });
 });

@@ -3,10 +3,19 @@
  * Determinista y explicable (EQUIPO.md regla 12): nunca recibe `LlmPort`.
  */
 
-import type { CapacityBand, IsoDateTime, NonViableReason, RoutingDecision, ScoreResult } from '@contracts';
+import type {
+  CapacityBand,
+  IsoDateTime,
+  NonViableReason,
+  RoutingDecision,
+  ScoreResult,
+} from '@contracts';
 import type { AffiliationCheck } from './profiling.js';
 
-function construirRazones(capacidad: CapacityBand, afiliacion: AffiliationCheck): NonViableReason[] {
+function construirRazones(
+  capacidad: CapacityBand,
+  afiliacion: AffiliationCheck,
+): NonViableReason[] {
   const razones: NonViableReason[] = [];
   if (capacidad.banda === 'baja') {
     razones.push('sin_capacidad');

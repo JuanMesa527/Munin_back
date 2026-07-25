@@ -17,53 +17,45 @@ import type { Result } from '../../../shared/kernel/result.js';
 import { err, ok } from '../../../shared/kernel/result.js';
 import { logger } from '../../../shared/infrastructure/logging/logger.js';
 import type { AppSupabaseClient } from '../../../shared/infrastructure/persistence/supabase/supabase-client.js';
-import type {
-  SwipeMatchContext,
-  SwipeStorePort,
-} from '../application/ports/swipe-store.port.js';
+import type { SwipeMatchContext, SwipeStorePort } from '../application/ports/swipe-store.port.js';
 
 const TABLA = 'swipe_events';
 
 /** Solo las columnas que se re-hidratan a `SwipeEvent`; el resto es analitica. */
 const FilaSchema = z.object({
+  lead_id: z.string(),
   proyecto_id: z.string(),
   accion: z.enum(['pass', 'like', 'favorito']),
   decidido_en: z.string(),
-  dwell_ms: z.number().nullable().optional(),
-  abrio_detalle: z.boolean().nullable().optional(),
-  detalle_ms: z.number().nullable().optional(),
+  dwell_ms: z.number().nullish(),
+  abrio_detalle: z.boolean().nullish(),
+  detalle_ms: z.number().nullish(),
 });
 
 function aEvento(fila: z.infer<typeof FilaSchema>): SwipeEvent {
-  const evento: SwipeEvent = {
+  return {
+    leadId: fila.lead_id,
     proyectoId: fila.proyecto_id,
     accion: fila.accion,
     decididoEn: fila.decidido_en,
+    dwellMs: fila.dwell_ms ?? null,
+    abrioDetalle: fila.abrio_detalle ?? false,
+    detalleMs: fila.detalle_ms ?? null,
   };
-  // Los campos de telemetria solo se incluyen cuando existen: mantiene el DTO
-  // limpio para quien no los mando.
-  if (typeof fila.dwell_ms === 'number') evento.dwellMs = fila.dwell_ms;
-  if (typeof fila.abrio_detalle === 'boolean') evento.abrioDetalle = fila.abrio_detalle;
-  if (typeof fila.detalle_ms === 'number') evento.detalleMs = fila.detalle_ms;
-  return evento;
 }
 
 export class SupabaseSwipeStore implements SwipeStorePort {
   constructor(private readonly client: AppSupabaseClient) {}
 
-  async record(
-    leadId: string,
-    evento: SwipeEvent,
-    contexto?: SwipeMatchContext,
-  ): Promise<Result<SwipeEvent[]>> {
+  async record(evento: SwipeEvent, contexto?: SwipeMatchContext): Promise<Result<SwipeEvent[]>> {
     const fila = {
-      lead_id: leadId,
+      lead_id: evento.leadId,
       proyecto_id: evento.proyectoId,
       accion: evento.accion,
       decidido_en: evento.decididoEn,
-      dwell_ms: evento.dwellMs ?? null,
-      abrio_detalle: evento.abrioDetalle ?? false,
-      detalle_ms: evento.detalleMs ?? null,
+      dwell_ms: evento.dwellMs,
+      abrio_detalle: evento.abrioDetalle,
+      detalle_ms: evento.detalleMs,
       similitud: contexto?.similitud ?? null,
       razon: contexto?.razon ?? null,
       cabe_en_capacidad: contexto?.cabeEnCapacidad ?? null,
@@ -78,13 +70,13 @@ export class SupabaseSwipeStore implements SwipeStorePort {
       return err(new DataUnavailableError('No se pudo registrar la decision'));
     }
 
-    return this.listByLead(leadId);
+    return this.listByLead(evento.leadId);
   }
 
   async listByLead(leadId: string): Promise<Result<SwipeEvent[]>> {
     const { data, error } = await this.client
       .from(TABLA)
-      .select('proyecto_id, accion, decidido_en, dwell_ms, abrio_detalle, detalle_ms')
+      .select('lead_id, proyecto_id, accion, decidido_en, dwell_ms, abrio_detalle, detalle_ms')
       .eq('lead_id', leadId)
       .order('decidido_en', { ascending: true });
 

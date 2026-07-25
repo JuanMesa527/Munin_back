@@ -4,6 +4,23 @@
     "sourceMap": false,
     "rootDir": "src"
   },
+
+  /*
+   * `tsc` NO reescribe los alias de `paths`: el JS emitido conserva
+   * `from '@contracts'` y Node lo rechaza en runtime con
+   * ERR_INVALID_MODULE_SPECIFIER (no es un nombre de paquete valido). En dev no
+   * se nota porque `tsx` resuelve los alias, pero `npm start` y cualquier
+   * despliegue que corra `dist/` mueren al arrancar.
+   *
+   * `tsc-alias` corre despues de `tsc` y convierte los alias a rutas relativas.
+   * `resolveFullPaths` agrega la extension `.js`, obligatoria con
+   * `module: NodeNext`.
+   */
+  "tsc-alias": {
+    "resolveFullPaths": true,
+    "verbose": false
+  },
+
   "include": ["src/**/*.ts"],
   "exclude": ["node_modules", "dist", "tests", "**/*.test.ts", "**/*.spec.ts"]
 }

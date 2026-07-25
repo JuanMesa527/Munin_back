@@ -35,7 +35,9 @@ function fakeIds(): IdGeneratorPort {
   };
 }
 
-function fakeLeadRepository(perfilInicial: LeadProfile): LeadRepository & { guardados: LeadProfile[] } {
+function fakeLeadRepository(
+  perfilInicial: LeadProfile,
+): LeadRepository & { guardados: LeadProfile[] } {
   const perfiles = new Map<string, LeadProfile>([[perfilInicial.id, perfilInicial]]);
   const guardados: LeadProfile[] = [];
   return {
@@ -104,7 +106,13 @@ function perfilListoParaEnrutar(overrides: Partial<LeadProfile> = {}): LeadProfi
   const base = createEmptyLeadProfile('lead-1', AHORA);
   return {
     ...base,
-    consentimiento: { otorgado: true, versionPolitica: VERSION_ACTIVA, finalidades: ['perfilamiento_vivienda'], otorgadoEn: AHORA, canal: 'web-chat' },
+    consentimiento: {
+      otorgado: true,
+      versionPolitica: VERSION_ACTIVA,
+      finalidades: ['perfilamiento_vivienda'],
+      otorgadoEn: AHORA,
+      canal: 'web-chat',
+    },
     nombre: 'Ana',
     email: 'ana@example.com',
     telefono: '3001234567',
@@ -176,7 +184,11 @@ describe('ProcessConversationTurnUseCase — gate de consentimiento', () => {
       activePolicyVersion: VERSION_ACTIVA,
     });
 
-    const resultado = await useCase.execute({ leadId: perfil.id, texto: null, quickReplyValue: 'true' });
+    const resultado = await useCase.execute({
+      leadId: perfil.id,
+      texto: null,
+      quickReplyValue: 'true',
+    });
 
     expect(resultado.ok).toBe(false);
     if (resultado.ok) return;
@@ -198,7 +210,11 @@ describe('ProcessConversationTurnUseCase — loop de slots', () => {
       activePolicyVersion: VERSION_ACTIVA,
     });
 
-    const resultado = await useCase.execute({ leadId: perfil.id, texto: null, quickReplyValue: 'true' });
+    const resultado = await useCase.execute({
+      leadId: perfil.id,
+      texto: null,
+      quickReplyValue: 'true',
+    });
 
     expect(resultado.ok).toBe(true);
     expect(leads.guardados).toHaveLength(1);
@@ -256,7 +272,11 @@ describe('ProcessConversationTurnUseCase — loop de slots', () => {
       activePolicyVersion: VERSION_ACTIVA,
     });
 
-    const resultado = await useCase.execute({ leadId: perfil.id, texto: 'algo ambiguo', quickReplyValue: null });
+    const resultado = await useCase.execute({
+      leadId: perfil.id,
+      texto: 'algo ambiguo',
+      quickReplyValue: null,
+    });
 
     expect(resultado.ok).toBe(true);
     if (!resultado.ok) return;
@@ -358,7 +378,11 @@ describe('ProcessConversationTurnUseCase — loop de slots', () => {
       activePolicyVersion: VERSION_ACTIVA,
     });
 
-    const resultado = await useCase.execute({ leadId: perfil.id, texto: 'sí, estoy afiliado', quickReplyValue: null });
+    const resultado = await useCase.execute({
+      leadId: perfil.id,
+      texto: 'sí, estoy afiliado',
+      quickReplyValue: null,
+    });
 
     expect(resultado.ok).toBe(true);
     if (!resultado.ok) return;
@@ -400,7 +424,11 @@ describe('ProcessConversationTurnUseCase — 3 salidas de carril (finalizacion)'
       activePolicyVersion: VERSION_ACTIVA,
     });
 
-    const resultado = await useCase.execute({ leadId: perfil.id, texto: null, quickReplyValue: 'Bogotá' });
+    const resultado = await useCase.execute({
+      leadId: perfil.id,
+      texto: null,
+      quickReplyValue: 'Bogotá',
+    });
 
     expect(resultado.ok).toBe(true);
     expect(leads.guardados).toHaveLength(1);
@@ -419,14 +447,20 @@ describe('ProcessConversationTurnUseCase — 3 salidas de carril (finalizacion)'
     const leads = fakeLeadRepository(perfil);
     const useCase = new ProcessConversationTurnUseCase({
       leads,
-      catalog: fakeCatalog({ getWeights: () => Promise.resolve(ok({ ...PESOS, umbralViable: 1 })) }),
+      catalog: fakeCatalog({
+        getWeights: () => Promise.resolve(ok({ ...PESOS, umbralViable: 1 })),
+      }),
       llm: new StubLlmAdapter(),
       clock: fakeClock(),
       ids: fakeIds(),
       activePolicyVersion: VERSION_ACTIVA,
     });
 
-    const resultado = await useCase.execute({ leadId: perfil.id, texto: null, quickReplyValue: 'Bogotá' });
+    const resultado = await useCase.execute({
+      leadId: perfil.id,
+      texto: null,
+      quickReplyValue: 'Bogotá',
+    });
 
     expect(resultado.ok).toBe(true);
     if (!resultado.ok) return;
@@ -441,14 +475,20 @@ describe('ProcessConversationTurnUseCase — 3 salidas de carril (finalizacion)'
     const leads = fakeLeadRepository(perfil);
     const useCase = new ProcessConversationTurnUseCase({
       leads,
-      catalog: fakeCatalog({ getWeights: () => Promise.resolve(ok({ ...PESOS, umbralViable: 99 })) }),
+      catalog: fakeCatalog({
+        getWeights: () => Promise.resolve(ok({ ...PESOS, umbralViable: 99 })),
+      }),
       llm: new StubLlmAdapter(),
       clock: fakeClock(),
       ids: fakeIds(),
       activePolicyVersion: VERSION_ACTIVA,
     });
 
-    const resultado = await useCase.execute({ leadId: perfil.id, texto: null, quickReplyValue: 'Bogotá' });
+    const resultado = await useCase.execute({
+      leadId: perfil.id,
+      texto: null,
+      quickReplyValue: 'Bogotá',
+    });
 
     expect(resultado.ok).toBe(true);
     if (!resultado.ok) return;
@@ -469,7 +509,11 @@ describe('ProcessConversationTurnUseCase — 3 salidas de carril (finalizacion)'
       activePolicyVersion: VERSION_ACTIVA,
     });
 
-    const resultado = await useCase.execute({ leadId: perfil.id, texto: null, quickReplyValue: 'Bogotá' });
+    const resultado = await useCase.execute({
+      leadId: perfil.id,
+      texto: null,
+      quickReplyValue: 'Bogotá',
+    });
 
     expect(resultado.ok).toBe(true);
     if (!resultado.ok) return;

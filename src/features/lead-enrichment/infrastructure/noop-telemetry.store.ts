@@ -13,11 +13,11 @@ import { ok } from '../../../shared/kernel/result.js';
 import type { TelemetryStorePort } from '../application/ports/telemetry.port.js';
 
 export class NoopTelemetryStore implements TelemetryStorePort {
-  recordViews(_leadId: string, _vistas: readonly ViewEvent[]): Promise<Result<void>> {
+  recordViews(_views: readonly ViewEvent[]): Promise<Result<void>> {
     return Promise.resolve(ok(undefined));
   }
 
-  recordSession(_leadId: string, _sesion: EnrichmentSessionSummary): Promise<Result<void>> {
+  recordSession(_session: EnrichmentSessionSummary): Promise<Result<void>> {
     return Promise.resolve(ok(undefined));
   }
 }

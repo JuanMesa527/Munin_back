@@ -8,7 +8,16 @@
  */
 
 import { SMMLV_2026 } from '@contracts';
-import type { CapacityBand, COP, Factor, IsoDateTime, LeadProfile, ScoreResult, Slot, ScoringWeights } from '@contracts';
+import type {
+  CapacityBand,
+  COP,
+  Factor,
+  IsoDateTime,
+  LeadProfile,
+  ScoreResult,
+  Slot,
+  ScoringWeights,
+} from '@contracts';
 import { isSlotFilled } from '@shared/domain/lead.js';
 import { toSmmlvBounds } from '@shared/domain/value-objects/salary-range.js';
 import { DataUnavailableError, ValidationError } from '@shared/kernel/errors.js';
@@ -47,7 +56,11 @@ const HORIZONTE_CREDITO_MESES = 240;
 const BANDA_ALTA_CUOTA_MINIMA: COP = 3_000_000;
 const BANDA_MEDIA_CUOTA_MINIMA: COP = 1_200_000;
 
-const SLOTS_RELEVANTES_CAPACIDAD: readonly Slot[] = ['rangoSalarial', 'ahorro', 'capacidadAhorroMensual'];
+const SLOTS_RELEVANTES_CAPACIDAD: readonly Slot[] = [
+  'rangoSalarial',
+  'ahorro',
+  'capacidadAhorroMensual',
+];
 
 /** Ingreso mensual estimado a partir del punto medio del rango salarial declarado. */
 function estimarIngresoMensual(rangoSalarial: string): number | null {
@@ -58,7 +71,9 @@ function estimarIngresoMensual(rangoSalarial: string): number | null {
   // Tramo abierto (">10 SMMLV"): sin techo real, usamos 1.5x el piso como
   // referencia conservadora en vez de un promedio indefinido.
   const puntoMedioSmmlv =
-    cotas.value.hasta === null ? cotas.value.desde * 1.5 : (cotas.value.desde + cotas.value.hasta) / 2;
+    cotas.value.hasta === null
+      ? cotas.value.desde * 1.5
+      : (cotas.value.desde + cotas.value.hasta) / 2;
   return puntoMedioSmmlv * SMMLV_2026;
 }
 
@@ -103,7 +118,9 @@ function clasificarBanda(cuotaMensualEstimada: COP | null): CapacityBand['banda'
  */
 export function estimateCapacity(profile: LeadProfile): Result<CapacityBand, ValidationError> {
   const hayDatos =
-    profile.rangoSalarial !== null || profile.ahorroDeclarado !== null || profile.capacidadAhorroMensual !== null;
+    profile.rangoSalarial !== null ||
+    profile.ahorroDeclarado !== null ||
+    profile.capacidadAhorroMensual !== null;
   if (!hayDatos) {
     return err(
       new ValidationError('No hay datos suficientes para estimar la capacidad', {

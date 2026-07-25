@@ -66,6 +66,37 @@ type EnrichmentSessionsRow = {
   created_at: Timestamptz;
 };
 
+type LeadProfilesRow = {
+  lead_id: string;
+  base_payload: unknown;
+  enriched_payload: unknown;
+  carril: string | null;
+  score: number | null;
+  intent_score: number | null;
+  updated_at: Timestamptz;
+};
+
+/** F5 · una llamada de entrenamiento terminada (adenda A14). */
+type CallSessionsRow = {
+  id: string;
+  lead_id: string;
+  dificultad: string;
+  outcome: string;
+  puntaje: number;
+  interes_final: number;
+  turnos: number;
+  duracion_segundos: number;
+  // jsonb de solo-escritura, mismo criterio que `factores` arriba: los tipos
+  // del contrato son interfaces y no calzan en el `Json` recursivo.
+  transcripcion: unknown;
+  scorecard: unknown;
+  highlights: unknown;
+  grabaciones: unknown;
+  iniciada_en: Timestamptz;
+  terminada_en: Timestamptz;
+  creado_en: Timestamptz;
+};
+
 /** Los `id`/`created_at` los pone la base (default): opcionales al insertar. */
 type Insertable<T extends { id: string; created_at: Timestamptz }> = Omit<
   T,
@@ -91,6 +122,24 @@ export interface Database {
         Row: EnrichmentSessionsRow;
         Insert: Insertable<EnrichmentSessionsRow>;
         Update: Partial<Insertable<EnrichmentSessionsRow>>;
+        Relationships: [];
+      };
+      lead_profiles: {
+        Row: LeadProfilesRow;
+        Insert: Omit<LeadProfilesRow, 'enriched_payload' | 'intent_score' | 'updated_at'> & {
+          enriched_payload?: unknown;
+          intent_score?: number | null;
+          updated_at?: Timestamptz;
+        };
+        Update: Partial<LeadProfilesRow>;
+        Relationships: [];
+      };
+      call_sessions: {
+        // `id` lo pone el backend (es el `callId` de la sesion) y `creado_en`
+        // la base: por eso no usa `Insertable`, que asume `created_at`.
+        Row: CallSessionsRow;
+        Insert: Omit<CallSessionsRow, 'creado_en'> & { creado_en?: Timestamptz };
+        Update: Partial<Omit<CallSessionsRow, 'creado_en'>>;
         Relationships: [];
       };
     };

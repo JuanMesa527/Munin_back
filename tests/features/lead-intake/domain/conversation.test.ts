@@ -195,7 +195,11 @@ describe('updateProfile', () => {
 
   it('D8: nunca infiere "Joven" desde rangoSalarial', () => {
     const perfil = perfilBase();
-    const actualizado = updateProfile(perfil, { slot: 'rangoSalarial', valor: '6-10 SMMLV' }, AHORA);
+    const actualizado = updateProfile(
+      perfil,
+      { slot: 'rangoSalarial', valor: '6-10 SMMLV' },
+      AHORA,
+    );
     expect(actualizado.segmento).not.toBe('Joven');
   });
 
