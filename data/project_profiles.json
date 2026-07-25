@@ -1,6 +1,7 @@
 {
   "version": "0.1.0-demo-manual",
   "_aviso": "DEMO/MANUAL, NO CALIBRADO. Los 16 proyectos y sus precios SI son reales (salen de projects_catalog.json, transcrito de brochures publicos). Las distribuciones de perfilComprador y proporcionAfiliados NO salen de los 4.142 compradores reales del reto (ese Excel no esta disponible en este entorno): son una heuristica razonada a mano por VIS/zona/ciudad, para destrabar el flujo viable/no_viable end-to-end en la demo. Reemplazar corriendo 'python analysis/scripts/04_build_project_profiles.py' + '05_export_artifacts.py' contra el Excel real antes de cualquier uso en produccion o de cualquier metrica que se presente como calibrada.",
+  "calibrado": false,
   "generadoEn": "2026-07-25T00:00:00.000Z",
   "proyectos": [
     {
@@ -19,7 +20,7 @@
           "Alto": 0.08
         },
         "ciudad": {
-          "Soacha": 1.0
+          "Soacha": 1
         },
         "segmentoFamiliar": {
           "Pareja con hijos": 0.38,
@@ -47,7 +48,7 @@
           "Alto": 0.08
         },
         "ciudad": {
-          "Soacha": 1.0
+          "Soacha": 1
         },
         "segmentoFamiliar": {
           "Pareja con hijos": 0.38,
@@ -75,7 +76,7 @@
           "Alto": 0.08
         },
         "ciudad": {
-          "Soacha": 1.0
+          "Soacha": 1
         },
         "segmentoFamiliar": {
           "Pareja con hijos": 0.38,
@@ -103,7 +104,7 @@
           "Alto": 0.08
         },
         "ciudad": {
-          "Soacha": 1.0
+          "Soacha": 1
         },
         "segmentoFamiliar": {
           "Pareja con hijos": 0.38,
@@ -131,7 +132,7 @@
           "Alto": 0.08
         },
         "ciudad": {
-          "Soacha": 1.0
+          "Soacha": 1
         },
         "segmentoFamiliar": {
           "Pareja con hijos": 0.38,
@@ -159,7 +160,7 @@
           "Alto": 0.08
         },
         "ciudad": {
-          "Tocancipa": 1.0
+          "Tocancipa": 1
         },
         "segmentoFamiliar": {
           "Pareja con hijos": 0.38,
@@ -187,7 +188,7 @@
           "Alto": 0.08
         },
         "ciudad": {
-          "Tocancipa": 1.0
+          "Tocancipa": 1
         },
         "segmentoFamiliar": {
           "Pareja con hijos": 0.38,
@@ -215,7 +216,7 @@
           "Alto": 0.08
         },
         "ciudad": {
-          "Chia": 1.0
+          "Chia": 1
         },
         "segmentoFamiliar": {
           "Pareja con hijos": 0.38,
@@ -243,7 +244,7 @@
           "Joven": 0.1
         },
         "ciudad": {
-          "Girardot": 1.0
+          "Girardot": 1
         },
         "segmentoFamiliar": {
           "Pareja con hijos": 0.4,
@@ -271,7 +272,7 @@
           "Joven": 0.1
         },
         "ciudad": {
-          "Ricaurte": 1.0
+          "Ricaurte": 1
         },
         "segmentoFamiliar": {
           "Pareja con hijos": 0.4,
@@ -299,7 +300,7 @@
           "Joven": 0.05
         },
         "ciudad": {
-          "Ricaurte": 1.0
+          "Ricaurte": 1
         },
         "segmentoFamiliar": {
           "Pareja con hijos": 0.42,
@@ -327,7 +328,7 @@
           "Alto": 0.08
         },
         "ciudad": {
-          "Bogota": 1.0
+          "Bogota": 1
         },
         "segmentoFamiliar": {
           "Unipersonal": 0.32,
@@ -355,7 +356,7 @@
           "Alto": 0.08
         },
         "ciudad": {
-          "Bogota": 1.0
+          "Bogota": 1
         },
         "segmentoFamiliar": {
           "Unipersonal": 0.32,
@@ -383,7 +384,7 @@
           "Joven": 0.05
         },
         "ciudad": {
-          "Bogota": 1.0
+          "Bogota": 1
         },
         "segmentoFamiliar": {
           "Pareja con hijos": 0.42,
@@ -411,7 +412,7 @@
           "Joven": 0.05
         },
         "ciudad": {
-          "Bogota": 1.0
+          "Bogota": 1
         },
         "segmentoFamiliar": {
           "Pareja con hijos": 0.42,
@@ -439,7 +440,7 @@
           "Alto": 0.08
         },
         "ciudad": {
-          "Ubate": 1.0
+          "Ubate": 1
         },
         "segmentoFamiliar": {
           "Pareja con hijos": 0.38,

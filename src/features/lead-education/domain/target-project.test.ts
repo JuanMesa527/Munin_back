@@ -13,6 +13,7 @@ function proyecto(id: string, ciudad: string, precioDesde: number): ProjectProfi
     precioHasta: precioDesde + 50_000_000,
     esVIS: true,
     perfilComprador: {},
+    perfilCalibrado: false,
     proporcionAfiliados: 0.9,
   };
 }

@@ -57,6 +57,14 @@ const ProjectMatchSchema = z.strictObject({
   etapa: z.string(),
   precioDesde: z.number(),
   tipologia: z.string(),
+  // Con default porque las filas escritas antes de que existieran estos campos
+  // siguen en la base y tienen que poder leerse. Los defaults son los
+  // PESIMISTAS a proposito: de un match viejo no sabemos con que datos se
+  // calculo ni si cabia en el techo, y el default no puede regalar una certeza
+  // que nadie midio.
+  confianza: z.number().default(0),
+  datosFaltantes: z.array(z.string()).default([]),
+  cabeEnCapacidad: z.boolean().nullable().default(null),
 });
 
 const ContactIdentitySchema = z.strictObject({

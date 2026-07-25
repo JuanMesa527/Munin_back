@@ -164,14 +164,77 @@ describe('explicarMatch', () => {
 });
 
 describe('cabeEnCapacidad', () => {
-  it('es false cuando el lead todavia no tiene capacidad estimada', () => {
-    expect(cabeEnCapacidad(null, ficha())).toBe(false);
+  it('es null -- no false -- cuando el lead todavia no tiene capacidad estimada', () => {
+    // "No sabemos cuanto puedes pagar" no es "no te alcanza". Colapsar los dos
+    // en `false` le hace decir a la UI algo que no podemos sostener.
+    expect(cabeEnCapacidad(null, ficha())).toBeNull();
   });
 
   it('compara contra el piso de la banda, no contra el techo', () => {
     const capacidad = { ...familia.capacidad!, precioMaximoEstimado: 200_000_000 };
     // desde 190M cabe; el `hasta` de 240M no debe hacerlo fallar.
     expect(cabeEnCapacidad(capacidad, ficha())).toBe(true);
+  });
+});
+
+describe('confianza del match', () => {
+  const sinNada: LeadProfile = {
+    ...familia,
+    ciudad: null,
+    personasACargo: null,
+    rangoSalarial: null,
+    capacidad: null,
+  };
+
+  it('un lead sin datos saca ~50% de afinidad, y por eso declara confianza 0', () => {
+    // Este es EL caso que motivo el campo: el puntaje tiene piso porque los
+    // ejes sin dato puntuan neutro. Si el 50% viajara solo, se leeria como
+    // "medio compatible" cuando significa "no sabemos nada de ti".
+    const [tarjeta] = matchProjects(sinNada, [ficha()]);
+
+    expect(tarjeta!.match.similitud).toBeCloseTo(0.5, 2);
+    expect(tarjeta!.match.confianza).toBe(0);
+    expect(tarjeta!.match.datosFaltantes).toHaveLength(5);
+  });
+
+  it('un lead completo declara confianza 1 y no reporta faltantes', () => {
+    const [tarjeta] = matchProjects(familia, [ficha()]);
+
+    expect(tarjeta!.match.confianza).toBe(1);
+    expect(tarjeta!.match.datosFaltantes).toEqual([]);
+  });
+
+  it('pondera por PESO del eje, no por cantidad de ejes', () => {
+    // Falta un solo eje en los dos casos, pero capacidad vale 0.40 y estilo de
+    // vida 0.08: la confianza tiene que distinguirlos.
+    const sinCapacidad = matchProjects({ ...familia, capacidad: null }, [ficha()])[0]!;
+    const sinHogar = matchProjects({ ...familia, personasACargo: null }, [ficha()])[0]!;
+
+    expect(sinCapacidad.match.confianza).toBe(0.6);
+    // `personasACargo` alimenta tamano del hogar (0.15) y estilo de vida (0.08).
+    expect(sinHogar.match.confianza).toBe(0.77);
+    expect(sinCapacidad.match.confianza).toBeLessThan(sinHogar.match.confianza);
+  });
+
+  it('no supone un perfil joven cuando no sabe cuantas personas hay a cargo', () => {
+    // Antes el `?? 0` trataba al lead desconocido como joven sin hijos y le
+    // puntuaba gimnasio y coworking: una suposicion vendida como medicion.
+    const estilo = calcularFactores({ ...familia, personasACargo: null }, ficha()).find(
+      (f) => f.nombre === 'Estilo de vida',
+    );
+
+    expect(estilo?.intensidad).toBe(50);
+    expect(estilo?.valor).toContain('no sabemos');
+  });
+
+  it('marca cabeEnCapacidad en false para un proyecto que puntua alto pero no alcanza', () => {
+    // La capacidad se hunde gradual, asi que un proyecto apenas por encima del
+    // techo conserva un puntaje alto. El numero solo no puede delatarlo.
+    const capacidad = { ...familia.capacidad!, precioMaximoEstimado: 185_000_000 };
+    const [tarjeta] = matchProjects({ ...familia, capacidad }, [ficha()]);
+
+    expect(tarjeta!.match.similitud).toBeGreaterThan(0.7);
+    expect(tarjeta!.match.cabeEnCapacidad).toBe(false);
   });
 });
 

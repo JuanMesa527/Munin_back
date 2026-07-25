@@ -108,6 +108,7 @@ const PROYECTOS: ProjectProfile[] = [
     esVIS: true,
     perfilComprador: { segmento: { Basico: 0.6 } },
     proporcionAfiliados: 0.5,
+    perfilCalibrado: true,
   },
 ];
 

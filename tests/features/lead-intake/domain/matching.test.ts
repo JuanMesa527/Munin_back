@@ -28,6 +28,9 @@ function proyecto(overrides: Partial<ProjectProfile> = {}): ProjectProfile {
     esVIS: true,
     perfilComprador: { segmento: { Medio: 0.6, Alto: 0.3 } },
     proporcionAfiliados: 0.7,
+    // Por defecto el fixture SI esta calibrado: la mayoria de los casos ejercitan
+    // el camino normal. El caso sin calibrar se pide explicito con el override.
+    perfilCalibrado: true,
     ...overrides,
   };
 }
@@ -151,5 +154,28 @@ describe('explainMatch', () => {
     const { razon, hechos } = explainMatch(proyecto({ perfilComprador: {} }), perfil);
     expect(razon.length).toBeGreaterThan(0);
     expect(hechos.ciudad).toBe('Bogotá');
+  });
+
+  it('NO cita porcentajes de compradores mientras el perfil no este calibrado', () => {
+    // "El 60% de compradores comparten tu segmento" se lee como un hecho medido
+    // sobre 4.142 personas. Con `perfilCalibrado: false` esas proporciones son
+    // una heuristica escrita a mano: publicarlas seria inventar una estadistica
+    // sobre compradores que no existen.
+    const perfil = perfilBase({ segmento: 'Medio' });
+    const { razon, hechos } = explainMatch(proyecto({ perfilCalibrado: false }), perfil);
+
+    expect(razon).not.toContain('%');
+    expect(razon).not.toContain('compradores');
+    expect(hechos.segmento).toBeUndefined();
+    // Sigue fundamentada, nunca vacia: cae a los hechos que SI son verificables.
+    expect(hechos.ciudad).toBe('Bogotá');
+  });
+
+  it('declara confianza 0 cuando el ranking sale de perfiles sin calibrar', () => {
+    const perfil = perfilBase({ segmento: 'Medio' });
+    const [match] = matchProjects([proyecto({ perfilCalibrado: false })], perfil);
+
+    expect(match!.confianza).toBe(0);
+    expect(match!.datosFaltantes).toContain('el perfil real de compradores de este proyecto');
   });
 });

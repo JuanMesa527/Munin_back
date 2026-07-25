@@ -87,6 +87,18 @@ interface Aporte {
   valor: string;
   /** `true` si este eje es un ARGUMENTO A FAVOR, citable en la razon. */
   favorable: boolean;
+  /**
+   * `false` cuando el eje se resolvio con el neutro 0.5 por falta de dato del
+   * lead, no por haberlo evaluado.
+   *
+   * Es lo que hace auditable el PISO DEL PUNTAJE. Los ejes sin dato puntuan
+   * neutro a proposito (castigar por no saber esconderia proyectos validos),
+   * pero eso significa que un lead del que no sabemos nada saca ~50% de
+   * afinidad contra todo el catalogo. Ese 50% no es "medio compatible": es
+   * "no sabemos". Sin esta bandera los dos casos son indistinguibles aguas
+   * abajo, y la UI termina presentando ignorancia como si fuera evidencia.
+   */
+  conocido: boolean;
 }
 
 /**
@@ -114,6 +126,7 @@ function aporteCapacidad(capacidad: CapacityBand | null, ficha: ProjectCard): Ap
       ajuste: 0.5,
       valor: 'todavia no tenemos tu capacidad estimada',
       favorable: false,
+      conocido: false,
     };
   }
 
@@ -126,6 +139,7 @@ function aporteCapacidad(capacidad: CapacityBand | null, ficha: ProjectCard): Ap
       ajuste: Math.max(0, 1 + holgura * 3),
       valor: 'queda por encima de tu techo estimado',
       favorable: false,
+      conocido: true,
     };
   }
   // Holgura enorme tampoco es match perfecto: el lead puede aspirar a mas.
@@ -134,6 +148,7 @@ function aporteCapacidad(capacidad: CapacityBand | null, ficha: ProjectCard): Ap
     ajuste: holgura > 0.45 ? 0.75 : 1,
     valor: 'cabe en tu techo estimado',
     favorable: true,
+    conocido: true,
   };
 }
 
@@ -145,12 +160,19 @@ function aporteUbicacion(lead: LeadProfile, ficha: ProjectCard): Aporte {
       ajuste: 0.5,
       valor: 'no nos dijiste tu ciudad',
       favorable: false,
+      conocido: false,
     };
   }
 
   const ciudadProyecto = ficha.ciudad.toLowerCase();
   if (ciudadLead === ciudadProyecto) {
-    return { nombre: 'Ubicacion', ajuste: 1, valor: `queda en ${ficha.ciudad}`, favorable: true };
+    return {
+      nombre: 'Ubicacion',
+      ajuste: 1,
+      valor: `queda en ${ficha.ciudad}`,
+      favorable: true,
+      conocido: true,
+    };
   }
 
   // Soacha, Chia y Tocancipa son area de influencia de Bogota: para alguien de
@@ -162,6 +184,7 @@ function aporteUbicacion(lead: LeadProfile, ficha: ProjectCard): Aporte {
       ajuste: 0.7,
       valor: `queda en ${ficha.ciudad}, cerca de Bogota`,
       favorable: true,
+      conocido: true,
     };
   }
 
@@ -170,6 +193,7 @@ function aporteUbicacion(lead: LeadProfile, ficha: ProjectCard): Aporte {
     ajuste: 0.2,
     valor: `queda en ${ficha.ciudad}`,
     favorable: false,
+    conocido: true,
   };
 }
 
@@ -189,6 +213,7 @@ function aporteTamanoHogar(lead: LeadProfile, ficha: ProjectCard): Aporte {
       ajuste: 0.5,
       valor: 'no nos dijiste cuantas personas tienes a cargo',
       favorable: false,
+      conocido: false,
     };
   }
 
@@ -209,6 +234,7 @@ function aporteTamanoHogar(lead: LeadProfile, ficha: ProjectCard): Aporte {
       ajuste: 1,
       valor: `tiene ${etiqueta}, ${sobra}`,
       favorable: true,
+      conocido: true,
     };
   }
   if (necesarias <= ficha.habitacionesHasta) {
@@ -217,6 +243,7 @@ function aporteTamanoHogar(lead: LeadProfile, ficha: ProjectCard): Aporte {
       ajuste: 0.85,
       valor: `tiene ${etiqueta} y una tipologia que le calza a tu hogar`,
       favorable: true,
+      conocido: true,
     };
   }
   // Se queda corto. Cuanto mas corto, peor.
@@ -226,6 +253,7 @@ function aporteTamanoHogar(lead: LeadProfile, ficha: ProjectCard): Aporte {
     ajuste: Math.max(0, 1 - faltantes * 0.4),
     valor: `tiene ${etiqueta} y se queda corto para tu hogar`,
     favorable: false,
+    conocido: true,
   };
 }
 
@@ -244,6 +272,7 @@ function aporteVivienda(lead: LeadProfile, ficha: ProjectCard): Aporte {
       ajuste: 0.5,
       valor: 'no nos dijiste tu rango salarial',
       favorable: false,
+      conocido: false,
     };
   }
 
@@ -255,12 +284,14 @@ function aporteVivienda(lead: LeadProfile, ficha: ProjectCard): Aporte {
           ajuste: 1,
           valor: `es VIS y aplica al subsidio (hasta ${String(TOPE_SFV_SMMLV)} SMMLV)`,
           favorable: true,
+          conocido: true,
         }
       : {
           nombre: 'Tipo de vivienda',
           ajuste: 0.15,
           valor: 'no es VIS, asi que queda fuera del subsidio',
           favorable: false,
+          conocido: true,
         };
   }
 
@@ -270,12 +301,14 @@ function aporteVivienda(lead: LeadProfile, ficha: ProjectCard): Aporte {
         ajuste: 0.6,
         valor: 'es VIS, por debajo de tu rango',
         favorable: false,
+        conocido: true,
       }
     : {
         nombre: 'Tipo de vivienda',
         ajuste: 0.9,
         valor: 'no es VIS, acorde a tu rango',
         favorable: true,
+        conocido: true,
       };
 }
 
@@ -290,7 +323,21 @@ function cuentaAmenidades(ficha: ProjectCard, buscadas: readonly string[]): numb
  * no para decidir.
  */
 function aporteEstiloDeVida(lead: LeadProfile, ficha: ProjectCard): Aporte {
-  const conNinos = (lead.personasACargo ?? 0) > 0;
+  // Sin `personasACargo` no hay perfil contra el cual cruzar amenidades. Antes
+  // el `?? 0` hacia que un lead desconocido se tratara como joven sin hijos y
+  // se le puntuaran coworking y gimnasio: una suposicion silenciosa disfrazada
+  // de medicion. Se declara neutro y se dice que falto el dato.
+  if (lead.personasACargo === null) {
+    return {
+      nombre: 'Estilo de vida',
+      ajuste: 0.5,
+      valor: 'no sabemos que amenidades te sirven',
+      favorable: false,
+      conocido: false,
+    };
+  }
+
+  const conNinos = lead.personasACargo > 0;
   const buscadas = conNinos ? AMENIDADES_FAMILIARES : AMENIDADES_JOVENES;
   const encontradas = cuentaAmenidades(ficha, buscadas);
   const ajuste = Math.min(1, encontradas / 3);
@@ -303,6 +350,7 @@ function aporteEstiloDeVida(lead: LeadProfile, ficha: ProjectCard): Aporte {
         ? 'no tiene amenidades de tu perfil'
         : `tiene ${String(encontradas)} amenidades de tu perfil`,
     favorable: encontradas > 0,
+    conocido: true,
   };
 }
 
@@ -363,6 +411,39 @@ export function similitudDe(factores: readonly Factor[]): number {
 }
 
 /**
+ * Que dato del lead alimenta cada eje, en las mismas palabras con que se le
+ * pidio. Se usa para decirle QUE falta cuando la afinidad sale parcial.
+ */
+const DATO_DEL_EJE: Record<string, string> = {
+  'Capacidad estimada': 'tu capacidad de pago',
+  Ubicacion: 'tu ciudad',
+  'Tamano del hogar': 'cuantas personas tienes a cargo',
+  'Tipo de vivienda': 'tu rango salarial',
+  'Estilo de vida': 'tu composicion de hogar',
+};
+
+/**
+ * Fraccion del peso total (0..1) que se evaluo con datos reales del lead.
+ *
+ * Se mide en PESO y no en cantidad de ejes porque no todos valen lo mismo: un
+ * lead al que solo le falta el estilo de vida (0.08) tiene un puntaje casi
+ * completo, mientras que a uno sin capacidad estimada le falta el 40% del
+ * calculo aunque en ambos casos "falte un eje de cinco".
+ */
+function confianzaDe(ejes: readonly Eje[]): number {
+  const conocido = ejes
+    .filter(({ aporte }) => aporte.conocido)
+    .reduce((suma, { peso }) => suma + peso, 0);
+  return redondear(conocido);
+}
+
+function faltantesDe(ejes: readonly Eje[]): string[] {
+  return ejes
+    .filter(({ aporte }) => !aporte.conocido)
+    .map(({ aporte }) => DATO_DEL_EJE[aporte.nombre] ?? aporte.nombre);
+}
+
+/**
  * Arma el "por que" en lenguaje natural con los dos ejes FAVORABLES que mas
  * aportaron.
  *
@@ -399,10 +480,18 @@ export function explicarMatch(lead: LeadProfile, ficha: ProjectCard): string {
 /**
  * Un proyecto cabe en la capacidad si su piso de precio no supera el techo
  * estimado del lead. Estimado contra estimado: la UI lo tiene que decir asi.
+ *
+ * Devuelve `null` -- no `false` -- cuando no hay techo estimado. Antes las dos
+ * cosas colapsaban en `false`, y eso convierte "todavia no sabemos cuanto
+ * puedes pagar" en "no te alcanza", que es una afirmacion que no tenemos como
+ * sostener.
  */
-export function cabeEnCapacidad(capacidad: CapacityBand | null, ficha: ProjectCard): boolean {
+export function cabeEnCapacidad(
+  capacidad: CapacityBand | null,
+  ficha: ProjectCard,
+): boolean | null {
   const techo = capacidad?.precioMaximoEstimado ?? null;
-  return techo !== null && precioDeReferencia(ficha) <= techo;
+  return techo === null ? null : precioDeReferencia(ficha) <= techo;
 }
 
 /**
@@ -431,13 +520,11 @@ export function matchProjects(
       precioDesde: ficha.precio.desde,
       tipologia:
         ficha.tipologias.map((tipologia) => tipologia.nombre).join(' / ') || 'Por confirmar',
-    };
-    return {
-      ficha,
-      match,
-      factores,
+      confianza: confianzaDe(ejes),
+      datosFaltantes: faltantesDe(ejes),
       cabeEnCapacidad: cabeEnCapacidad(lead.capacidad, ficha),
     };
+    return { ficha, match, factores };
   });
 
   tarjetas.sort((a, b) => {
