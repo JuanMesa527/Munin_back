@@ -1,12 +1,16 @@
 /**
  * ENTRYPOINT QUE DESCUBRE VERCEL. No es el entrypoint de la app.
  *
- * El preset de Node.js de Vercel busca, EN ESTE ORDEN, `app.*`, `index.*` y
- * `server.*` en la raiz, y despues los mismos nombres bajo `src/`. Sin este
- * archivo el primer match era `src/app.ts`, que es el COMPOSITION ROOT: exporta
- * `createApp` pero no levanta ningun servidor, y ademas Vercel lo compilaba por
- * su cuenta sin resolver los alias de `tsconfig.paths`. De ahi los errores de
- * `@contracts` en los logs y el FUNCTION_INVOCATION_FAILED.
+ * El preset de Node.js de Vercel busca su entrypoint POR NOMBRE: `app.*`,
+ * `index.*`, `server.*`, en la raiz y bajo `src/`. Antes el match era
+ * `src/app.ts` (el composition root, hoy `src/composition-root.ts`): Vercel lo
+ * compilaba por su cuenta, sin aplicar `tsc-alias`, y el proceso moria con
+ * ERR_INVALID_MODULE_SPECIFIER sobre `@contracts`. Tener este archivo no basto
+ * para ganarle: por eso ademas el composition root ya no se llama `app.ts`.
+ *
+ * Corolario: ningun archivo de `src/` puede llamarse `app`, `index` ni `server`
+ * mientras el proyecto viva en este preset. Si aparece uno, Vercel lo ejecuta
+ * en lugar de este.
  *
  * `dist/main.js` ya hace justo lo que el preset necesita: valida la
  * configuracion y escucha en `process.env.PORT`, que es la variable que inyecta

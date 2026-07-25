@@ -1,5 +1,5 @@
 /**
- * Tests de `src/app.ts`. Task 2.12. Spec: app-bootstrap-back
+ * Tests de `src/composition-root.ts`. Task 2.12. Spec: app-bootstrap-back
  * "Health check responds on a clean checkout", "No F2-F4 wiring present".
  */
 
@@ -8,7 +8,7 @@ import { readFileSync } from 'node:fs';
 import type { AddressInfo } from 'node:net';
 import { afterEach, describe, expect, it } from 'vitest';
 import type { AppEnv } from '../src/shared/infrastructure/config/env.js';
-import { createApp } from '../src/app.js';
+import { createApp } from '../src/composition-root.js';
 
 function fakeEnv(overrides: Partial<AppEnv> = {}): AppEnv {
   return {
@@ -108,8 +108,8 @@ describe('createApp', () => {
     expect(cuerpo.error.code).toBe('NOT_FOUND');
   });
 
-  it('app.ts entra a lead-intake solo por su modulo, nunca por su domain/ o application/ (feature isolation de F1)', () => {
-    const fuente = readFileSync(new URL('../src/app.ts', import.meta.url), 'utf8');
+  it('el composition root entra a lead-intake solo por su modulo, nunca por su domain/ o application/ (feature isolation de F1)', () => {
+    const fuente = readFileSync(new URL('../src/composition-root.ts', import.meta.url), 'utf8');
     // Aislamiento de F1: el composition root no alcanza los internals de
     // lead-intake, solo su `{ router }`. (F2.1 usa otra composicion, con sus
     // puertos cableados aqui — fuera del alcance de esta garantia.)

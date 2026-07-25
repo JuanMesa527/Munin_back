@@ -1,6 +1,13 @@
 /**
  * COMPOSITION ROOT del backend.
  *
+ * NO LO RENOMBRES A `app.ts`. Vercel busca su entrypoint por nombre —
+ * `app.*`, `index.*`, `server.*`, en la raiz y en `src/`— y cuando este archivo
+ * se llamaba `app.ts` lo elegia a el: lo compilaba por su cuenta, sin resolver
+ * los alias de `tsconfig.paths`, y el deploy moria con
+ * ERR_INVALID_MODULE_SPECIFIER sobre `@contracts`. El entrypoint es
+ * `server.js` en la raiz, y este archivo tiene que quedar fuera de esa busqueda.
+ *
  * Este es el UNICO archivo que sabe que implementacion concreta se usa. Cambiar
  * memoria por PostgreSQL, o el stub de LLM por Anthropic/DeepSeek, se hace aqui
  * y en ningun otro lado: los casos de uso solo conocen puertos. Ese desacople es

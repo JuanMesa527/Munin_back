@@ -5,7 +5,7 @@
  * ordenado. Toda la composicion vive en `app.ts`.
  */
 
-import { createApp } from './app.js';
+import { createApp } from './composition-root.js';
 import { loadEnv } from './shared/infrastructure/config/env.js';
 import { logger } from './shared/infrastructure/logging/logger.js';
 

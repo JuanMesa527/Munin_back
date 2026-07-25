@@ -2,7 +2,7 @@ import type { AddressInfo } from 'node:net';
 import type { Application } from 'express';
 import { afterEach, describe, expect, it } from 'vitest';
 import { API_ROUTES } from '@contracts';
-import { createApp } from './app.js';
+import { createApp } from './composition-root.js';
 import type { AppEnv } from './shared/infrastructure/config/env.js';
 
 interface HttpResponse {
