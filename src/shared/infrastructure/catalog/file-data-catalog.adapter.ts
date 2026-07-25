@@ -141,6 +141,22 @@ type Artefacto = 'weights' | 'project_profiles' | 'projects_catalog';
  */
 const RAIZ_DEL_PAQUETE = fileURLToPath(new URL('../../../../', import.meta.url));
 
+/**
+ * Rutas literales relativas a este modulo. Vercel NFT solo incluye archivos
+ * referenciados con `new URL(..., import.meta.url)` estatico: si leemos solo
+ * desde `WEIGHTS_PATH` del env, el bundle de `/var/task` sale sin `data/` y
+ * el finalize cae a "sin clasificar" (ENOENT en weights.json).
+ */
+const ARTEFACTOS_EN_BUNDLE: Record<Artefacto, string> = {
+  weights: fileURLToPath(new URL('../../../../data/weights.json', import.meta.url)),
+  project_profiles: fileURLToPath(
+    new URL('../../../../data/project_profiles.json', import.meta.url),
+  ),
+  projects_catalog: fileURLToPath(
+    new URL('../../../../data/projects_catalog.json', import.meta.url),
+  ),
+};
+
 export interface FileDataCatalogDeps {
   readonly weightsPath: string;
   readonly projectProfilesPath: string;
@@ -291,7 +307,8 @@ export class FileDataCatalogAdapter implements DataCatalogPort {
   ): Promise<Result<unknown, DataUnavailableError>> {
     let ultimoError: unknown = null;
 
-    for (const candidata of rutasCandidatas(ruta)) {
+    const rutas = rutasCandidatas(ruta, artefacto);
+    for (const candidata of rutas) {
       try {
         const texto = await readFile(candidata, 'utf8');
         return ok(JSON.parse(texto) as unknown);
@@ -301,7 +318,7 @@ export class FileDataCatalogAdapter implements DataCatalogPort {
     }
 
     logger.error(
-      { err: ultimoError, artefacto, rutas: rutasCandidatas(ruta) },
+      { err: ultimoError, artefacto, rutas },
       'no se pudo leer el artefacto de datos calibrados',
     );
     return err(new DataUnavailableError('No hay datos calibrados disponibles', { artefacto }));
@@ -335,13 +352,21 @@ export class FileDataCatalogAdapter implements DataCatalogPort {
  * una busqueda "por si acaso": son los dos unicos sitios donde el archivo puede
  * estar segun quien arranque el proceso.
  */
-function rutasCandidatas(ruta: string): string[] {
+function rutasCandidatas(ruta: string, artefacto: Artefacto): string[] {
+  const candidatas: string[] = [];
+  const agregar = (siguiente: string): void => {
+    if (!candidatas.includes(siguiente)) candidatas.push(siguiente);
+  };
+
   if (isAbsolute(ruta)) {
-    return [ruta];
+    agregar(ruta);
+  } else {
+    agregar(resolve(ruta));
+    agregar(resolve(RAIZ_DEL_PAQUETE, ruta));
   }
-  const desdeCwd = resolve(ruta);
-  const desdeRaiz = resolve(RAIZ_DEL_PAQUETE, ruta);
-  return desdeCwd === desdeRaiz ? [desdeCwd] : [desdeCwd, desdeRaiz];
+  // Ultimo recurso / ancla de NFT: siempre el JSON versionado junto al paquete.
+  agregar(ARTEFACTOS_EN_BUNDLE[artefacto]);
+  return candidatas;
 }
 
 /**
