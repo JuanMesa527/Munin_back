@@ -70,6 +70,27 @@ describe('buildGamifiedJourney', () => {
     });
     expect(journey.metas.find((m) => m.id === 'meta-ahorro')).toBeUndefined();
   });
+
+  it('marca la meta de capacidad como opcional si la razón de ingreso no es financiera', () => {
+    // Currículo adaptativo (adenda A12): si el lead entró solo por no estar
+    // afiliado (no por ahorro/capacidad), forzarle "entendé tu capacidad
+    // financiera" no tiene sentido — ya demostró que sabe de plata.
+    const profile = createEmptyLeadProfile('lead-3', NOW);
+    const journey = buildGamifiedJourney({
+      profile,
+      routing: { ...ROUTING, razones: ['no_afiliado_sin_cupo'] },
+      plan: PLAN,
+      now: NOW,
+    });
+    const edu = journey.metas.find((m) => m.id === 'meta-edu-capacidad');
+    expect(edu?.opcional).toBe(true);
+  });
+
+  it('NO marca la meta de capacidad como opcional cuando la razón sí es financiera', () => {
+    const journey = journeyBase(); // ROUTING incluye 'ahorro_insuficiente'
+    const edu = journey.metas.find((m) => m.id === 'meta-edu-capacidad');
+    expect(edu?.opcional).toBeUndefined();
+  });
 });
 
 describe('trackProgress', () => {
@@ -214,6 +235,48 @@ describe('checkReadmission', () => {
       );
     }
 
+    expect(journey.progreso).toBe(1);
+    expect(journey.reclasificadoAViable).toBe(true);
+  });
+
+  it('readmite aunque una meta opcional quede sin completar (currículo adaptativo)', () => {
+    // Este es el comportamiento nuevo: antes de la adenda A12, 'meta-edu-capacidad'
+    // SIEMPRE contaba, así que dejarla pendiente habría dejado esta prueba en
+    // `false` — probamos justamente que una meta opcional no bloquea nada.
+    const profile = createEmptyLeadProfile('lead-4', NOW);
+    let journey = buildGamifiedJourney({
+      profile,
+      routing: { ...ROUTING, razones: ['no_afiliado_sin_cupo'] },
+      plan: PLAN,
+      now: NOW,
+    });
+    const edu = journey.metas.find((m) => m.id === 'meta-edu-capacidad');
+    expect(edu?.opcional).toBe(true); // confirma la premisa del test
+
+    const idsPendientesNoOpcionales = journey.metas
+      .filter((meta) => meta.tipo !== 'ahorro' && meta.opcional !== true)
+      .map((meta) => meta.id);
+
+    journey = trackProgress(
+      journey,
+      { tipo: 'ahorro_registrado', metaId: 'meta-ahorro', valor: PLAN.gap, ocurridoEn: NOW },
+      NOW,
+      'aporte-1',
+    );
+
+    for (const metaId of idsPendientesNoOpcionales) {
+      journey = trackProgress(
+        journey,
+        { tipo: 'contenido_visto', metaId, valor: 1, ocurridoEn: NOW },
+        NOW,
+        `evento-${metaId}`,
+      );
+    }
+
+    // 'meta-edu-capacidad' nunca se completó, pero es opcional: no debería
+    // impedir la readmisión.
+    const capacidadFinal = journey.metas.find((m) => m.id === 'meta-edu-capacidad');
+    expect(capacidadFinal?.completada).toBe(false);
     expect(journey.progreso).toBe(1);
     expect(journey.reclasificadoAViable).toBe(true);
   });

@@ -93,9 +93,21 @@ export function buildGamifiedJourney(input: BuildJourneyInput): EducationJourney
     });
   }
 
+  // Currículo adaptativo (adenda A12): si la razon de ingreso no involucra
+  // ahorro/capacidad (el lead ya demostro que entiende su plata — entro por
+  // otro motivo, p. ej. no estar afiliado), la leccion de capacidad se marca
+  // opcional en vez de forzarla. No cuenta para `checkReadmission`/`progreso`.
+  const capacidadEsOpcional =
+    !routing.razones.includes('ahorro_insuficiente') && !routing.razones.includes('sin_capacidad');
+
   metas.push(
     metaEducativa('meta-edu-descubrir', 'Descubrí si podés comprar', 'descubrir'),
-    metaEducativa('meta-edu-capacidad', 'Entendé tu capacidad financiera', 'capacidad'),
+    metaEducativa(
+      'meta-edu-capacidad',
+      'Entendé tu capacidad financiera',
+      'capacidad',
+      capacidadEsOpcional,
+    ),
     metaEducativa('meta-edu-financiar', 'Entendé cómo financiar tu vivienda', 'financiar'),
     {
       id: 'meta-doc',
@@ -135,7 +147,7 @@ export function buildGamifiedJourney(input: BuildJourneyInput): EducationJourney
 }
 
 /** Meta booleana de "consumí el contenido de esta etapa". */
-function metaEducativa(id: string, titulo: string, etapa: EtapaId): Meta {
+function metaEducativa(id: string, titulo: string, etapa: EtapaId, opcional = false): Meta {
   return {
     id,
     titulo,
@@ -147,6 +159,7 @@ function metaEducativa(id: string, titulo: string, etapa: EtapaId): Meta {
     puntos: 30,
     badgeId: null,
     etapa,
+    ...(opcional ? { opcional: true } : {}),
   };
 }
 
@@ -203,7 +216,15 @@ export function trackProgress(
   });
 
   const completadas = metas.filter((meta) => meta.completada);
-  const progreso = metas.length === 0 ? 0 : completadas.length / metas.length;
+  // Las metas opcionales (adenda A12) no cuentan ni a favor ni en contra: si
+  // el lead no las necesita, no deberian dejarlo pegado en un 83% para
+  // siempre. `progreso` es el numero que el usuario ve en todas las
+  // pantallas (Inicio/Progreso/Perfil), asi que se recalcula ACA, no solo en
+  // `checkReadmission` — una sola fuente de verdad.
+  const metasQueCuentan = metas.filter((meta) => meta.opcional !== true);
+  const completadasQueCuentan = metasQueCuentan.filter((meta) => meta.completada);
+  const progreso =
+    metasQueCuentan.length === 0 ? 0 : completadasQueCuentan.length / metasQueCuentan.length;
   const puntosTotales = completadas.reduce((suma, meta) => suma + meta.puntos, 0);
 
   const actualizado: EducationJourney = {
@@ -227,9 +248,10 @@ export function trackProgress(
  * el resto del curriculo: un lead que registrara un aporte grande de una sola
  * vez se "graduaba" a F2.1 al instante, sin pasar por ninguna leccion — el
  * punto entero de F2.2 es nutrir CON educacion, no solo trackear un numero.
- * `journey.progreso` ya es la proporcion de TODAS las metas completadas, asi
- * que exigir `>= 1` cubre financiero + educativo + documentacion en una sola
- * condicion, sin necesitar el atajo de "metas criticas" que habia antes.
+ * `journey.progreso` ya es la proporcion de las metas que CUENTAN (excluye
+ * las `opcional: true` — adenda A12) completadas, asi que exigir `>= 1` cubre
+ * financiero + educativo + documentacion en una sola condicion, sin necesitar
+ * el atajo de "metas criticas" que habia antes.
  */
 export function checkReadmission(journey: EducationJourney): boolean {
   return journey.progreso >= 1;

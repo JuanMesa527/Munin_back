@@ -590,6 +590,25 @@ export const ETAPAS_CAMINO: readonly EtapaCamino[] = [
  * consumo en celular. Contenido DETERMINISTA: no lo genera un LLM en la demo
  * (glass-box + autogestionado a prueba de jurado).
  */
+/** Pregunta de opción múltiple para una lección `tipo: 'quiz'` (adenda A13). */
+export interface PreguntaQuiz {
+  pregunta: string;
+  opciones: string[];
+  respuestaCorrectaIndice: number;
+  explicacion: string;
+}
+
+/**
+ * Widget interactivo embebido en una lección (adenda A13). Discriminado por
+ * `tipo` para que cada lección elija el formato que más le sirve — no todas
+ * son texto+video, algunas necesitan que la persona meta sus propios números
+ * o compruebe que entendió.
+ */
+export type InteractivoLeccion =
+  | { tipo: 'calculadora'; calculadora: 'cuota-inicial' }
+  | { tipo: 'quiz'; preguntas: PreguntaQuiz[] }
+  | { tipo: 'checklist'; items: string[] };
+
 export interface ContenidoEducativo {
   id: string;
   etapa: EtapaId;
@@ -598,6 +617,8 @@ export interface ContenidoEducativo {
   tipoContenido: 'concepto' | 'simulacion' | 'checklist';
   /** Id del video de YouTube (no la URL completa). Opcional: no toda lección tiene video. */
   videoId?: string;
+  /** Widget interactivo de la lección (adenda A13). Opcional: no toda lección lo tiene todavía. */
+  interactivo?: InteractivoLeccion;
 }
 
 /**
@@ -658,6 +679,13 @@ export interface Meta {
    * de `alcanzado`, que es solo el total acumulado.
    */
   aportes?: AporteAhorro[];
+  /**
+   * Meta opcional para este lead en particular (adenda A12): cuando la razón
+   * de ingreso a nutrición no involucra esta meta (p. ej. ya tiene buena
+   * capacidad financiera, solo le falta afiliación), se marca como opcional
+   * en vez de forzarla. No cuenta para `checkReadmission`.
+   */
+  opcional?: boolean;
 }
 
 export interface Badge {
@@ -765,6 +793,16 @@ export interface CloserSession {
   closerId: string;
   nombre: string;
   rol: Rol;
+  expiraEn: IsoDateTime;
+}
+
+/**
+ * Sesión del lead tras verificar el código OTP (adenda A14). Permite volver
+ * más tarde y recuperar el camino sin repetir la conversación de F1 — sin
+ * contraseña que gestionar, el OTP mismo es la credencial.
+ */
+export interface LeadSession {
+  leadId: string;
   expiraEn: IsoDateTime;
 }
 

@@ -47,6 +47,7 @@ const CATALOGO: Readonly<Record<EtapaId, readonly ContenidoEducativo[]>> = {
       cuerpo:
         'La cuota inicial suele ser el 20-30% del valor. Tu ahorro y el subsidio estimado suman para cubrirla: por eso ahorrar mueve tu meta más rápido de lo que crees.',
       tipoContenido: 'concepto',
+      interactivo: { tipo: 'calculadora', calculadora: 'cuota-inicial' },
     },
     {
       id: 'cont-capacidad-endeudamiento',
