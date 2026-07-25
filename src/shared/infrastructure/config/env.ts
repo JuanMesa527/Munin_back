@@ -26,21 +26,23 @@ const VERSION_POLITICA_SIN_CONFIGURAR = 'sin-configurar';
 const EnvSchema = z.object({
   NODE_ENV: z.enum(['development', 'test', 'production']).default('development'),
   PORT: z.coerce.number().int().min(1).max(65_535).default(3000),
-  LOG_LEVEL: z
-    .enum(['fatal', 'error', 'warn', 'info', 'debug', 'trace', 'silent'])
-    .default('info'),
+  LOG_LEVEL: z.enum(['fatal', 'error', 'warn', 'info', 'debug', 'trace', 'silent']).default('info'),
 
   /** Lista separada por coma. Se parsea a `string[]` fuera del schema. */
   CORS_ORIGINS: z.string().default('http://localhost:5173'),
 
-  LLM_PROVIDER: z.enum(['stub', 'anthropic']).default('stub'),
+  LLM_PROVIDER: z.enum(['stub', 'anthropic', 'deepseek']).default('stub'),
   ANTHROPIC_API_KEY: z.string().trim().default(''),
   LLM_MODEL: z.string().trim().min(1).default('claude-sonnet-5'),
+  DEEPSEEK_API_KEY: z.string().trim().default(''),
+  DEEPSEEK_MODEL: z.string().trim().min(1).default('deepseek-chat'),
 
   CLOSER_SESSION_SECRET: z.string().min(1, 'falta el secreto de sesion del closer'),
   CLOSER_SESSION_TTL_MINUTES: z.coerce.number().int().positive().max(1440).default(480),
 
-  PERSISTENCE_DRIVER: z.enum(['memory']).default('memory'),
+  PERSISTENCE_DRIVER: z.enum(['memory', 'supabase']).default('memory'),
+  SUPABASE_URL: z.string().trim().default(''),
+  SUPABASE_SERVICE_ROLE_KEY: z.string().trim().default(''),
 
   WEIGHTS_PATH: z.string().trim().min(1).default('./data/weights.json'),
   PROJECT_PROFILES_PATH: z.string().trim().min(1).default('./data/project_profiles.json'),
@@ -50,6 +52,7 @@ const EnvSchema = z.object({
 
 export type LogLevel = z.infer<typeof EnvSchema>['LOG_LEVEL'];
 export type LlmProvider = z.infer<typeof EnvSchema>['LLM_PROVIDER'];
+export type PersistenceDriver = z.infer<typeof EnvSchema>['PERSISTENCE_DRIVER'];
 
 export interface AppEnv {
   readonly nodeEnv: 'development' | 'test' | 'production';
@@ -63,9 +66,15 @@ export interface AppEnv {
   /** `null` cuando no hay llave: el provider `stub` no la necesita. */
   readonly anthropicApiKey: string | null;
   readonly llmModel: string;
+  /** `null` cuando no hay llave: solo lo exige `LLM_PROVIDER=deepseek` (D11). */
+  readonly deepseekApiKey: string | null;
+  readonly deepseekModel: string;
   readonly closerSessionSecret: string;
   readonly closerSessionTtlMinutes: number;
-  readonly persistenceDriver: 'memory';
+  readonly persistenceDriver: PersistenceDriver;
+  /** `null` cuando faltan: solo los exige `PERSISTENCE_DRIVER=supabase` (D10). */
+  readonly supabaseUrl: string | null;
+  readonly supabaseServiceRoleKey: string | null;
   readonly weightsPath: string;
   readonly projectProfilesPath: string;
   /** Version del aviso que acepta el titular. Queda en `ConsentRecord`. */
@@ -91,7 +100,9 @@ function problemasDeProduccion(env: AppEnv): string[] {
     problemas.push('CLOSER_SESSION_SECRET sigue siendo el valor de ejemplo de .env.example');
   }
   if (env.closerSessionSecret.length < LARGO_MINIMO_SECRETO) {
-    problemas.push(`CLOSER_SESSION_SECRET debe tener al menos ${String(LARGO_MINIMO_SECRETO)} caracteres`);
+    problemas.push(
+      `CLOSER_SESSION_SECRET debe tener al menos ${String(LARGO_MINIMO_SECRETO)} caracteres`,
+    );
   }
   if (env.corsOrigins.includes('*')) {
     problemas.push('CORS_ORIGINS no puede contener "*": la allowlist debe ser explicita');
@@ -137,9 +148,14 @@ export function loadEnv(): AppEnv {
     llmProvider: raw.LLM_PROVIDER,
     anthropicApiKey: raw.ANTHROPIC_API_KEY.length > 0 ? raw.ANTHROPIC_API_KEY : null,
     llmModel: raw.LLM_MODEL,
+    deepseekApiKey: raw.DEEPSEEK_API_KEY.length > 0 ? raw.DEEPSEEK_API_KEY : null,
+    deepseekModel: raw.DEEPSEEK_MODEL,
     closerSessionSecret: raw.CLOSER_SESSION_SECRET,
     closerSessionTtlMinutes: raw.CLOSER_SESSION_TTL_MINUTES,
     persistenceDriver: raw.PERSISTENCE_DRIVER,
+    supabaseUrl: raw.SUPABASE_URL.length > 0 ? raw.SUPABASE_URL : null,
+    supabaseServiceRoleKey:
+      raw.SUPABASE_SERVICE_ROLE_KEY.length > 0 ? raw.SUPABASE_SERVICE_ROLE_KEY : null,
     weightsPath: raw.WEIGHTS_PATH,
     projectProfilesPath: raw.PROJECT_PROFILES_PATH,
     privacyPolicyVersion: raw.PRIVACY_POLICY_VERSION,
@@ -149,6 +165,23 @@ export function loadEnv(): AppEnv {
   // de conversacion: mejor no arrancar (A05, fallar temprano y visible).
   if (env.llmProvider === 'anthropic' && env.anthropicApiKey === null) {
     throw new Error('Configuracion invalida: LLM_PROVIDER=anthropic exige ANTHROPIC_API_KEY');
+  }
+
+  // Mismo fail-early que `anthropic` (D11): sin llave, `deepseek` fallaria en
+  // el primer turno de conversacion, no en el arranque.
+  if (env.llmProvider === 'deepseek' && env.deepseekApiKey === null) {
+    throw new Error('Configuracion invalida: LLM_PROVIDER=deepseek exige DEEPSEEK_API_KEY');
+  }
+
+  // `supabase` sin URL o sin service_role key fallaria en el primer `/consent`
+  // (D10): preferimos no arrancar a arrancar con un repositorio roto.
+  if (
+    env.persistenceDriver === 'supabase' &&
+    (env.supabaseUrl === null || env.supabaseServiceRoleKey === null)
+  ) {
+    throw new Error(
+      'Configuracion invalida: PERSISTENCE_DRIVER=supabase exige SUPABASE_URL y SUPABASE_SERVICE_ROLE_KEY',
+    );
   }
 
   if (env.isProduction) {
