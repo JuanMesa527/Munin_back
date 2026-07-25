@@ -581,6 +581,55 @@ export interface ContactPreference {
   mejorHorario: string;
 }
 
+/**
+ * Vocabulario del "¿cuándo te llamamos?" que cierra F2.1.
+ *
+ * Cerrado a proposito: el closer necesita leer siempre las mismas etiquetas, y
+ * un texto libre aqui produciria "cuando pueda" en la ficha. `D` (domingo)
+ * queda fuera: no es dia de gestion comercial.
+ */
+export const DIAS_CONTACTO = ['L', 'M', 'X', 'J', 'V', 'S'] as const;
+export type DiaContacto = (typeof DIAS_CONTACTO)[number];
+
+export const FRANJAS_CONTACTO = ['mañana', 'tarde', 'noche'] as const;
+export type FranjaContacto = (typeof FRANJAS_CONTACTO)[number];
+
+/** Lo que el titular ELIGE al cerrar su perfil. Alimenta `ContactPreference`. */
+export interface PreferenciaContacto {
+  dias: DiaContacto[];
+  franjas: FranjaContacto[];
+}
+
+/**
+ * En que va la gestion comercial del lead. Lo mueve el closer desde la ficha,
+ * no la tuberia: `carril` dice si el lead ES viable, `EstadoGestion` dice que
+ * se ha HECHO con el. Son ejes distintos y por eso conviven.
+ */
+export type EstadoGestion = 'nuevo' | 'contactado' | 'agendado' | 'sin_contacto';
+
+export const ESTADOS_GESTION: readonly EstadoGestion[] = [
+  'nuevo',
+  'contactado',
+  'agendado',
+  'sin_contacto',
+];
+
+/**
+ * Ultimo registro de gestion: el resultado de la llamada y la nota del closer.
+ *
+ * DATO PERSONAL: `nota` la escribe el comercial sobre una conversacion con el
+ * titular, asi que es tratamiento igual que el resto del perfil — vive en el
+ * backend, nunca en el disco del comercial (Ley 1581).
+ */
+export interface RegistroGestion {
+  estado: EstadoGestion;
+  /** Texto libre del closer. `null` si guardo el estado sin escribir nada. */
+  nota: string | null;
+  /** Quien lo registro. Sale de la sesion verificada, nunca del body. */
+  closerId: string;
+  registradoEn: IsoDateTime;
+}
+
 /** Dia de la semana con que tan contactable ha sido el lead ahi. Adenda A8. */
 export interface ContactabilidadDia {
   dia: 'L' | 'M' | 'X' | 'J' | 'V' | 'S' | 'D';
@@ -620,6 +669,8 @@ export interface EnrichedLead extends LeadProfile {
   subsidioEstimado: COP | null;
   /** Cita textual del lead. Le da al closer sus propias palabras. */
   citaTextual: string | null;
+  /** Ultima gestion registrada por un closer. `null` mientras nadie lo trabaje. */
+  gestion: RegistroGestion | null;
   contactabilidad: ContactabilidadDia[];
   /** Por que ese es el mejor horario. Sin el, el dato no es accionable. */
   horarioRazon: string | null;
@@ -1403,5 +1454,7 @@ export const API_ROUTES = {
     },
     /** Revela el telefono real. Accion auditada (F4). Adenda A8. */
     revealContact: '/api/closer/leads/reveal-contact',
+    /** Resultado de la llamada + nota del closer. Cambia el estado del lead. */
+    gestion: '/api/closer/leads/gestion',
   },
 } as const;

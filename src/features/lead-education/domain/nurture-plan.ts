@@ -21,7 +21,7 @@ import type { LeadProfile, NurturePlan, ProjectProfile } from '@contracts';
 import { ValidationError } from '@shared/kernel/errors.js';
 import type { Result } from '@shared/kernel/result.js';
 import { err, ok } from '@shared/kernel/result.js';
-import { estimateSubsidy } from './subsidy.js';
+import { estimateSubsidy } from '@shared/domain/subsidy.js';
 
 /**
  * 30%: el estandar mas citado para credito hipotecario en Colombia (bancos

@@ -10,13 +10,25 @@
  */
 
 import type {
+  EducationJourney,
   EnrichedLead,
   LeadProfile,
   ProjectCard,
+  RegistroGestion,
   SwipeAction,
   SwipeEvent,
   Zona,
 } from '@contracts';
+import { estimateSubsidy } from '@shared/domain/subsidy.js';
+import type { PreferenciaContacto } from './ficha.js';
+import {
+  construirContactabilidad,
+  construirTimeline,
+  ingresosEnSmmlv,
+  mejorHorarioDeclarado,
+  razonDelHorario,
+  timingDeclarado,
+} from './ficha.js';
 
 /**
  * Cuanto vale cada gesto al estimar intencion.
@@ -176,26 +188,49 @@ export function fichasGuardadas(swipes: readonly SwipeResuelto[]): ProjectCard[]
 }
 
 /**
+ * Contexto que NO sale de los swipes pero si de datos reales del lead. Se pasa
+ * aparte para que quede visible que son dos fuentes distintas: lo inferido de
+ * la baraja y lo declarado por el titular.
+ */
+export interface ContextoFicha {
+  /** Journey de F2.2 si el lead paso por nutricion. `null` si nunca entro. */
+  readonly journey: EducationJourney | null;
+  /** Dias y franjas que el titular eligio al cerrar F2.1. */
+  readonly preferenciaContacto: PreferenciaContacto | null;
+}
+
+const SIN_CONTEXTO: ContextoFicha = { journey: null, preferenciaContacto: null };
+
+/**
  * Aplica los swipes sobre el perfil y devuelve el lead enriquecido.
  *
- * No toca `identidad` ni `contacto`: esos los captura el paso de contacto de
- * F2.1, y meterlos aqui mezclaria inferencia con datos declarados.
+ * Los campos de la ficha de F4 que no dependen de los swipes se derivan en
+ * `ficha.ts` a partir de datos DECLARADOS. Antes estaban todos fijados a
+ * `null`/`[]` aqui, y por eso la ficha del closer salia vacia aunque el chat
+ * hubiera preguntado los datos.
  */
 export function enriquecerConSwipes(
   lead: LeadProfile,
   swipes: readonly SwipeResuelto[],
   ahora: string,
+  contexto: ContextoFicha = SIN_CONTEXTO,
 ): EnrichedLead {
   const zona = inferirZonaPreferida(swipes);
+  const subsidio = estimateSubsidy(lead);
+  const mejorHorario = mejorHorarioDeclarado(contexto.preferenciaContacto);
 
   return {
     ...lead,
     identidad: lead.identidad,
     intereses: inferirIntereses(swipes),
     zonaPreferida: zona,
-    timingCompra: null,
+    timingCompra: timingDeclarado(lead),
+    // `motivacion` sigue en null A PROPOSITO: nadie se la pregunta todavia.
+    // Rellenarla con algo verosimil seria ponerle al closer palabras en la boca
+    // del titular. Un "—" en la ficha es la respuesta correcta.
     motivacion: null,
-    contacto: null,
+    contacto:
+      mejorHorario === null ? null : { canalPreferido: 'telefono', mejorHorario },
     intentScore: calcularIntentScore(swipes),
     enriquecidoEn: ahora,
     // Vienen DECLARADOS de F1, no se infieren de los swipes. Estaban en `null`
@@ -206,12 +241,20 @@ export function enriquecerConSwipes(
     hogar:
       lead.segmentoFamiliar ??
       (lead.personasACargo === null ? null : `${String(lead.personasACargo)} personas a cargo`),
-    ingresosSmmlv: null,
-    subsidioEstimado: null,
+    ingresosSmmlv: ingresosEnSmmlv(lead),
+    // `null` y no `0` cuando no aplica: `0` en la ficha se lee como "le dieron
+    // cero de subsidio", y lo cierto es que no aspira.
+    subsidioEstimado: subsidio.aplica ? subsidio.monto : null,
+    // `citaTextual` sigue en null A PROPOSITO: no persistimos la transcripcion
+    // del chat, asi que no hay ninguna frase real del titular que citar.
+    // Generar una con el LLM seria ponerle comillas a algo que nadie dijo.
     citaTextual: null,
-    contactabilidad: [],
-    horarioRazon: null,
-    timeline: [],
+    // La gestion la escribe el closer desde F4; al enriquecer todavia no existe.
+    // Si el lead ya venia trabajado, se conserva en vez de pisarse.
+    gestion: 'gestion' in lead ? ((lead as { gestion: RegistroGestion | null }).gestion ?? null) : null,
+    contactabilidad: construirContactabilidad(contexto.preferenciaContacto),
+    horarioRazon: razonDelHorario(contexto.preferenciaContacto),
+    timeline: construirTimeline(lead, contexto.journey),
     updatedAt: ahora,
   };
 }

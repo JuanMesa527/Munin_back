@@ -114,6 +114,17 @@ type EducationJourneysRow = {
   updated_at: Timestamptz;
 };
 
+/**
+ * Boveda de contacto. Guarda el UNICO telefono real que persiste el sistema,
+ * separado de `lead_profiles` para que el dato sensible tenga su propia tabla,
+ * su propio RLS y se pueda borrar solo (derecho de supresion, Ley 1581).
+ */
+type ContactVaultRow = {
+  token_id: string;
+  telefono: string;
+  creado_en: Timestamptz;
+};
+
 /** Los `id`/`created_at` los pone la base (default): opcionales al insertar. */
 type Insertable<T extends { id: string; created_at: Timestamptz }> = Omit<
   T,
@@ -139,6 +150,12 @@ export interface Database {
         Row: EnrichmentSessionsRow;
         Insert: Insertable<EnrichmentSessionsRow>;
         Update: Partial<Insertable<EnrichmentSessionsRow>>;
+        Relationships: [];
+      };
+      contact_vault: {
+        Row: ContactVaultRow;
+        Insert: Omit<ContactVaultRow, 'creado_en'> & { creado_en?: Timestamptz };
+        Update: Partial<ContactVaultRow>;
         Relationships: [];
       };
       lead_profiles: {

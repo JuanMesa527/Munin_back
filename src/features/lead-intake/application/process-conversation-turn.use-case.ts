@@ -145,6 +145,7 @@ export class ProcessConversationTurnUseCase {
       slotsPendientes: pendientes,
       perfilParcial: perfilParcialParaLlm(profile),
       vocabulario,
+      preguntaAnclada: stepPromptFor(slotActual),
     });
 
     let actualizado = profile;
@@ -424,26 +425,43 @@ export class ProcessConversationTurnUseCase {
   }
 }
 
-/** Solo slots ya capturados — sin telefono, nombre ni ids. */
+/**
+ * Slots ya capturados, para que el LLM no repregunte. Dos regimenes:
+ * - No sensibles: viaja el VALOR real (edad, ocupacion, etc.).
+ * - PII (nombre, email, telefono): viaja solo la marca `'capturado'`, nunca
+ *   el valor — asi el modelo sabe que ya no debe pedirlo sin que el dato
+ *   personal cruce el prompt (design.md D11 regla 4).
+ */
+/** `[clave, valor crudo o ya como string, esPii]`. `esPii` colapsa el valor a `'capturado'`. */
+type CampoLlm = readonly [clave: string, valor: string | null, esPii?: boolean];
+
 function perfilParcialParaLlm(profile: LeadProfile): Record<string, string> {
+  const campos: readonly CampoLlm[] = [
+    ['nombre', profile.nombre, true],
+    ['email', profile.email, true],
+    ['telefono', profile.telefono, true],
+    ['edad', profile.edad !== null ? String(profile.edad) : null],
+    ['estadoCivil', profile.estadoCivil],
+    ['ocupacion', profile.ocupacion],
+    ['afiliacion', profile.esAfiliado !== null ? String(profile.esAfiliado) : null],
+    ['viviendaPropia', profile.tieneVivienda !== null ? String(profile.tieneVivienda) : null],
+    ['rangoSalarial', profile.rangoSalarial],
+    ['vinculacionLaboral', profile.vinculacionLaboral],
+    ['segmentoFamiliar', profile.segmentoFamiliar],
+    ['ciudad', profile.ciudad],
+    ['ahorro', profile.ahorroDeclarado !== null ? String(profile.ahorroDeclarado) : null],
+    [
+      'capacidadAhorroMensual',
+      profile.capacidadAhorroMensual !== null ? String(profile.capacidadAhorroMensual) : null,
+    ],
+    ['horizonteCompra', profile.horizonteCompra],
+  ];
+
   const parcial: Record<string, string> = {};
-  if (profile.esAfiliado !== null) {
-    parcial.afiliacion = profile.esAfiliado ? 'true' : 'false';
-  }
-  if (profile.rangoSalarial !== null) {
-    parcial.rangoSalarial = profile.rangoSalarial;
-  }
-  if (profile.segmentoFamiliar !== null) {
-    parcial.segmentoFamiliar = profile.segmentoFamiliar;
-  }
-  if (profile.ciudad !== null) {
-    parcial.ciudad = profile.ciudad;
-  }
-  if (profile.ahorroDeclarado !== null) {
-    parcial.ahorro = String(profile.ahorroDeclarado);
-  }
-  if (profile.capacidadAhorroMensual !== null) {
-    parcial.capacidadAhorroMensual = String(profile.capacidadAhorroMensual);
+  for (const [clave, valor, esPii] of campos) {
+    if (valor !== null) {
+      parcial[clave] = esPii === true ? 'capturado' : valor;
+    }
   }
   return parcial;
 }

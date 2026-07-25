@@ -1,10 +1,12 @@
 import { Router } from 'express';
 import type { RequestHandler } from 'express';
+import type { AuditLogPort } from '../../shared/application/ports/audit-log.port.js';
 import type { ClockPort } from '../../shared/application/ports/clock.port.js';
 import type { ContactVaultPort } from '../../shared/application/ports/contact-vault.port.js';
 import type { EducationJourneyRepository } from '../../shared/application/ports/education-repository.port.js';
 import type { LeadRepository } from '../../shared/application/ports/lead-repository.port.js';
 import { BuildBriefingUseCase } from './application/build-briefing.use-case.js';
+import { RegistrarGestionUseCase } from './application/registrar-gestion.use-case.js';
 import { RevealContactUseCase } from './application/reveal-contact.use-case.js';
 import { createCloserBriefingRouter } from './interface/closer-briefing.controller.js';
 
@@ -13,6 +15,8 @@ export interface CloserBriefingModuleDeps {
   readonly journeys: EducationJourneyRepository;
   readonly vault: ContactVaultPort;
   readonly clock: ClockPort;
+  /** Mover el estado de un lead es tratamiento de sus datos: queda auditado. */
+  readonly audit: AuditLogPort;
   readonly requireCloser: RequestHandler;
 }
 
@@ -28,6 +32,11 @@ export function createCloserBriefingModule(deps: CloserBriefingModuleDeps): Clos
     createCloserBriefingRouter({
       buildBriefing: new BuildBriefingUseCase(deps.leads, deps.journeys, deps.clock),
       revealContact: new RevealContactUseCase(deps.leads, deps.vault),
+      registrarGestion: new RegistrarGestionUseCase({
+        leads: deps.leads,
+        clock: deps.clock,
+        audit: deps.audit,
+      }),
     }),
   );
   return { router };

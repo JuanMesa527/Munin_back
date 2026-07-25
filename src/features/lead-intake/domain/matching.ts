@@ -5,6 +5,7 @@
  */
 
 import type { CapacityBand, LeadProfile, ProjectMatch, ProjectProfile } from '@contracts';
+import { mismaCiudad } from '@shared/domain/value-objects/city.js';
 
 /**
  * Proporcion de compradores afiliados a partir de la cual un proyecto se
@@ -35,7 +36,10 @@ export function filterByEligibility(
     if (proyecto.precioDesde > precioMaximo) {
       return false;
     }
-    if (profile.ciudad !== null && proyecto.ciudad.toLowerCase() !== profile.ciudad.toLowerCase()) {
+    // `mismaCiudad` y no `toLowerCase()`: el chat ofrece "Bogota" con tilde y el
+    // catalogo la escribe sin ella, asi que la comparacion cruda descartaba los
+    // 4 proyectos de Bogota para todo lead que hubiera usado el chip.
+    if (profile.ciudad !== null && !mismaCiudad(proyecto.ciudad, profile.ciudad)) {
       return false;
     }
     if (

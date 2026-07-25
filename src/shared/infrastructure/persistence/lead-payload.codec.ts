@@ -129,6 +129,17 @@ export const EnrichedLeadPayloadSchema = LeadProfileObjectSchema.extend({
   intentScore: z.number(),
   enriquecidoEn: z.string(),
   ocupacion: z.string().nullable(),
+  // `.default(null)` por lo mismo que `ocupacion` de arriba: los leads
+  // enriquecidos ANTES de que existiera la gestion no traen la clave.
+  gestion: z
+    .strictObject({
+      estado: z.enum(['nuevo', 'contactado', 'agendado', 'sin_contacto']),
+      nota: z.string().nullable(),
+      closerId: z.string(),
+      registradoEn: z.string(),
+    })
+    .nullable()
+    .default(null),
   hogar: z.string().nullable(),
   ingresosSmmlv: z.number().nullable(),
   subsidioEstimado: z.number().nullable(),

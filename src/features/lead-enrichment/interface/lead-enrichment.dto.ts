@@ -8,6 +8,7 @@
 
 import { z } from 'zod';
 import type { EnrichmentSessionSummary, EnrichmentTelemetry, ViewEvent } from '@contracts';
+import { DIAS_CONTACTO, FRANJAS_CONTACTO } from '@contracts';
 
 /**
  * Los ids del dominio son opacos (`IdGeneratorPort`), asi que se acotan a
@@ -47,8 +48,19 @@ export const SwipeBodySchema = z.object({
 
 export type SwipeBody = z.infer<typeof SwipeBodySchema>;
 
+/**
+ * "¿Cuándo te llamamos?" del cierre de F2.1. OPCIONAL: si el titular no
+ * responde, la ficha muestra "Sin franja preferida" — nunca un horario
+ * inventado. Vocabulario cerrado para que el closer lea siempre lo mismo.
+ */
+const PreferenciaContactoSchema = z.object({
+  dias: z.array(z.enum(DIAS_CONTACTO)).min(1).max(DIAS_CONTACTO.length),
+  franjas: z.array(z.enum(FRANJAS_CONTACTO)).min(1).max(FRANJAS_CONTACTO.length),
+});
+
 export const SummaryBodySchema = z.object({
   leadId: IdSchema,
+  preferenciaContacto: PreferenciaContactoSchema.nullish(),
 });
 
 export type SummaryBody = z.infer<typeof SummaryBodySchema>;

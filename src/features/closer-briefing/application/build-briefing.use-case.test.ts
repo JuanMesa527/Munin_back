@@ -91,6 +91,7 @@ function makeLead(): EnrichedLead {
     ingresosSmmlv: 3.2,
     subsidioEstimado: 30_000_000,
     citaTextual: 'Quiero una vivienda para mi familia',
+    gestion: null,
     contactabilidad: [{ dia: 'L', intensidad: 100 }],
     horarioRazon: 'Respondio en la tarde',
     timeline: [],

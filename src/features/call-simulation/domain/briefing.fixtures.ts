@@ -60,6 +60,7 @@ const LEAD_BASE: EnrichedLead = {
   ingresosSmmlv: 3,
   subsidioEstimado: 15_000_000,
   citaTextual: 'Necesito algo cerca del colegio de mi hija',
+  gestion: null,
   contactabilidad: [],
   horarioRazon: null,
   timeline: [],

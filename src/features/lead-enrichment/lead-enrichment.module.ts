@@ -11,6 +11,7 @@
 import type { Router } from 'express';
 import type { ClockPort } from '../../shared/application/ports/clock.port.js';
 import type { DataCatalogPort } from '../../shared/application/ports/data-catalog.port.js';
+import type { EducationJourneyRepository } from '../../shared/application/ports/education-repository.port.js';
 import type { LeadRepository } from '../../shared/application/ports/lead-repository.port.js';
 import { BuildDeckUseCase } from './application/build-deck.use-case.js';
 import { CloseEnrichmentUseCase } from './application/close-enrichment.use-case.js';
@@ -26,6 +27,8 @@ export interface LeadEnrichmentModuleDeps {
   readonly clock: ClockPort;
   readonly swipes: SwipeStorePort;
   readonly telemetry: TelemetryStorePort;
+  /** Puerto compartido con F2.2/F4: aporta el hito de nutricion del recorrido. */
+  readonly journeys: EducationJourneyRepository;
 }
 
 export interface LeadEnrichmentModule {
@@ -49,6 +52,7 @@ export function createLeadEnrichmentModule(
         catalogo: deps.catalogo,
         clock: deps.clock,
         swipes: deps.swipes,
+        journeys: deps.journeys,
       }),
       recordTelemetry: new RecordTelemetryUseCase({ telemetry: deps.telemetry }),
     }),

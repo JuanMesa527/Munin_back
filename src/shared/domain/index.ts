@@ -8,5 +8,6 @@
 
 export * from './lead.js';
 export * from './phone.js';
+export * from './subsidy.js';
 export * from './value-objects/money.js';
 export * from './value-objects/salary-range.js';
