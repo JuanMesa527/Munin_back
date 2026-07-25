@@ -1,0 +1,21 @@
+# Pipeline offline de analisis - perfilador de vivienda
+# Requiere Python >= 3.11.
+#
+#   python -m venv .venv
+#   .venv\Scripts\activate        (Windows)   |   source .venv/bin/activate
+#   pip install -r analysis/requirements.txt
+#
+# Pisos de version, no pines exactos: es scaffolding de hackathon y no queremos
+# pelear con ruedas precompiladas a las 3 de la manana.
+
+pandas>=2.2
+numpy>=1.26
+openpyxl>=3.1          # lector del Excel de compradores (.xlsx)
+scikit-learn>=1.5      # regresion logistica + AUC + k-fold estratificado
+pyarrow>=16.0          # parquet de los intermedios
+
+# DELIBERADAMENTE AUSENTES: requests, httpx, beautifulsoup4, selenium.
+# El reto prohibe scraping y no consultamos ninguna fuente externa (ni bureau de
+# credito). Todo el pipeline corre contra archivos locales entregados por la
+# organizacion. Si alguien necesita agregar un cliente HTTP aqui, es senal de
+# que se salio del alcance legal.

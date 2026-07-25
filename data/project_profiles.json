@@ -1,0 +1,143 @@
+{
+  "placeholder": true,
+  "_aviso": "PLACEHOLDER. Los 3 proyectos de abajo son FICTICIOS ('Ejemplo', 'Ficticias', 'Muestra' en el nombre) y sus distribuciones estan inventadas. Sirven para que el matching y la UI se puedan ver sin datos reales. Mientras exista la clave 'placeholder' con valor true, file-data-catalog.adapter.ts responde DATA_UNAVAILABLE. El archivo real lo genera 'python analysis/scripts/04_build_project_profiles.py' + '05_export_artifacts.py'. Ver analysis/README.md.",
+  "version": "0.0.0-placeholder",
+  "generadoEn": "2026-07-24T00:00:00.000Z",
+  "proyectos": [
+    {
+      "proyectoId": "demo-ciudadela-ejemplo-norte",
+      "nombre": "Ciudadela Ejemplo Norte",
+      "ciudad": "Bogota",
+      "zona": "norte",
+      "precioDesde": 180000000,
+      "precioHasta": 240000000,
+      "esVIS": true,
+      "perfilComprador": {
+        "segmento": {
+          "Basico": 0.34,
+          "Medio": 0.41,
+          "Alto": 0.08,
+          "Joven": 0.17
+        },
+        "rangoSalarial": {
+          "0-2 SMMLV": 0.21,
+          "2-4 SMMLV": 0.44,
+          "4-6 SMMLV": 0.23,
+          "6-10 SMMLV": 0.09,
+          ">10 SMMLV": 0.03
+        },
+        "segmentoFamiliar": {
+          "Unipersonal": 0.12,
+          "Pareja sin hijos": 0.22,
+          "Pareja con hijos": 0.41,
+          "Monoparental": 0.15,
+          "Familia extensa": 0.1
+        },
+        "personasACargo": {
+          "0": 0.18,
+          "1": 0.31,
+          "2": 0.29,
+          "3+": 0.22
+        },
+        "medioConocimiento": {
+          "Feria de vivienda": 0.28,
+          "Referido": 0.22,
+          "Redes sociales": 0.31,
+          "Punto de venta": 0.12,
+          "Otro": 0.07
+        }
+      },
+      "proporcionAfiliados": 0.91
+    },
+    {
+      "proyectoId": "demo-torres-ficticias-centro",
+      "nombre": "Torres Ficticias del Centro",
+      "ciudad": "Medellin",
+      "zona": "centro",
+      "precioDesde": 260000000,
+      "precioHasta": 380000000,
+      "esVIS": false,
+      "perfilComprador": {
+        "segmento": {
+          "Basico": 0.09,
+          "Medio": 0.38,
+          "Alto": 0.42,
+          "Joven": 0.11
+        },
+        "rangoSalarial": {
+          "0-2 SMMLV": 0.03,
+          "2-4 SMMLV": 0.14,
+          "4-6 SMMLV": 0.29,
+          "6-10 SMMLV": 0.38,
+          ">10 SMMLV": 0.16
+        },
+        "segmentoFamiliar": {
+          "Unipersonal": 0.21,
+          "Pareja sin hijos": 0.34,
+          "Pareja con hijos": 0.28,
+          "Monoparental": 0.09,
+          "Familia extensa": 0.08
+        },
+        "personasACargo": {
+          "0": 0.37,
+          "1": 0.29,
+          "2": 0.21,
+          "3+": 0.13
+        },
+        "medioConocimiento": {
+          "Feria de vivienda": 0.14,
+          "Referido": 0.31,
+          "Redes sociales": 0.34,
+          "Punto de venta": 0.16,
+          "Otro": 0.05
+        }
+      },
+      "proporcionAfiliados": 0.88
+    },
+    {
+      "proyectoId": "demo-conjunto-muestra-sur",
+      "nombre": "Conjunto Muestra Sur",
+      "ciudad": "Cali",
+      "zona": "sur",
+      "precioDesde": 150000000,
+      "precioHasta": 195000000,
+      "esVIS": true,
+      "perfilComprador": {
+        "segmento": {
+          "Basico": 0.46,
+          "Medio": 0.27,
+          "Alto": 0.04,
+          "Joven": 0.23
+        },
+        "rangoSalarial": {
+          "0-2 SMMLV": 0.38,
+          "2-4 SMMLV": 0.42,
+          "4-6 SMMLV": 0.14,
+          "6-10 SMMLV": 0.05,
+          ">10 SMMLV": 0.01
+        },
+        "segmentoFamiliar": {
+          "Unipersonal": 0.19,
+          "Pareja sin hijos": 0.26,
+          "Pareja con hijos": 0.33,
+          "Monoparental": 0.16,
+          "Familia extensa": 0.06
+        },
+        "personasACargo": {
+          "0": 0.24,
+          "1": 0.34,
+          "2": 0.27,
+          "3+": 0.15
+        },
+        "medioConocimiento": {
+          "Feria de vivienda": 0.33,
+          "Referido": 0.19,
+          "Redes sociales": 0.36,
+          "Punto de venta": 0.08,
+          "Otro": 0.04
+        }
+      },
+      "proporcionAfiliados": 0.94
+    }
+  ]
+}

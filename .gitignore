@@ -1,0 +1,36 @@
+node_modules/
+dist/
+coverage/
+
+# Secretos — regla 20. Nunca comitear.
+.env
+.env.local
+.env.*.local
+*.pem
+*.key
+
+# Datos del reto: PII y fuentes crudas NO entran al repo (Ley 1581).
+# Solo los JSON derivados y anonimizados de data/ son versionables.
+analysis/raw/
+analysis/**/*.xlsx
+analysis/**/*.xls
+analysis/**/*.csv
+analysis/**/*.pptx
+!analysis/**/*.example.csv
+
+# Python del pipeline offline
+__pycache__/
+*.py[cod]
+.venv/
+venv/
+.ipynb_checkpoints/
+
+# Tooling
+.eslintcache
+*.log
+npm-debug.log*
+.DS_Store
+Thumbs.db
+.idea/
+.vscode/*
+!.vscode/extensions.json

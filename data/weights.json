@@ -1,0 +1,22 @@
+{
+  "placeholder": true,
+  "_aviso": "PLACEHOLDER. Estos pesos NO estan calibrados: son valores de forma para que el backend compile y la UI se pueda ver. Mientras exista la clave 'placeholder' con valor true, file-data-catalog.adapter.ts responde DATA_UNAVAILABLE a proposito, para que el sistema nunca sirva un score inventado como si fuera calibrado. El archivo real lo genera 'python analysis/scripts/05_export_artifacts.py' a partir de los 4.142 compradores. Ver analysis/README.md.",
+  "version": "0.0.0-placeholder",
+  "pesos": {
+    "afiliacion": 0.26,
+    "rango_salarial": 0.2,
+    "capacidad_ahorro_mensual": 0.16,
+    "ahorro_declarado": 0.12,
+    "ciudad_con_proyecto": 0.1,
+    "segmento": 0.08,
+    "segmento_familiar": 0.05,
+    "personas_a_cargo": -0.03
+  },
+  "umbralViable": 60,
+  "calibracion": {
+    "metrica": "AUC",
+    "valor": 0.5,
+    "n": 0
+  },
+  "generadoEn": "2026-07-24T00:00:00.000Z"
+}

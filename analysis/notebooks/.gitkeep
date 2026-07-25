@@ -1,0 +1,11 @@
+Notebooks de exploracion. Zona de borrador, NO de produccion.
+
+Reglas:
+  1. Ningun artefacto de `data/` se genera desde un notebook. Lo que se publica
+     sale de `analysis/scripts/`, que es reproducible y revisable en diff.
+  2. Antes de comitear un notebook, limpiar las salidas (`Cell > All Output >
+     Clear`). Una salida de celda puede contener filas del Excel de compradores,
+     y eso es PII entrando al repo por la puerta de atras (Ley 1581 de 2012).
+  3. Si una exploracion resulto util, se promueve a una funcion en
+     `analysis/scripts/common.py` con su firma y su prueba. El notebook se
+     queda como bitacora, no como dependencia.
