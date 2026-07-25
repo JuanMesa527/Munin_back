@@ -1,21 +1,15 @@
 import { z } from 'zod';
-import type { EnrichedLead, LeadProfile } from '@contracts';
+import { SLOTS } from '@contracts';
+import type { EnrichedLead, LeadProfile, Slot } from '@contracts';
 
-const SlotSchema = z.enum([
-  'nombre',
-  'email',
-  'telefono',
-  'edad',
-  'estadoCivil',
-  'afiliacion',
-  'rangoSalarial',
-  'segmento',
-  'personasACargo',
-  'ciudad',
-  'segmentoFamiliar',
-  'ahorro',
-  'capacidadAhorroMensual',
-]);
+/**
+ * Derivado de `SLOTS` a proposito, NO reescrito a mano. La lista duplicada se
+ * quedo corta (le faltaban `ocupacion`, `viviendaPropia`, `vinculacionLaboral`
+ * y `horizonteCompra`) y el typecheck no lo vio: un enum mas estrecho sigue
+ * satisfaciendo `ZodType<LeadProfile>`. El resultado era que un lead con esos
+ * slots se ESCRIBIA bien y reventaba al releerlo — 503 permanente para ese lead.
+ */
+const SlotSchema = z.enum(SLOTS as readonly [Slot, ...Slot[]]);
 
 const ConsentRecordSchema = z.strictObject({
   otorgado: z.boolean(),
