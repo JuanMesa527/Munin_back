@@ -40,6 +40,15 @@ export interface ConverseIntakeInput {
   readonly perfilParcial: Record<string, string>;
   /** Vocabulario cerrado por slot pendiente (chips), cuando aplica. */
   readonly vocabulario: Record<string, readonly string[]>;
+  /**
+   * Copy determinista (`stepPromptFor`) del siguiente slot segun `ASKED_SLOTS`.
+   * El modelo puede parafrasearla con su tono, pero `respuestaBot` tiene que
+   * terminar preguntando ESTO — nunca combinar otro slot ni inventar una
+   * pregunta distinta. Sin esta ancla el modelo ve `slotsPendientes` como una
+   * bolsa sin orden y redacta preguntas que no coinciden con los quickReplies
+   * reales que la UI muestra (los quickReplies SI siguen el orden fijo).
+   */
+  readonly preguntaAnclada: string;
 }
 
 export interface LlmPort {
