@@ -562,6 +562,8 @@ export interface ContenidoEducativo {
   titulo: string;
   cuerpo: string;
   tipoContenido: 'concepto' | 'simulacion' | 'checklist';
+  /** Id del video de YouTube (no la URL completa). Opcional: no toda lección tiene video. */
+  videoId?: string;
 }
 
 /**
@@ -581,6 +583,13 @@ export interface NurturePlan {
 
 export type TipoMeta = 'ahorro' | 'documentacion' | 'afiliacion' | 'educacion';
 
+/** Un abono individual a una meta de ahorro (adenda A10). */
+export interface AporteAhorro {
+  id: string;
+  monto: COP;
+  ocurridoEn: IsoDateTime;
+}
+
 /** Meta gamificada del journey (adenda A4). */
 export interface Meta {
   id: string;
@@ -595,6 +604,18 @@ export interface Meta {
   badgeId: string | null;
   /** Etapa del "Camino a Mi Hogar" a la que pertenece la meta (adenda A8). */
   etapa?: EtapaId;
+  /**
+   * Fecha límite que el usuario se propone para la meta (adenda A10). Solo
+   * aplica a metas `tipo: 'ahorro'`; opcional porque el usuario puede no
+   * haberla configurado todavía.
+   */
+  fechaObjetivo?: IsoDateTime;
+  /**
+   * Historial de abonos individuales (adenda A10). Solo aplica a metas
+   * `tipo: 'ahorro'`. Permite calcular el ritmo real de ahorro, a diferencia
+   * de `alcanzado`, que es solo el total acumulado.
+   */
+  aportes?: AporteAhorro[];
 }
 
 export interface Badge {
@@ -654,6 +675,20 @@ export interface EducationLeadSnapshot {
 }
 
 /**
+ * Ritmo de ahorro real de la meta `tipo: 'ahorro'` (adenda A10). Se calcula
+ * on-the-fly a partir de `Meta.aportes` — NO se persiste — por eso vive en la
+ * vista (`EducationJourneyView`) y no en `Meta`: es derivado, no estado.
+ */
+export interface RitmoAhorro {
+  /** COP promedio por mes calendario, desde el primer aporte hasta ahora. */
+  ritmoMensualPromedio: number;
+  /** `null` cuando `ritmoMensualPromedio` es 0: no hay con que proyectar. */
+  mesesRestantesAlRitmoActual: number | null;
+  /** `null` cuando la meta no tiene `fechaObjetivo` configurada. */
+  enRitmoParaFecha: boolean | null;
+}
+
+/**
  * Respuesta de `GET /api/leads/education/journey`: journey + contenidos +
  * snapshot del perfil F1 para que el front no invente datos de demo.
  */
@@ -661,6 +696,12 @@ export interface EducationJourneyView {
   journey: EducationJourney;
   contenidos: ContenidoEducativo[];
   lead: EducationLeadSnapshot;
+  /**
+   * Ritmo de ahorro de `meta-ahorro`, cuando el journey tiene meta de ahorro
+   * (adenda A10). `undefined` si el journey no tiene brecha de ahorro (F2.2
+   * omite `meta-ahorro` cuando `plan.gap === 0`).
+   */
+  ritmoAhorro?: RitmoAhorro;
 }
 
 /** Evento que mueve el progreso del journey. */

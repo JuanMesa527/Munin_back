@@ -11,6 +11,7 @@ import type {
   ClockPort,
   DataCatalogPort,
   EducationJourneyRepository,
+  IdGeneratorPort,
   LeadRepository,
 } from '@shared/application/ports/index.js';
 import { GetOrCreateJourneyUseCase } from './application/get-or-create-journey.use-case.js';
@@ -25,6 +26,7 @@ export interface LeadEducationModuleDeps {
   readonly leads: LeadRepository;
   readonly catalog: DataCatalogPort;
   readonly clock: ClockPort;
+  readonly ids: IdGeneratorPort;
 }
 
 export interface LeadEducationModule {
@@ -43,6 +45,7 @@ export function createLeadEducationModule(deps: LeadEducationModuleDeps): LeadEd
     journeys: deps.journeys,
     leads: deps.leads,
     clock: deps.clock,
+    ids: deps.ids,
   });
 
   return {

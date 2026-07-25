@@ -34,6 +34,7 @@ import { err, ok } from '@shared/kernel/result.js';
 import { buildEducationalContent } from '../domain/content.js';
 import { buildGamifiedJourney } from '../domain/journey.js';
 import { computeNurturePlan } from '../domain/nurture-plan.js';
+import { computeRitmoAhorro } from '../domain/ritmo-ahorro.js';
 import { PROYECTO_POR_DEFECTO, elegirProyectoObjetivo } from '../domain/target-project.js';
 
 export type JourneyView = EducationJourneyView;
@@ -106,10 +107,18 @@ export class GetOrCreateJourneyUseCase {
     const contenidos: ContenidoEducativo[] = etapas.flatMap((etapa) =>
       buildEducationalContent(etapa),
     );
+    // El ritmo es DERIVADO (nunca se persiste): se recalcula en cada lectura
+    // del journey a partir de `meta.aportes`, asi que siempre refleja "ahora".
+    const metaAhorro = journey.metas.find((meta) => meta.tipo === 'ahorro');
+    const ritmoAhorro =
+      metaAhorro === undefined ? undefined : computeRitmoAhorro(metaAhorro, this.deps.clock.now());
     return {
       journey,
       contenidos,
       lead: snapshotDe(profile),
+      // `exactOptionalPropertyTypes`: sin meta de ahorro, se omite la clave en
+      // vez de asignar `ritmoAhorro: undefined`.
+      ...(ritmoAhorro !== undefined ? { ritmoAhorro } : {}),
     };
   }
 }

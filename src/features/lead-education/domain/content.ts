@@ -67,11 +67,19 @@ const CATALOGO: Readonly<Record<EtapaId, readonly ContenidoEducativo[]>> = {
   ],
   financiar: [
     {
-      id: 'cont-financiar-credito',
+      id: 'cont-financiar-marco-2026',
       etapa: 'financiar',
-      titulo: '¿Qué es un crédito hipotecario?',
+      titulo: 'Marco financiero 2026',
       cuerpo:
-        'Es un préstamo a largo plazo (típicamente 15-20 años) respaldado por la vivienda que comprás: si dejás de pagar, el banco puede recuperarla. Es la forma más común de financiar vivienda en Colombia, y se combina con tu ahorro y el subsidio estimado.',
+        'En 2026 el salario mínimo (SMMLV) es de $1.750.905, y de él se derivan los topes de precio para acceder a subsidio de vivienda. Una VIP no supera los 90 SMMLV ($157.581.450), una VIS regional los 135 SMMLV ($236.372.175), y una VIS metropolitana los 150 SMMLV ($262.635.750). Este último tope aplica en Bogotá y en los municipios del Decreto 1607 de 2022: Tabio, Cajicá, Chía, Cota, Facatativá, Funza, La Calera, Madrid, Mosquera, Sibaté, Soacha, Tocancipá y Zipaquirá. Saber en qué tope cae la vivienda que te interesa es el primer paso antes de calcular cualquier subsidio.',
+      tipoContenido: 'concepto',
+    },
+    {
+      id: 'cont-financiar-requisitos-generales',
+      etapa: 'financiar',
+      titulo: 'Requisitos generales del subsidio',
+      cuerpo:
+        'Para postular necesitás afiliación activa a la caja: si sos dependiente, que tu empresa esté afiliada y a paz y salvo; si sos pensionado o independiente, haber aportado el 2% de tu mesada o ingresos durante mínimo 6 meses continuos antes de postular. El ingreso de tu hogar no puede superar los 4 SMMLV ($7.003.620) para la mayoría de modalidades, o 2 SMMLV ($3.501.810) si es para arrendamiento. Ningún integrante del hogar puede ser propietario ni poseedor de vivienda en el país, salvo que el subsidio sea para mejorar o construir en un lote propio. Tampoco podés haber recibido antes un subsidio de vivienda nacional o de otra caja — aunque haber tenido subsidio de arrendamiento no te inhabilita para pedir el de vivienda nueva.',
       tipoContenido: 'concepto',
     },
     {
@@ -79,7 +87,47 @@ const CATALOGO: Readonly<Record<EtapaId, readonly ContenidoEducativo[]>> = {
       etapa: 'financiar',
       titulo: '¿Qué es el Subsidio Familiar de Vivienda?',
       cuerpo:
-        'El SFV es un aporte no reembolsable de la caja de compensación para hogares con ingresos de hasta 4 SMMLV: hasta 30 SMMLV si ganás menos de 2 SMMLV, hasta 20 SMMLV si ganás entre 2 y 4. Complementa tu ahorro y tu crédito. Acá lo calculamos como estimado, no como aprobado.',
+        'El SFV es un aporte no reembolsable que entrega tu caja de compensación para completar la cuota inicial de tu vivienda: no es un préstamo, no se devuelve, y se suma a tu ahorro y tu crédito. Existen varias modalidades según lo que necesitás — comprar vivienda nueva o usada, arrendar, construir en tu propio lote o mejorar la que ya tenés — cada una con su propio monto y requisitos, que vas a ver en detalle a continuación. Acá lo calculamos siempre como estimado, nunca como aprobado: la caja confirma el otorgamiento final.',
+      tipoContenido: 'concepto',
+    },
+    {
+      id: 'cont-financiar-modalidad-vivienda-nueva',
+      etapa: 'financiar',
+      titulo: 'Adquisición de vivienda nueva',
+      cuerpo:
+        'Si el ingreso de tu hogar es de hasta 2 SMMLV ($3.501.810), el subsidio estimado para la cuota inicial de una vivienda VIS o VIP nueva es de 30 SMMLV, es decir $52.527.150. Si ganás más de 2 y hasta 4 SMMLV (entre $3.501.811 y $7.003.620), el subsidio estimado baja a 20 SMMLV, $35.018.100. En ambos casos el monto se suma a tu ahorro y a tu crédito hipotecario para cubrir la cuota inicial completa.',
+      tipoContenido: 'concepto',
+    },
+    {
+      id: 'cont-financiar-modalidad-usada',
+      etapa: 'financiar',
+      titulo: 'Adquisición de vivienda usada',
+      cuerpo:
+        'Esta modalidad no es para cualquier hogar: aplica solo si sos madre comunitaria o sustituta del ICBF, reciclador certificado, concejal de un municipio de categoría 4, 5 o 6, o perteneces a población desplazada o víctima de un desastre natural. El inmueble también tiene condiciones: debe estar en zona urbana, en un barrio legalizado, con servicios públicos, y libre de gravámenes o embargos. Si no encajás en estos perfiles, la vivienda nueva sigue siendo tu camino más directo.',
+      tipoContenido: 'concepto',
+    },
+    {
+      id: 'cont-financiar-modalidad-arrendamiento',
+      etapa: 'financiar',
+      titulo: 'Subsidio de arrendamiento',
+      cuerpo:
+        'Este subsidio cubre hasta 0.6 SMMLV al mes ($1.050.543) y nunca más del 90% del canon pactado, por un plazo de entre 12 y 24 meses. El canon del inmueble también tiene tope: $2.626.357 en Bogotá y los municipios del Decreto 1607, y $2.363.722 en el resto de Cundinamarca. No es un beneficio aislado: para acceder necesitás estar vinculado a la compra de una VIS nueva y haber hecho al menos 6 pagos mensuales de tu cuota inicial antes de postular.',
+      tipoContenido: 'concepto',
+    },
+    {
+      id: 'cont-financiar-modalidad-construccion-mejoramiento',
+      etapa: 'financiar',
+      titulo: 'Construcción y mejoramiento de vivienda',
+      cuerpo:
+        'Si tenés lote propio, la construcción en sitio propio te da un subsidio estimado de hasta 18 SMMLV en zona urbana ($31.516.290) o hasta 70 SMMLV en zona rural ($122.563.350), siempre que el lote sea tuyo o de un integrante del hogar, tenga servicios públicos inmediatos y licencia de construcción — la solución de vivienda completa no puede superar 135 SMMLV. Si en cambio ya tenés vivienda y necesitás arreglarla, el subsidio de mejoramiento cubre baños, cocinas, pisos, techos o redes eléctricas e hidráulicas, hasta 18 SMMLV urbano ($31.516.290) o 22 SMMLV rural ($38.519.910). Para mejoramiento, el avalúo catastral no puede superar 135 SMMLV en zona urbana o 70 SMMLV en zona rural, y la vivienda no puede estar en zona de riesgo ni requerir una renovación total.',
+      tipoContenido: 'concepto',
+    },
+    {
+      id: 'cont-financiar-credito',
+      etapa: 'financiar',
+      titulo: '¿Qué es un crédito hipotecario?',
+      cuerpo:
+        'Es un préstamo a largo plazo (típicamente 15-20 años) respaldado por la vivienda que comprás: si dejás de pagar, el banco puede recuperarla. Es la forma más común de financiar vivienda en Colombia, y se combina con tu ahorro y el subsidio estimado.',
       tipoContenido: 'concepto',
     },
     {
@@ -112,6 +160,22 @@ const CATALOGO: Readonly<Record<EtapaId, readonly ContenidoEducativo[]>> = {
       titulo: 'Cuota vs. ingreso',
       cuerpo:
         'La regla del 30% no es un capricho del banco: es lo que te deja margen para vivir sin ahogarte cada mes. Antes de fijar el precio objetivo de tu vivienda, calculá primero cuánto podés pagar cómodo — el precio se ajusta a tu cuota, no al revés.',
+      tipoContenido: 'concepto',
+    },
+    {
+      id: 'cont-financiar-proceso-postulacion',
+      etapa: 'financiar',
+      titulo: 'Cómo postular al subsidio',
+      cuerpo:
+        'Postular tiene cinco pasos: primero identificás la modalidad que te aplica y verificás tu ingreso y antigüedad de afiliación; luego reunís tus documentos en PDF, sin clave ni encriptación. El canal depende de la modalidad: vivienda nueva y arrendamiento se postulan por el Portal Transaccional (transacciones.colsubsidio.com) o en un centro presencial; construcción y mejoramiento, por correo a gerencia.proyectos@colsubsidio.com. Colsubsidio tiene 15 días hábiles para darte el resultado de la validación documental, y si tu radicación queda aprobada, pasa a "verificación de derechos" para asignarse según el calendario vigente. Colsubsidio se reserva el derecho de verificar la veracidad de la información en cualquier etapa, incluso después del desembolso.',
+      tipoContenido: 'concepto',
+    },
+    {
+      id: 'cont-financiar-calendario-vigencia',
+      etapa: 'financiar',
+      titulo: 'Fechas clave y vigencia 2026',
+      cuerpo:
+        'Las postulaciones con los valores 2026 están abiertas desde el 21 de enero de 2026. El cierre para vivienda nueva y arrendamiento es el 17 de noviembre de 2026; para construcción y mejoramiento, el 15 de diciembre de 2026. Una vez asignado, el subsidio dura 36 meses, y podés pedir una única prórroga de 24 meses más (60 meses en total) si demostrás que el proceso de compra o construcción ya está avanzado, por ejemplo con una promesa de compraventa o la escritura en trámite. La escritura pública tiene que firmarse mientras el subsidio siga vigente: si se vence antes, el beneficio se pierde.',
       tipoContenido: 'concepto',
     },
     {

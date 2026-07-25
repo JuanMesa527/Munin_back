@@ -1,7 +1,12 @@
 import { describe, expect, it } from 'vitest';
 import type { EducationJourney, NurturePlan, ProgressEvent, RoutingDecision } from '@contracts';
 import { createEmptyLeadProfile } from '@shared/domain/index.js';
-import { buildGamifiedJourney, checkReadmission, trackProgress } from './journey.js';
+import {
+  buildGamifiedJourney,
+  checkReadmission,
+  configureFechaObjetivo,
+  trackProgress,
+} from './journey.js';
 
 const NOW = '2026-07-25T00:00:00.000Z';
 
@@ -76,12 +81,12 @@ describe('trackProgress', () => {
       ocurridoEn: NOW,
     });
 
-    journey = trackProgress(journey, evento(30_000_000), NOW);
+    journey = trackProgress(journey, evento(30_000_000), NOW, 'aporte-1');
     let ahorro = journey.metas.find((m) => m.id === 'meta-ahorro');
     expect(ahorro?.completada).toBe(false);
     expect(ahorro?.alcanzado).toBe(30_000_000);
 
-    journey = trackProgress(journey, evento(PLAN.gap), NOW);
+    journey = trackProgress(journey, evento(PLAN.gap), NOW, 'aporte-2');
     ahorro = journey.metas.find((m) => m.id === 'meta-ahorro');
     expect(ahorro?.completada).toBe(true);
     expect(ahorro?.alcanzado).toBe(PLAN.gap); // acotado al objetivo
@@ -89,10 +94,81 @@ describe('trackProgress', () => {
     expect(journey.badges.find((b) => b.id === 'badge-ahorrador')?.desbloqueadoEn).toBe(NOW);
     expect(journey.progreso).toBeGreaterThan(0);
   });
+
+  it('agrega un AporteAhorro al historial con el monto y la fecha del evento', () => {
+    let journey = journeyBase();
+    journey = trackProgress(
+      journey,
+      { tipo: 'ahorro_registrado', metaId: 'meta-ahorro', valor: 30_000_000, ocurridoEn: NOW },
+      NOW,
+      'aporte-1',
+    );
+    let ahorro = journey.metas.find((m) => m.id === 'meta-ahorro');
+    expect(ahorro?.aportes).toEqual([{ id: 'aporte-1', monto: 30_000_000, ocurridoEn: NOW }]);
+
+    const luego = '2026-08-01T00:00:00.000Z';
+    journey = trackProgress(
+      journey,
+      { tipo: 'ahorro_registrado', metaId: 'meta-ahorro', valor: 10_000_000, ocurridoEn: luego },
+      luego,
+      'aporte-2',
+    );
+    ahorro = journey.metas.find((m) => m.id === 'meta-ahorro');
+    expect(ahorro?.aportes).toEqual([
+      { id: 'aporte-1', monto: 30_000_000, ocurridoEn: NOW },
+      { id: 'aporte-2', monto: 10_000_000, ocurridoEn: luego },
+    ]);
+    // La acumulacion agregada (`alcanzado`) sigue exactamente igual que antes.
+    expect(ahorro?.alcanzado).toBe(40_000_000);
+  });
+
+  it('no agrega aporte para eventos que no son ahorro_registrado ni con valor 0', () => {
+    let journey = journeyBase();
+    journey = trackProgress(
+      journey,
+      { tipo: 'ahorro_registrado', metaId: 'meta-ahorro', valor: 0, ocurridoEn: NOW },
+      NOW,
+      'aporte-1',
+    );
+    const ahorro = journey.metas.find((m) => m.id === 'meta-ahorro');
+    expect(ahorro?.aportes ?? []).toHaveLength(0);
+  });
+});
+
+describe('configureFechaObjetivo', () => {
+  it('setea fechaObjetivo en la meta indicada sin tocar alcanzado/completada/aportes', () => {
+    let journey = journeyBase();
+    journey = trackProgress(
+      journey,
+      { tipo: 'ahorro_registrado', metaId: 'meta-ahorro', valor: 30_000_000, ocurridoEn: NOW },
+      NOW,
+      'aporte-1',
+    );
+    const luego = '2026-08-01T00:00:00.000Z';
+    const fecha = '2027-01-01T00:00:00.000Z';
+    journey = configureFechaObjetivo(journey, 'meta-ahorro', fecha, luego);
+
+    const ahorro = journey.metas.find((m) => m.id === 'meta-ahorro');
+    expect(ahorro?.fechaObjetivo).toBe(fecha);
+    expect(ahorro?.alcanzado).toBe(30_000_000);
+    expect(ahorro?.completada).toBe(false);
+    expect(ahorro?.aportes).toEqual([{ id: 'aporte-1', monto: 30_000_000, ocurridoEn: NOW }]);
+    expect(journey.actualizadoEn).toBe(luego);
+  });
+
+  it('no afecta otras metas', () => {
+    let journey = journeyBase();
+    journey = configureFechaObjetivo(journey, 'meta-ahorro', '2027-01-01T00:00:00.000Z', NOW);
+    const afiliacion = journey.metas.find((m) => m.id === 'meta-afiliacion');
+    expect(afiliacion?.fechaObjetivo).toBeUndefined();
+  });
 });
 
 describe('checkReadmission', () => {
-  it('readmite a viable solo cuando ahorro y afiliación están completos', () => {
+  it('NO readmite solo con ahorro y afiliación completos: falta el resto del currículo', () => {
+    // Regresión: antes bastaba cerrar ahorro+afiliación para graduar al lead a
+    // F2.1 al instante, sin pasar por ninguna lección — el punto de F2.2 es
+    // nutrir CON educación, no solo trackear un número financiero.
     let journey = journeyBase();
     expect(checkReadmission(journey)).toBe(false);
 
@@ -100,6 +176,7 @@ describe('checkReadmission', () => {
       journey,
       { tipo: 'ahorro_registrado', metaId: 'meta-ahorro', valor: PLAN.gap, ocurridoEn: NOW },
       NOW,
+      'aporte-1',
     );
     expect(journey.reclasificadoAViable).toBe(false); // falta afiliación
 
@@ -107,7 +184,36 @@ describe('checkReadmission', () => {
       journey,
       { tipo: 'afiliacion_iniciada', metaId: 'meta-afiliacion', valor: 1, ocurridoEn: NOW },
       NOW,
+      'aporte-2',
     );
+    // Ahorro + afiliación completos, pero las metas educativas y de
+    // documentación siguen pendientes: todavía NO se readmite.
+    expect(journey.reclasificadoAViable).toBe(false);
+  });
+
+  it('readmite a viable cuando TODAS las metas del recorrido están completas', () => {
+    let journey = journeyBase();
+    const idsPendientes = journey.metas
+      .filter((meta) => meta.tipo !== 'ahorro')
+      .map((meta) => meta.id);
+
+    journey = trackProgress(
+      journey,
+      { tipo: 'ahorro_registrado', metaId: 'meta-ahorro', valor: PLAN.gap, ocurridoEn: NOW },
+      NOW,
+      'aporte-1',
+    );
+
+    for (const metaId of idsPendientes) {
+      journey = trackProgress(
+        journey,
+        { tipo: 'contenido_visto', metaId, valor: 1, ocurridoEn: NOW },
+        NOW,
+        `evento-${metaId}`,
+      );
+    }
+
+    expect(journey.progreso).toBe(1);
     expect(journey.reclasificadoAViable).toBe(true);
   });
 });

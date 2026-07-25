@@ -24,6 +24,7 @@ import { createLeadEducationModule } from './features/lead-education/lead-educat
 import { seedDemoLeads as seedEducationDemoLeads } from './features/lead-education/infrastructure/demo-seed.js';
 import type { AppEnv } from './shared/infrastructure/config/env.js';
 import { SystemClock } from './shared/infrastructure/clock/system-clock.adapter.js';
+import { CryptoIdGenerator } from './shared/infrastructure/id/crypto-id-generator.adapter.js';
 import { FileDataCatalogAdapter } from './shared/infrastructure/catalog/file-data-catalog.adapter.js';
 import { errorHandler, notFoundHandler } from './shared/infrastructure/http/error-handler.js';
 import { applySecurity, publicRateLimiter } from './shared/infrastructure/http/security.js';
@@ -54,6 +55,7 @@ export async function createApp(env: AppEnv): Promise<App> {
 
   // --- Adapters concretos (la unica eleccion de implementacion del backend) ---
   const clock = new SystemClock();
+  const ids = new CryptoIdGenerator();
   // UN solo repositorio de leads, compartido por F1 y F2.1: el lead que F1 marca
   // `viable` es EXACTAMENTE el que F2.1 enriquece (handoff F1->F2.1). Sale de la
   // fabrica env-driven, asi que respeta `PERSISTENCE_DRIVER` (memory/supabase).
@@ -111,7 +113,7 @@ export async function createApp(env: AppEnv): Promise<App> {
   server.use(publicRateLimiter, enrichment.router);
 
   // F2.2 lead-education: camino gamificado de nutricion para leads no viables.
-  const education = createLeadEducationModule({ journeys, leads, catalog: catalogo, clock });
+  const education = createLeadEducationModule({ journeys, leads, catalog: catalogo, clock, ids });
   server.use(PREFIJO_EDUCATION, publicRateLimiter, education.router);
 
   // TODO: montar closer-dashboard (F3) y closer-briefing (F4) cuando existan.

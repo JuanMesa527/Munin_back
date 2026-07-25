@@ -154,18 +154,44 @@ function metaEducativa(id: string, titulo: string, etapa: EtapaId): Meta {
  * Aplica un `ProgressEvent` al journey y devuelve una copia nueva (inmutable).
  * Las metas de ahorro ACUMULAN el valor; las booleanas se completan cuando el
  * evento trae valor >= 1. Recalcula puntos, badges, progreso y readmision.
+ *
+ * `aporteId` lo mintea el caso de uso via `IdGeneratorPort` (mismo patron que
+ * `buildBotMessage` en F1): el dominio nunca genera ids, solo los recibe ya
+ * calculados. Solo se usa cuando el evento realmente agrega un `AporteAhorro`.
  */
 export function trackProgress(
   journey: EducationJourney,
   event: ProgressEvent,
   now: IsoDateTime,
+  aporteId: string,
 ): EducationJourney {
   const metas = journey.metas.map((meta) => {
     if (meta.id !== event.metaId) return meta;
     const incremento =
       meta.tipo === 'ahorro' ? meta.alcanzado + event.valor : Math.max(meta.alcanzado, event.valor);
     const alcanzado = Math.min(meta.objetivo, incremento);
-    return { ...meta, alcanzado, completada: alcanzado >= meta.objetivo };
+    const completada = alcanzado >= meta.objetivo;
+
+    // Historial de abonos (adenda A10): PARALELO a `alcanzado`, nunca lo
+    // reemplaza. Solo se agrega un `AporteAhorro` cuando el evento es un abono
+    // real (`ahorro_registrado`) con `valor > 0` — un valor 0 no es un aporte,
+    // es p. ej. una request que solo configura `fechaObjetivo` (ver
+    // `configureFechaObjetivo`) y no deberia ensuciar el historial con entradas
+    // de $0.
+    const aportes =
+      meta.tipo === 'ahorro' && event.tipo === 'ahorro_registrado' && event.valor > 0
+        ? [...(meta.aportes ?? []), { id: aporteId, monto: event.valor, ocurridoEn: now }]
+        : meta.aportes;
+
+    // `exactOptionalPropertyTypes`: solo se incluye la clave cuando hay un
+    // valor real, para no asignar `aportes: undefined` a una `Meta` que nunca
+    // tuvo la propiedad.
+    return {
+      ...meta,
+      alcanzado,
+      completada,
+      ...(aportes !== undefined ? { aportes } : {}),
+    };
   });
 
   const badges = journey.badges.map((badge) => {
@@ -193,16 +219,36 @@ export function trackProgress(
 
 /**
  * Decide si el lead ya puede volver a `viable`. Regla dura y explicable: se
- * readmite cuando TODAS las metas criticas (ahorro y afiliacion) estan
- * completas. Si no hay metas criticas (ya afiliado y sin brecha), basta con
- * completar el recorrido.
+ * readmite cuando TODAS las metas del recorrido estan completas — las
+ * financieras (ahorro, afiliacion) Y las educativas (una por etapa) y de
+ * documentacion.
+ *
+ * ANTES esta funcion readmitia con solo cerrar ahorro/afiliacion, ignorando
+ * el resto del curriculo: un lead que registrara un aporte grande de una sola
+ * vez se "graduaba" a F2.1 al instante, sin pasar por ninguna leccion — el
+ * punto entero de F2.2 es nutrir CON educacion, no solo trackear un numero.
+ * `journey.progreso` ya es la proporcion de TODAS las metas completadas, asi
+ * que exigir `>= 1` cubre financiero + educativo + documentacion en una sola
+ * condicion, sin necesitar el atajo de "metas criticas" que habia antes.
  */
 export function checkReadmission(journey: EducationJourney): boolean {
-  const criticas = journey.metas.filter(
-    (meta) => meta.tipo === 'ahorro' || meta.tipo === 'afiliacion',
-  );
-  if (criticas.length > 0) {
-    return criticas.every((meta) => meta.completada);
-  }
   return journey.progreso >= 1;
+}
+
+/**
+ * Configura (o cambia) la fecha objetivo de UNA meta, sin tocar `alcanzado`,
+ * `completada` ni `aportes`. Es una actualizacion de configuracion pura,
+ * separada a proposito de `trackProgress`: elegir una fecha limite no es
+ * "progreso" y no deberia poder disparar badges, puntos ni readmision.
+ */
+export function configureFechaObjetivo(
+  journey: EducationJourney,
+  metaId: string,
+  fechaObjetivo: IsoDateTime,
+  now: IsoDateTime,
+): EducationJourney {
+  const metas = journey.metas.map((meta) =>
+    meta.id === metaId ? { ...meta, fechaObjetivo } : meta,
+  );
+  return { ...journey, metas, actualizadoEn: now };
 }
