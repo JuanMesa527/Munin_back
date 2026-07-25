@@ -342,7 +342,9 @@ function aFactores(ejes: readonly Eje[]): Factor[] {
     valor: aporte.valor,
     // En puntos sobre 100, que es como se lee un score en la UI.
     contribucion: redondear(aporte.ajuste * peso * 100),
-    intensidad: Math.round(Math.min(1, Math.max(0, aporte.ajuste)) * 100),
+    // Adenda A8: intensidad 0-100 = que tan bien puntua el lead en ESTE eje,
+    // independiente del peso. `ajuste` vive en 0..1.
+    intensidad: Math.round(Math.max(0, Math.min(1, aporte.ajuste)) * 100),
   }));
 }
 

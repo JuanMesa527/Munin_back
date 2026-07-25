@@ -5,7 +5,6 @@
     "module": "NodeNext",
     "moduleResolution": "NodeNext",
     "outDir": "dist",
-    "rootDir": "src",
 
     /* Tipado estricto — regla 8 del EQUIPO.md. Prohibido `any`. */
     "strict": true,

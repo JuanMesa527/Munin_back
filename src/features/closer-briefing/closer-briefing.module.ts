@@ -22,8 +22,9 @@ export interface CloserBriefingModule {
 
 export function createCloserBriefingModule(deps: CloserBriefingModuleDeps): CloserBriefingModule {
   const router = Router();
+  // Nunca convertir este guard en middleware global: F1/F2.1 son publicos.
+  router.use('/api/closer', deps.requireCloser);
   router.use(
-    deps.requireCloser,
     createCloserBriefingRouter({
       buildBriefing: new BuildBriefingUseCase(deps.leads, deps.journeys, deps.clock),
       revealContact: new RevealContactUseCase(deps.leads, deps.vault),

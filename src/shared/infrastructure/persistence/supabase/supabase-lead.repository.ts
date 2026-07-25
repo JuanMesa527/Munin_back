@@ -144,3 +144,74 @@ export class SupabaseLeadRepository implements LeadRepository {
     }
   }
 }
+
+/**
+ * Forma legacy de F1, conservada solo para compatibilidad de mappers y tests.
+ * El repositorio activo persiste los payloads completos del agregado.
+ */
+export interface SupabaseLeadRow {
+  id: string;
+  consentimiento: unknown;
+  es_afiliado: boolean | null;
+  rango_salarial: string | null;
+  segmento: string | null;
+  personas_a_cargo: number | null;
+  ciudad: string | null;
+  segmento_familiar: string | null;
+  ahorro_declarado: number | null;
+  capacidad_ahorro_mensual: number | null;
+  slots_llenos: string[];
+  capacidad: unknown;
+  score: unknown;
+  proyectos: unknown;
+  carril: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
+/** Mapper legacy puro; mantiene exactamente la fila esperada por F1. */
+export function toRow(profile: LeadProfile): SupabaseLeadRow {
+  return {
+    id: profile.id,
+    consentimiento: profile.consentimiento,
+    es_afiliado: profile.esAfiliado,
+    rango_salarial: profile.rangoSalarial,
+    segmento: profile.segmento,
+    personas_a_cargo: profile.personasACargo,
+    ciudad: profile.ciudad,
+    segmento_familiar: profile.segmentoFamiliar,
+    ahorro_declarado: profile.ahorroDeclarado,
+    capacidad_ahorro_mensual: profile.capacidadAhorroMensual,
+    slots_llenos: profile.slotsLlenos,
+    capacidad: profile.capacidad,
+    score: profile.score,
+    proyectos: profile.proyectos,
+    carril: profile.carril,
+    created_at: profile.createdAt,
+    updated_at: profile.updatedAt,
+  };
+}
+
+/** Mapper legacy puro, validado con el codec profundo actual del agregado. */
+export function toDomain(row: SupabaseLeadRow): LeadProfile {
+  return StoredLeadProfilePayloadSchema.parse({
+    id: row.id,
+    consentimiento: row.consentimiento,
+    identidad: null,
+    esAfiliado: row.es_afiliado,
+    rangoSalarial: row.rango_salarial,
+    segmento: row.segmento,
+    personasACargo: row.personas_a_cargo,
+    ciudad: row.ciudad,
+    segmentoFamiliar: row.segmento_familiar,
+    ahorroDeclarado: row.ahorro_declarado,
+    capacidadAhorroMensual: row.capacidad_ahorro_mensual,
+    slotsLlenos: row.slots_llenos,
+    capacidad: row.capacidad,
+    score: row.score,
+    proyectos: row.proyectos,
+    carril: row.carril,
+    createdAt: new Date(row.created_at).toISOString(),
+    updatedAt: new Date(row.updated_at).toISOString(),
+  });
+}

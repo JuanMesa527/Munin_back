@@ -7,6 +7,7 @@
 import type { LlmPort } from '../../application/ports/llm.port.js';
 import type { AppEnv } from '../config/env.js';
 import { AnthropicLlmAdapter } from './anthropic-llm.adapter.js';
+import { DeepSeekLlmAdapter } from './deepseek-llm.adapter.js';
 import { StubLlmAdapter } from './stub-llm.adapter.js';
 
 export function createLlmPort(env: AppEnv): LlmPort {
@@ -17,6 +18,14 @@ export function createLlmPort(env: AppEnv): LlmPort {
       throw new Error('LLM_PROVIDER=anthropic exige ANTHROPIC_API_KEY');
     }
     return new AnthropicLlmAdapter({ apiKey: env.anthropicApiKey, model: env.llmModel });
+  }
+
+  if (env.llmProvider === 'deepseek') {
+    if (env.deepseekApiKey === null) {
+      // Mismo fail-early que `anthropic` (design.md D11).
+      throw new Error('LLM_PROVIDER=deepseek exige DEEPSEEK_API_KEY');
+    }
+    return new DeepSeekLlmAdapter(env.deepseekApiKey, env.deepseekModel);
   }
 
   // Default deliberado: sin llave el proyecto igual corre de punta a punta.

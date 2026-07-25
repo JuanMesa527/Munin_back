@@ -1,143 +1,455 @@
 {
-  "placeholder": true,
-  "_aviso": "PLACEHOLDER. Los 3 proyectos de abajo son FICTICIOS ('Ejemplo', 'Ficticias', 'Muestra' en el nombre) y sus distribuciones estan inventadas. Sirven para que el matching y la UI se puedan ver sin datos reales. Mientras exista la clave 'placeholder' con valor true, file-data-catalog.adapter.ts responde DATA_UNAVAILABLE. El archivo real lo genera 'python analysis/scripts/04_build_project_profiles.py' + '05_export_artifacts.py'. Ver analysis/README.md.",
-  "version": "0.0.0-placeholder",
-  "generadoEn": "2026-07-24T00:00:00.000Z",
+  "version": "0.1.0-demo-manual",
+  "_aviso": "DEMO/MANUAL, NO CALIBRADO. Los 16 proyectos y sus precios SI son reales (salen de projects_catalog.json, transcrito de brochures publicos). Las distribuciones de perfilComprador y proporcionAfiliados NO salen de los 4.142 compradores reales del reto (ese Excel no esta disponible en este entorno): son una heuristica razonada a mano por VIS/zona/ciudad, para destrabar el flujo viable/no_viable end-to-end en la demo. Reemplazar corriendo 'python analysis/scripts/04_build_project_profiles.py' + '05_export_artifacts.py' contra el Excel real antes de cualquier uso en produccion o de cualquier metrica que se presente como calibrada.",
+  "generadoEn": "2026-07-25T00:00:00.000Z",
   "proyectos": [
     {
-      "proyectoId": "demo-ciudadela-ejemplo-norte",
-      "nombre": "Ciudadela Ejemplo Norte",
-      "ciudad": "Bogota",
-      "zona": "norte",
-      "precioDesde": 180000000,
-      "precioHasta": 240000000,
+      "proyectoId": "versalles",
+      "nombre": "Versalles",
+      "ciudad": "Soacha",
+      "zona": "sur",
+      "precioDesde": 210491039,
+      "precioHasta": 239194363,
       "esVIS": true,
       "perfilComprador": {
         "segmento": {
-          "Basico": 0.34,
-          "Medio": 0.41,
-          "Alto": 0.08,
-          "Joven": 0.17
+          "Basico": 0.4,
+          "Medio": 0.4,
+          "Joven": 0.12,
+          "Alto": 0.08
         },
-        "rangoSalarial": {
-          "0-2 SMMLV": 0.21,
-          "2-4 SMMLV": 0.44,
-          "4-6 SMMLV": 0.23,
-          "6-10 SMMLV": 0.09,
-          ">10 SMMLV": 0.03
+        "ciudad": {
+          "Soacha": 1.0
         },
         "segmentoFamiliar": {
-          "Unipersonal": 0.12,
-          "Pareja sin hijos": 0.22,
-          "Pareja con hijos": 0.41,
-          "Monoparental": 0.15,
+          "Pareja con hijos": 0.38,
+          "Monoparental": 0.2,
+          "Unipersonal": 0.16,
+          "Pareja sin hijos": 0.16,
           "Familia extensa": 0.1
-        },
-        "personasACargo": {
-          "0": 0.18,
-          "1": 0.31,
-          "2": 0.29,
-          "3+": 0.22
-        },
-        "medioConocimiento": {
-          "Feria de vivienda": 0.28,
-          "Referido": 0.22,
-          "Redes sociales": 0.31,
-          "Punto de venta": 0.12,
-          "Otro": 0.07
         }
       },
-      "proporcionAfiliados": 0.91
+      "proporcionAfiliados": 0.82
     },
     {
-      "proyectoId": "demo-torres-ficticias-centro",
-      "nombre": "Torres Ficticias del Centro",
-      "ciudad": "Medellin",
-      "zona": "centro",
-      "precioDesde": 260000000,
-      "precioHasta": 380000000,
-      "esVIS": false,
+      "proyectoId": "pamplona",
+      "nombre": "Pamplona",
+      "ciudad": "Soacha",
+      "zona": "sur",
+      "precioDesde": 208229249,
+      "precioHasta": 236624147,
+      "esVIS": true,
       "perfilComprador": {
         "segmento": {
-          "Basico": 0.09,
-          "Medio": 0.38,
-          "Alto": 0.42,
-          "Joven": 0.11
+          "Basico": 0.4,
+          "Medio": 0.4,
+          "Joven": 0.12,
+          "Alto": 0.08
         },
-        "rangoSalarial": {
-          "0-2 SMMLV": 0.03,
-          "2-4 SMMLV": 0.14,
-          "4-6 SMMLV": 0.29,
-          "6-10 SMMLV": 0.38,
-          ">10 SMMLV": 0.16
+        "ciudad": {
+          "Soacha": 1.0
         },
         "segmentoFamiliar": {
-          "Unipersonal": 0.21,
-          "Pareja sin hijos": 0.34,
-          "Pareja con hijos": 0.28,
-          "Monoparental": 0.09,
-          "Familia extensa": 0.08
-        },
-        "personasACargo": {
-          "0": 0.37,
-          "1": 0.29,
-          "2": 0.21,
-          "3+": 0.13
-        },
-        "medioConocimiento": {
-          "Feria de vivienda": 0.14,
-          "Referido": 0.31,
-          "Redes sociales": 0.34,
-          "Punto de venta": 0.16,
-          "Otro": 0.05
+          "Pareja con hijos": 0.38,
+          "Monoparental": 0.2,
+          "Unipersonal": 0.16,
+          "Pareja sin hijos": 0.16,
+          "Familia extensa": 0.1
         }
       },
-      "proporcionAfiliados": 0.88
+      "proporcionAfiliados": 0.82
     },
     {
-      "proyectoId": "demo-conjunto-muestra-sur",
-      "nombre": "Conjunto Muestra Sur",
-      "ciudad": "Cali",
+      "proyectoId": "zarzal",
+      "nombre": "Zarzal",
+      "ciudad": "Soacha",
       "zona": "sur",
-      "precioDesde": 150000000,
-      "precioHasta": 195000000,
+      "precioDesde": 197927262,
+      "precioHasta": 224917343,
+      "esVIS": true,
+      "perfilComprador": {
+        "segmento": {
+          "Basico": 0.4,
+          "Medio": 0.4,
+          "Joven": 0.12,
+          "Alto": 0.08
+        },
+        "ciudad": {
+          "Soacha": 1.0
+        },
+        "segmentoFamiliar": {
+          "Pareja con hijos": 0.38,
+          "Monoparental": 0.2,
+          "Unipersonal": 0.16,
+          "Pareja sin hijos": 0.16,
+          "Familia extensa": 0.1
+        }
+      },
+      "proporcionAfiliados": 0.82
+    },
+    {
+      "proyectoId": "la-macarena",
+      "nombre": "La Macarena",
+      "ciudad": "Soacha",
+      "zona": "sur",
+      "precioDesde": 184976191,
+      "precioHasta": 210200217,
+      "esVIS": true,
+      "perfilComprador": {
+        "segmento": {
+          "Basico": 0.4,
+          "Medio": 0.4,
+          "Joven": 0.12,
+          "Alto": 0.08
+        },
+        "ciudad": {
+          "Soacha": 1.0
+        },
+        "segmentoFamiliar": {
+          "Pareja con hijos": 0.38,
+          "Monoparental": 0.2,
+          "Unipersonal": 0.16,
+          "Pareja sin hijos": 0.16,
+          "Familia extensa": 0.1
+        }
+      },
+      "proporcionAfiliados": 0.82
+    },
+    {
+      "proyectoId": "mongui",
+      "nombre": "Mongui",
+      "ciudad": "Soacha",
+      "zona": "sur",
+      "precioDesde": 201738223,
+      "precioHasta": 229247980,
+      "esVIS": true,
+      "perfilComprador": {
+        "segmento": {
+          "Basico": 0.4,
+          "Medio": 0.4,
+          "Joven": 0.12,
+          "Alto": 0.08
+        },
+        "ciudad": {
+          "Soacha": 1.0
+        },
+        "segmentoFamiliar": {
+          "Pareja con hijos": 0.38,
+          "Monoparental": 0.2,
+          "Unipersonal": 0.16,
+          "Pareja sin hijos": 0.16,
+          "Familia extensa": 0.1
+        }
+      },
+      "proporcionAfiliados": 0.82
+    },
+    {
+      "proyectoId": "bosque-de-arrayan",
+      "nombre": "Bosque de Arrayan",
+      "ciudad": "Tocancipa",
+      "zona": "norte",
+      "precioDesde": 205285824,
+      "precioHasta": 233279346,
+      "esVIS": true,
+      "perfilComprador": {
+        "segmento": {
+          "Basico": 0.4,
+          "Medio": 0.4,
+          "Joven": 0.12,
+          "Alto": 0.08
+        },
+        "ciudad": {
+          "Tocancipa": 1.0
+        },
+        "segmentoFamiliar": {
+          "Pareja con hijos": 0.38,
+          "Monoparental": 0.2,
+          "Unipersonal": 0.16,
+          "Pareja sin hijos": 0.16,
+          "Familia extensa": 0.1
+        }
+      },
+      "proporcionAfiliados": 0.82
+    },
+    {
+      "proyectoId": "bosque-de-turpial",
+      "nombre": "Bosque de Turpial",
+      "ciudad": "Tocancipa",
+      "zona": "norte",
+      "precioDesde": 203659195,
+      "precioHasta": 231430903,
+      "esVIS": true,
+      "perfilComprador": {
+        "segmento": {
+          "Basico": 0.4,
+          "Medio": 0.4,
+          "Joven": 0.12,
+          "Alto": 0.08
+        },
+        "ciudad": {
+          "Tocancipa": 1.0
+        },
+        "segmentoFamiliar": {
+          "Pareja con hijos": 0.38,
+          "Monoparental": 0.2,
+          "Unipersonal": 0.16,
+          "Pareja sin hijos": 0.16,
+          "Familia extensa": 0.1
+        }
+      },
+      "proporcionAfiliados": 0.82
+    },
+    {
+      "proyectoId": "inari",
+      "nombre": "Inari",
+      "ciudad": "Chia",
+      "zona": "norte",
+      "precioDesde": 200096101,
+      "precioHasta": 227381933,
+      "esVIS": true,
+      "perfilComprador": {
+        "segmento": {
+          "Basico": 0.4,
+          "Medio": 0.4,
+          "Joven": 0.12,
+          "Alto": 0.08
+        },
+        "ciudad": {
+          "Chia": 1.0
+        },
+        "segmentoFamiliar": {
+          "Pareja con hijos": 0.38,
+          "Monoparental": 0.2,
+          "Unipersonal": 0.16,
+          "Pareja sin hijos": 0.16,
+          "Familia extensa": 0.1
+        }
+      },
+      "proporcionAfiliados": 0.82
+    },
+    {
+      "proyectoId": "reserva-de-guayacan",
+      "nombre": "Reserva de Guayacan",
+      "ciudad": "Girardot",
+      "zona": "otra",
+      "precioDesde": 192871800,
+      "precioHasta": 219172500,
       "esVIS": true,
       "perfilComprador": {
         "segmento": {
           "Basico": 0.46,
-          "Medio": 0.27,
-          "Alto": 0.04,
-          "Joven": 0.23
+          "Medio": 0.38,
+          "Alto": 0.06,
+          "Joven": 0.1
         },
-        "rangoSalarial": {
-          "0-2 SMMLV": 0.38,
-          "2-4 SMMLV": 0.42,
-          "4-6 SMMLV": 0.14,
-          "6-10 SMMLV": 0.05,
-          ">10 SMMLV": 0.01
+        "ciudad": {
+          "Girardot": 1.0
         },
         "segmentoFamiliar": {
-          "Unipersonal": 0.19,
-          "Pareja sin hijos": 0.26,
-          "Pareja con hijos": 0.33,
-          "Monoparental": 0.16,
-          "Familia extensa": 0.06
-        },
-        "personasACargo": {
-          "0": 0.24,
-          "1": 0.34,
-          "2": 0.27,
-          "3+": 0.15
-        },
-        "medioConocimiento": {
-          "Feria de vivienda": 0.33,
-          "Referido": 0.19,
-          "Redes sociales": 0.36,
-          "Punto de venta": 0.08,
-          "Otro": 0.04
+          "Pareja con hijos": 0.4,
+          "Monoparental": 0.18,
+          "Familia extensa": 0.16,
+          "Pareja sin hijos": 0.16,
+          "Unipersonal": 0.1
         }
       },
-      "proporcionAfiliados": 0.94
+      "proporcionAfiliados": 0.78
+    },
+    {
+      "proyectoId": "saman",
+      "nombre": "Saman",
+      "ciudad": "Ricaurte",
+      "zona": "otra",
+      "precioDesde": 191003500,
+      "precioHasta": 217049431,
+      "esVIS": true,
+      "perfilComprador": {
+        "segmento": {
+          "Basico": 0.46,
+          "Medio": 0.38,
+          "Alto": 0.06,
+          "Joven": 0.1
+        },
+        "ciudad": {
+          "Ricaurte": 1.0
+        },
+        "segmentoFamiliar": {
+          "Pareja con hijos": 0.4,
+          "Monoparental": 0.18,
+          "Familia extensa": 0.16,
+          "Pareja sin hijos": 0.16,
+          "Unipersonal": 0.1
+        }
+      },
+      "proporcionAfiliados": 0.78
+    },
+    {
+      "proyectoId": "payande",
+      "nombre": "Payande",
+      "ciudad": "Ricaurte",
+      "zona": "otra",
+      "precioDesde": 230131125,
+      "precioHasta": 264650794,
+      "esVIS": false,
+      "perfilComprador": {
+        "segmento": {
+          "Alto": 0.55,
+          "Medio": 0.35,
+          "Basico": 0.05,
+          "Joven": 0.05
+        },
+        "ciudad": {
+          "Ricaurte": 1.0
+        },
+        "segmentoFamiliar": {
+          "Pareja con hijos": 0.42,
+          "Pareja sin hijos": 0.28,
+          "Unipersonal": 0.15,
+          "Monoparental": 0.1,
+          "Familia extensa": 0.05
+        }
+      },
+      "proporcionAfiliados": 0.55
+    },
+    {
+      "proyectoId": "vibo-once",
+      "nombre": "Vibo Once",
+      "ciudad": "Bogota",
+      "zona": "centro",
+      "precioDesde": 243525000,
+      "precioHasta": 284112500,
+      "esVIS": true,
+      "perfilComprador": {
+        "segmento": {
+          "Medio": 0.42,
+          "Basico": 0.28,
+          "Joven": 0.22,
+          "Alto": 0.08
+        },
+        "ciudad": {
+          "Bogota": 1.0
+        },
+        "segmentoFamiliar": {
+          "Unipersonal": 0.32,
+          "Pareja sin hijos": 0.28,
+          "Pareja con hijos": 0.24,
+          "Monoparental": 0.12,
+          "Familia extensa": 0.04
+        }
+      },
+      "proporcionAfiliados": 0.7
+    },
+    {
+      "proyectoId": "karakali",
+      "nombre": "Karakali",
+      "ciudad": "Bogota",
+      "zona": "centro",
+      "precioDesde": 175727640,
+      "precioHasta": 199690500,
+      "esVIS": true,
+      "perfilComprador": {
+        "segmento": {
+          "Medio": 0.42,
+          "Basico": 0.28,
+          "Joven": 0.22,
+          "Alto": 0.08
+        },
+        "ciudad": {
+          "Bogota": 1.0
+        },
+        "segmentoFamiliar": {
+          "Unipersonal": 0.32,
+          "Pareja sin hijos": 0.28,
+          "Pareja con hijos": 0.24,
+          "Monoparental": 0.12,
+          "Familia extensa": 0.04
+        }
+      },
+      "proporcionAfiliados": 0.7
+    },
+    {
+      "proyectoId": "araucaria",
+      "nombre": "Araucaria",
+      "ciudad": "Bogota",
+      "zona": "norte",
+      "precioDesde": 308745013,
+      "precioHasta": 355056765,
+      "esVIS": false,
+      "perfilComprador": {
+        "segmento": {
+          "Alto": 0.55,
+          "Medio": 0.35,
+          "Basico": 0.05,
+          "Joven": 0.05
+        },
+        "ciudad": {
+          "Bogota": 1.0
+        },
+        "segmentoFamiliar": {
+          "Pareja con hijos": 0.42,
+          "Pareja sin hijos": 0.28,
+          "Unipersonal": 0.15,
+          "Monoparental": 0.1,
+          "Familia extensa": 0.05
+        }
+      },
+      "proporcionAfiliados": 0.55
+    },
+    {
+      "proyectoId": "los-nogales",
+      "nombre": "Los Nogales",
+      "ciudad": "Bogota",
+      "zona": "norte",
+      "precioDesde": 319626562,
+      "precioHasta": 367570546,
+      "esVIS": false,
+      "perfilComprador": {
+        "segmento": {
+          "Alto": 0.55,
+          "Medio": 0.35,
+          "Basico": 0.05,
+          "Joven": 0.05
+        },
+        "ciudad": {
+          "Bogota": 1.0
+        },
+        "segmentoFamiliar": {
+          "Pareja con hijos": 0.42,
+          "Pareja sin hijos": 0.28,
+          "Unipersonal": 0.15,
+          "Monoparental": 0.1,
+          "Familia extensa": 0.05
+        }
+      },
+      "proporcionAfiliados": 0.55
+    },
+    {
+      "proyectoId": "verde-esperanza",
+      "nombre": "Verde Esperanza",
+      "ciudad": "Ubate",
+      "zona": "norte",
+      "precioDesde": 186820738,
+      "precioHasta": 212296293,
+      "esVIS": true,
+      "perfilComprador": {
+        "segmento": {
+          "Basico": 0.4,
+          "Medio": 0.4,
+          "Joven": 0.12,
+          "Alto": 0.08
+        },
+        "ciudad": {
+          "Ubate": 1.0
+        },
+        "segmentoFamiliar": {
+          "Pareja con hijos": 0.38,
+          "Monoparental": 0.2,
+          "Unipersonal": 0.16,
+          "Pareja sin hijos": 0.16,
+          "Familia extensa": 0.1
+        }
+      },
+      "proporcionAfiliados": 0.82
     }
   ]
 }

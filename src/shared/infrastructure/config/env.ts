@@ -31,9 +31,14 @@ const EnvSchema = z.object({
   /** Lista separada por coma. Se parsea a `string[]` fuera del schema. */
   CORS_ORIGINS: z.string().default('http://localhost:5173'),
 
-  LLM_PROVIDER: z.enum(['stub', 'anthropic']).default('stub'),
+  LLM_PROVIDER: z.enum(['stub', 'anthropic', 'deepseek']).default('stub'),
   ANTHROPIC_API_KEY: z.string().trim().default(''),
   LLM_MODEL: z.string().trim().min(1).default('claude-sonnet-5'),
+  DEEPSEEK_API_KEY: z.string().trim().default(''),
+  // Verificado contra la API real (2026-07-25): "deepseek-chat" responde
+  // invalid_request_error para esta cuenta, exige deepseek-v4-pro/-flash.
+  // "flash" es el default: rapido y barato, apropiado para extraer un slot.
+  DEEPSEEK_MODEL: z.string().trim().min(1).default('deepseek-v4-flash'),
 
   CLOSER_SESSION_SECRET: z.string().min(1, 'falta el secreto de sesion del closer'),
   CLOSER_SESSION_TTL_MINUTES: z.coerce.number().int().positive().max(1440).default(480),
@@ -59,6 +64,7 @@ const EnvSchema = z.object({
 
 export type LogLevel = z.infer<typeof EnvSchema>['LOG_LEVEL'];
 export type LlmProvider = z.infer<typeof EnvSchema>['LLM_PROVIDER'];
+export type PersistenceDriver = z.infer<typeof EnvSchema>['PERSISTENCE_DRIVER'];
 
 export interface AppEnv {
   readonly nodeEnv: 'development' | 'test' | 'production';
@@ -72,12 +78,15 @@ export interface AppEnv {
   /** `null` cuando no hay llave: el provider `stub` no la necesita. */
   readonly anthropicApiKey: string | null;
   readonly llmModel: string;
+  /** `null` cuando no hay llave: solo lo exige `LLM_PROVIDER=deepseek` (D11). */
+  readonly deepseekApiKey: string | null;
+  readonly deepseekModel: string;
   readonly closerSessionSecret: string;
   readonly closerSessionTtlMinutes: number;
   readonly closerUsername: string;
   readonly closerPassword: string;
-  readonly persistenceDriver: 'memory' | 'supabase';
-  /** URL del proyecto Supabase. `null` con el driver `memory`. */
+  readonly persistenceDriver: PersistenceDriver;
+  /** URL del proyecto Supabase. `null` con el driver `memory` (solo lo exige `supabase`, D10). */
   readonly supabaseUrl: string | null;
   /** Service role key de Supabase. `null` con el driver `memory`. Nunca se loguea. */
   readonly supabaseServiceRoleKey: string | null;
@@ -159,6 +168,8 @@ export function loadEnv(): AppEnv {
     llmProvider: raw.LLM_PROVIDER,
     anthropicApiKey: raw.ANTHROPIC_API_KEY.length > 0 ? raw.ANTHROPIC_API_KEY : null,
     llmModel: raw.LLM_MODEL,
+    deepseekApiKey: raw.DEEPSEEK_API_KEY.length > 0 ? raw.DEEPSEEK_API_KEY : null,
+    deepseekModel: raw.DEEPSEEK_MODEL,
     closerSessionSecret: raw.CLOSER_SESSION_SECRET,
     closerSessionTtlMinutes: raw.CLOSER_SESSION_TTL_MINUTES,
     closerUsername: raw.CLOSER_USERNAME,
@@ -179,8 +190,14 @@ export function loadEnv(): AppEnv {
     throw new Error('Configuracion invalida: LLM_PROVIDER=anthropic exige ANTHROPIC_API_KEY');
   }
 
-  // Mismo criterio para Supabase: el driver `supabase` sin URL/llave fallaria en
-  // la primera query. Fallar al arrancar es preferible (A05).
+  // Mismo fail-early que `anthropic` (D11): sin llave, `deepseek` fallaria en
+  // el primer turno de conversacion, no en el arranque.
+  if (env.llmProvider === 'deepseek' && env.deepseekApiKey === null) {
+    throw new Error('Configuracion invalida: LLM_PROVIDER=deepseek exige DEEPSEEK_API_KEY');
+  }
+
+  // `supabase` sin URL o sin service_role key fallaria en el primer `/consent`
+  // (D10): preferimos no arrancar a arrancar con un repositorio roto.
   if (
     env.persistenceDriver === 'supabase' &&
     (env.supabaseUrl === null || env.supabaseServiceRoleKey === null)

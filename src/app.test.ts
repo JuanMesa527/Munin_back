@@ -22,6 +22,8 @@ const TEST_ENV: AppEnv = {
   llmProvider: 'stub',
   anthropicApiKey: null,
   llmModel: 'claude-sonnet-5',
+  deepseekApiKey: null,
+  deepseekModel: 'deepseek-v4-flash',
   closerSessionSecret: 'test-session-secret',
   closerSessionTtlMinutes: 60,
   closerUsername: 'closer.demo',

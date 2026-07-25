@@ -2,15 +2,15 @@
  * COMPOSITION ROOT del backend.
  *
  * Este es el UNICO archivo que sabe que implementacion concreta se usa. Cambiar
- * memoria por PostgreSQL, o el stub de LLM por Anthropic, se hace aqui y en
- * ningun otro lado: los casos de uso solo conocen puertos. Ese desacople es el
- * argumento del slide de integracion a producto.
+ * memoria por PostgreSQL, o el stub de LLM por Anthropic/DeepSeek, se hace aqui
+ * y en ningun otro lado: los casos de uso solo conocen puertos. Ese desacople es
+ * el argumento del slide de integracion a producto.
  *
  * ORDEN DE LOS MIDDLEWARE (no lo cambies sin leer `security.ts`):
  *   1. applySecurity   -> cabeceras, CORS, parser de JSON con techo
  *   2. httpLogger      -> despues de las cabeceras, antes de las rutas, con
  *                         redaccion de PII ya configurada
- *   3. rate limit + rutas de features
+ *   3. rate limit + rutas de features (F1 lead-intake + F2.1 lead-enrichment)
  *   4. notFoundHandler -> 404 en formato `ApiResponse`
  *   5. errorHandler    -> ultima red, 4 argumentos
  */
@@ -21,6 +21,7 @@ import { API_ROUTES } from '@contracts';
 import { createCloserBriefingModule } from './features/closer-briefing/closer-briefing.module.js';
 import { createCloserDashboardModule } from './features/closer-dashboard/closer-dashboard.module.js';
 import { EnvCloserAuthAdapter } from './features/closer-dashboard/infrastructure/env-closer-auth.adapter.js';
+import { createLeadIntakeModule } from './features/lead-intake/lead-intake.module.js';
 import { createLeadEnrichmentModule } from './features/lead-enrichment/lead-enrichment.module.js';
 import type { SwipeStorePort } from './features/lead-enrichment/application/ports/swipe-store.port.js';
 import type { TelemetryStorePort } from './features/lead-enrichment/application/ports/telemetry.port.js';
@@ -82,6 +83,8 @@ export async function createApp(env: AppEnv): Promise<App> {
   });
 
   let leads: LeadRepository;
+  // Swipes y telemetria: Supabase cuando el driver lo pide, memoria/no-op si no.
+  // Es la unica eleccion memoria-vs-DB de F2.1, y vive solo aqui.
   let swipes: SwipeStorePort;
   let telemetry: TelemetryStorePort;
   if (
@@ -113,6 +116,12 @@ export async function createApp(env: AppEnv): Promise<App> {
   });
 
   // --- Flujo publico del usuario final (sin login, autogestionado) ---
+  // F1 lead-intake: comparte el MISMO `leads` que F2.1 (son un solo flujo). Su
+  // router aplica su propio rate limit dentro del modulo.
+  const intake = createLeadIntakeModule(env, { leads });
+  server.use(intake.router);
+
+  // F2.1 lead-enrichment: expande info del lead viable.
   const enrichment = createLeadEnrichmentModule({ leads, catalogo, clock, swipes, telemetry });
   server.use(publicRateLimiter, enrichment.router);
 
@@ -124,8 +133,12 @@ export async function createApp(env: AppEnv): Promise<App> {
     sessionTtlMinutes: env.closerSessionTtlMinutes,
     leads,
   });
-  server.use(authRateLimiter, dashboard.publicRouter);
-  server.use(dashboard.requireCloser, dashboard.protectedRouter);
+  // El limitador estricto aplica solo al login, no a intake ni a otras rutas
+  // publicas. El guard se acota al namespace closer para no capturar F1/F2.1.
+  server.use(API_ROUTES.closer.login, authRateLimiter);
+  server.use(dashboard.publicRouter);
+  server.use('/api/closer', dashboard.requireCloser);
+  server.use(dashboard.protectedRouter);
 
   const briefing = createCloserBriefingModule({
     leads,
