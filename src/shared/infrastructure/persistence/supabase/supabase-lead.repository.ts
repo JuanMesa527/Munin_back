@@ -10,6 +10,7 @@ import type { LeadRepository } from '../../../application/ports/lead-repository.
 import { InfrastructureError, NotFoundError } from '../../../kernel/errors.js';
 import type { Result } from '../../../kernel/result.js';
 import { err, ok } from '../../../kernel/result.js';
+import { logger } from '../../logging/logger.js';
 import {
   EnrichedLeadPayloadSchema,
   StoredLeadProfilePayloadSchema,
@@ -18,8 +19,52 @@ import type { AppSupabaseClient } from './supabase-client.js';
 
 const TABLE = 'lead_profiles';
 
-function unavailable(message: string): Result<never> {
-  return err(new InfrastructureError(message));
+/**
+ * De un fallo de Supabase se loguean SOLO `code` y `message`.
+ *
+ * `details` y `hint` de PostgREST pueden traer valores de la fila que provoco el
+ * error, y esa fila es el `LeadProfile` completo: nombre, email y telefono del
+ * titular. Meterlos en el log seria un tratamiento que nadie autorizo (Ley 1581,
+ * la misma razon por la que el logger redacta PII).
+ */
+function resumirCausa(causa: unknown): { codigo: string | null; mensaje: string | null } {
+  if (typeof causa !== 'object' || causa === null) {
+    return { codigo: null, mensaje: null };
+  }
+  const { code, message } = causa as { code?: unknown; message?: unknown };
+  return {
+    codigo: typeof code === 'string' ? code : null,
+    mensaje: typeof message === 'string' ? message : null,
+  };
+}
+
+/** Resumen de un fallo de validacion: ruta y motivo, nunca el valor recibido. */
+function causaDeSchema(error: {
+  readonly issues: readonly { readonly path: PropertyKey[]; readonly message: string }[];
+}): { code: string; message: string } {
+  return {
+    code: 'SCHEMA_INVALIDO',
+    message: error.issues
+      .map((issue) => `${issue.path.map(String).join('.')}: ${issue.message}`)
+      .join(' | '),
+  };
+}
+
+/**
+ * Devuelve el 503 Y DEJA CONSTANCIA DE LA CAUSA.
+ *
+ * Antes esta funcion se tragaba el error de Supabase entero: al cliente le
+ * llegaba "No se pudo guardar el lead" y el log no decia por que, asi que un
+ * despliegue con la tabla sin migrar y uno con la service_role key mala eran
+ * indistinguibles desde afuera. El mensaje al cliente sigue siendo pobre a
+ * proposito; el detalle vive del lado servidor (OWASP A09).
+ */
+function unavailable(mensaje: string, operacion: string, causa: unknown): Result<never> {
+  logger.error(
+    { operacion, tabla: TABLE, supabase: resumirCausa(causa) },
+    'fallo el acceso a Supabase',
+  );
+  return err(new InfrastructureError(mensaje));
 }
 
 export class SupabaseLeadRepository implements LeadRepository {
@@ -40,10 +85,10 @@ export class SupabaseLeadRepository implements LeadRepository {
         { onConflict: 'lead_id' },
       );
 
-      if (error) return unavailable('No se pudo guardar el lead');
+      if (error) return unavailable('No se pudo guardar el lead', 'save', error);
       return ok(structuredClone(stored));
-    } catch {
-      return unavailable('No se pudo guardar el lead');
+    } catch (error) {
+      return unavailable('No se pudo guardar el lead', 'save', error);
     }
   }
 
@@ -55,16 +100,20 @@ export class SupabaseLeadRepository implements LeadRepository {
         .eq('lead_id', id)
         .maybeSingle();
 
-      if (error) return unavailable('No se pudo leer el lead');
+      if (error) return unavailable('No se pudo leer el lead', 'findById', error);
       if (data === null) return err(new NotFoundError('Lead no encontrado'));
       const payload = StoredLeadProfilePayloadSchema.safeParse(data.base_payload);
       if (!payload.success) {
-        return unavailable('El lead almacenado tiene un formato invalido');
+        return unavailable(
+          'El lead almacenado tiene un formato invalido',
+          'findById',
+          causaDeSchema(payload.error),
+        );
       }
 
       return ok(structuredClone(payload.data));
-    } catch {
-      return unavailable('No se pudo leer el lead');
+    } catch (error) {
+      return unavailable('No se pudo leer el lead', 'findById', error);
     }
   }
 
@@ -85,10 +134,12 @@ export class SupabaseLeadRepository implements LeadRepository {
         { onConflict: 'lead_id' },
       );
 
-      if (error) return unavailable('No se pudo guardar el lead enriquecido');
+      if (error) {
+        return unavailable('No se pudo guardar el lead enriquecido', 'saveEnriched', error);
+      }
       return ok(structuredClone(stored));
-    } catch {
-      return unavailable('No se pudo guardar el lead enriquecido');
+    } catch (error) {
+      return unavailable('No se pudo guardar el lead enriquecido', 'saveEnriched', error);
     }
   }
 
@@ -100,18 +151,22 @@ export class SupabaseLeadRepository implements LeadRepository {
         .eq('lead_id', id)
         .maybeSingle();
 
-      if (error) return unavailable('No se pudo leer el lead enriquecido');
+      if (error) return unavailable('No se pudo leer el lead enriquecido', 'findEnrichedById', error);
       if (data?.enriched_payload === null || data === null) {
         return err(new NotFoundError('Lead enriquecido no encontrado'));
       }
       const payload = EnrichedLeadPayloadSchema.safeParse(data.enriched_payload);
       if (!payload.success) {
-        return unavailable('El lead enriquecido almacenado tiene un formato invalido');
+        return unavailable(
+          'El lead enriquecido almacenado tiene un formato invalido',
+          'findEnrichedById',
+          causaDeSchema(payload.error),
+        );
       }
 
       return ok(structuredClone(payload.data));
-    } catch {
-      return unavailable('No se pudo leer el lead enriquecido');
+    } catch (error) {
+      return unavailable('No se pudo leer el lead enriquecido', 'findEnrichedById', error);
     }
   }
 
@@ -127,20 +182,24 @@ export class SupabaseLeadRepository implements LeadRepository {
         .select('enriched_payload')
         .eq('carril', 'viable');
 
-      if (error) return unavailable('No se pudieron listar los leads viables');
+      if (error) return unavailable('No se pudieron listar los leads viables', 'listViable', error);
 
       const leads: EnrichedLead[] = [];
       for (const row of data) {
         const payload = EnrichedLeadPayloadSchema.safeParse(row.enriched_payload);
         if (!payload.success) {
-          return unavailable('Un lead viable almacenado tiene un formato invalido');
+          return unavailable(
+            'Un lead viable almacenado tiene un formato invalido',
+            'listViable',
+            causaDeSchema(payload.error),
+          );
         }
         leads.push(structuredClone(payload.data));
       }
 
       return ok(rankAndPageViableLeads(leads, filters, sort, pagina, porPagina));
-    } catch {
-      return unavailable('No se pudieron listar los leads viables');
+    } catch (error) {
+      return unavailable('No se pudieron listar los leads viables', 'listViable', error);
     }
   }
 }
