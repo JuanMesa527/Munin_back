@@ -16,10 +16,24 @@ export default tseslint.config(
   ...tseslint.configs.strictTypeChecked,
   ...tseslint.configs.stylisticTypeChecked,
 
+  // Las reglas con tipos solo pueden correr sobre archivos que esten en un
+  // tsconfig. Este propio archivo y cualquier .js/.mjs no lo estan, asi que se
+  // les apagan: si no, ESLint muere al arrancar.
   {
+    files: ['**/*.{js,mjs,cjs}'],
+    ...tseslint.configs.disableTypeChecked,
+  },
+
+  {
+    files: ['**/*.ts'],
     languageOptions: {
       parserOptions: {
-        projectService: true,
+        // `allowDefaultProject`: los archivos de config de la raiz no estan en
+        // el `include` del tsconfig (que apunta a src/ y tests/), pero igual
+        // queremos lintearlos.
+        projectService: {
+          allowDefaultProject: ['vitest.config.ts'],
+        },
         tsconfigRootDir: import.meta.dirname,
       },
     },
@@ -30,6 +44,25 @@ export default tseslint.config(
         { allowExpressions: true },
       ],
       '@typescript-eslint/consistent-type-imports': 'error',
+
+      // Este repo es stub-first (regla 28): los casos de uso llegan con la firma
+      // completa y cuerpo `throw new Error('TODO')`, asi que sus parametros aun
+      // no se usan. Prefijar con `_` es la forma de decir "esto va aqui a
+      // proposito" sin apagar la regla para el codigo ya implementado.
+      '@typescript-eslint/no-unused-vars': [
+        'error',
+        {
+          argsIgnorePattern: '^_',
+          varsIgnorePattern: '^_',
+          caughtErrorsIgnorePattern: '^_',
+        },
+      ],
+
+      // Apagada a proposito: dispara en los helpers de envoltura y de asercion
+      // (`sendOk<T>`, `readValidatedQuery<T>`), donde el generico ES el contrato
+      // con quien llama aunque aparezca una sola vez en la firma.
+      '@typescript-eslint/no-unnecessary-type-parameters': 'off',
+
       'no-console': 'error',
       eqeqeq: ['error', 'always'],
       'prefer-const': 'error',

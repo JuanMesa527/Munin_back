@@ -5,7 +5,7 @@ Motor de perfilamiento de leads de vivienda — **Hackathon Colsubsidio × 30X, 
 Express 5 + TypeScript, **feature-based + Clean Architecture**. Cinco features aisladas, un
 contrato compartido, y todo el I/O detrás de puertos.
 
-> 📖 **Antes de escribir código, lee [`EQUIPO.md`](./EQUIPO.md).** Tiene el flujo completo, las
+> 📖 **Antes de escribir código, lee [`CLAUDE.md`](./CLAUDE.md).** Tiene el flujo completo, las
 > reglas de arquitectura y seguridad, los límites legales y qué puede/no puede hacer Colsubsidio.
 > No es documentación decorativa: ESLint hace cumplir buena parte de ella.
 

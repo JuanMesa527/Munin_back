@@ -44,6 +44,25 @@
  *      A PROPOSITO: su vocabulario real sale del Excel de 4.142 compradores y
  *      todavia no esta confirmado. Ver `RANGOS_SALARIALES_SMMLV` mas abajo:
  *      cerrar el tipo cuando data/analisis confirme las bandas.
+ *  A8. Datos que exige la consola del closer (F3/F4). El diseno aprobado de la
+ *      ficha de llamada muestra informacion que el contrato original no
+ *      modelaba y que sin ella no se puede armar:
+ *        - `Factor.intensidad`  -> largo de la barra (0-100). `contribucion`
+ *          son puntos con signo y `peso` es el peso del factor; ninguno de los
+ *          dos sirve para dibujar la barra sin normalizar.
+ *        - `ProjectMatch` gana `nombre`, `etapa`, `precioDesde` y `tipologia`:
+ *          el closer lee el match en voz alta durante la llamada y no puede
+ *          esperar a que el front resuelva un `proyectoId` contra otro endpoint.
+ *        - `EnrichedLead` gana `edad`, `ocupacion`, `hogar`, `ingresosSmmlv`,
+ *          `subsidioEstimado`, `citaTextual`, `contactabilidad`, `horarioRazon`
+ *          y `timeline`.
+ *        - `ViableLeadListItem` gana `edad`, `ocupacion`, `capacidadEstimada`,
+ *          `cuotaEstimada`, y cambia `proyectoTopId` por `proyectoTop`.
+ *        - `BriefingSheet` gana `resumenScore` y `objeciones`.
+ *        - `LeadListFilters` gana `soloNutridos` y `busqueda`;
+ *          `LeadListSort` gana `capacidad_desc`.
+ *      Nuevos tipos: `ContactabilidadDia`, `LeadTimelineEvent`,
+ *      `ObjecionSugerida`.
  * ============================================================================
  */
 
@@ -193,6 +212,12 @@ export interface Factor {
    * y mostrar que factores SUMAN y cuales RESTAN.
    */
   contribucion: number;
+  /**
+   * Que tan bien puntua el lead en ESTE factor, 0-100. Es lo unico que se
+   * puede dibujar como barra: `contribucion` trae signo y `peso` describe al
+   * modelo, no al lead. Adenda A8.
+   */
+  intensidad: number;
 }
 
 /**
@@ -220,12 +245,24 @@ export interface CapacityBand {
   precioMaximoEstimado: COP | null;
 }
 
-/** Proyecto afin al lead + el porque, en lenguaje natural. */
+/**
+ * Proyecto afin al lead + el porque, en lenguaje natural.
+ *
+ * Trae el proyecto ya resuelto (nombre, etapa, precio, tipologia) y no solo su
+ * id: el closer lo lee en voz alta mientras habla con el cliente y no puede
+ * depender de que el front cruce el id contra otro endpoint. Adenda A8.
+ */
 export interface ProjectMatch {
   proyectoId: string;
   /** 0-1. Similitud contra el buyer persona real del proyecto. */
   similitud: number;
   razon: string;
+  nombre: string;
+  /** Etapa comercial, p. ej. `Etapa 3`. */
+  etapa: string;
+  precioDesde: COP;
+  /** Tipologia legible, p. ej. `VIS · 3 hab`. */
+  tipologia: string;
 }
 
 /* ==========================================================================
@@ -342,6 +379,29 @@ export interface ContactPreference {
   mejorHorario: string;
 }
 
+/** Dia de la semana con que tan contactable ha sido el lead ahi. Adenda A8. */
+export interface ContactabilidadDia {
+  dia: 'L' | 'M' | 'X' | 'J' | 'V' | 'S' | 'D';
+  /** 0-100, relativo a la mejor franja del propio lead. */
+  intensidad: number;
+}
+
+/** Hito del recorrido del lead, para que el closer sepa de donde viene. */
+export type TipoHito =
+  | 'ingreso'
+  | 'consentimiento'
+  | 'perfilamiento'
+  | 'nutricion'
+  | 'viable';
+
+/** Evento del recorrido del lead. Adenda A8. */
+export interface LeadTimelineEvent {
+  label: string;
+  /** Ya formateada para mostrar: el backend conoce la zona horaria, el front no. */
+  fecha: string;
+  hito: TipoHito;
+}
+
 export interface EnrichedLead extends LeadProfile {
   /** Identidad minima para que el closer pueda llamar (ver adenda A2). */
   identidad: ContactIdentity | null;
@@ -353,6 +413,22 @@ export interface EnrichedLead extends LeadProfile {
   /** 0-100. Intencion de compra. Determinista, igual que el score. */
   intentScore: number;
   enriquecidoEn: IsoDateTime;
+
+  /** --- Adenda A8: lo que la ficha de llamada (F4) necesita mostrar --- */
+  edad: number | null;
+  ocupacion: string | null;
+  /** Composicion del hogar en texto, p. ej. `2 personas a cargo`. */
+  hogar: string | null;
+  /** Ingresos en multiplos de SMMLV. Decide si aplica al SFV (tope 4). */
+  ingresosSmmlv: number | null;
+  /** SFV ESTIMADO. `null` si no aplica. Jamas presentarlo como aprobado. */
+  subsidioEstimado: COP | null;
+  /** Cita textual del lead. Le da al closer sus propias palabras. */
+  citaTextual: string | null;
+  contactabilidad: ContactabilidadDia[];
+  /** Por que ese es el mejor horario. Sin el, el dato no es accionable. */
+  horarioRazon: string | null;
+  timeline: LeadTimelineEvent[];
 }
 
 /* ==========================================================================
@@ -446,10 +522,21 @@ export interface ViableLeadListItem {
   banda: Banda | null;
   /** Top-3 factores, ya ordenados por contribucion. */
   topFactores: Factor[];
-  proyectoTopId: string | null;
   /** `true` si llego reclasificado desde F2.2. Senal fuerte de intencion. */
   vieneDeNutricion: boolean;
   actualizadoEn: IsoDateTime;
+
+  /** --- Adenda A8: lo que la fila del dashboard (F3) necesita mostrar --- */
+  edad: number | null;
+  ocupacion: string | null;
+  /** Techo de precio alcanzable. Espejo de `CapacityBand.precioMaximoEstimado`. */
+  capacidadEstimada: COP | null;
+  cuotaEstimada: COP | null;
+  /**
+   * Mejor match ya resuelto. Reemplaza al `proyectoTopId` original: la fila
+   * muestra nombre, etapa y afinidad, y resolver un id por fila seria N+1.
+   */
+  proyectoTop: ProjectMatch | null;
 }
 
 export interface LeadListFilters {
@@ -458,9 +545,17 @@ export interface LeadListFilters {
   ciudad: string | null;
   scoreMinimo: number | null;
   banda: Banda | null;
+  /** Solo leads recuperados por el carril de nutricion (F2.2). Adenda A8. */
+  soloNutridos: boolean | null;
+  /** Texto libre sobre nombre, zona, ocupacion y proyecto. Adenda A8. */
+  busqueda: string | null;
 }
 
-export type LeadListSort = 'score_desc' | 'intent_desc' | 'recencia_desc';
+export type LeadListSort =
+  | 'score_desc'
+  | 'capacidad_desc'
+  | 'intent_desc'
+  | 'recencia_desc';
 
 export interface LeadListPage {
   items: ViableLeadListItem[];
@@ -482,6 +577,14 @@ export interface TalkingPoint {
   prioridad: number;
 }
 
+/** Objecion probable del lead + como responderla. Adenda A8. */
+export interface ObjecionSugerida {
+  /** Lo que probablemente diga el lead, en sus palabras. */
+  pregunta: string;
+  /** Como responder. Nunca prometer aprobacion de credito ni de subsidio. */
+  respuesta: string;
+}
+
 /**
  * Ficha tecnica read-optimized. Se mira DURANTE una llamada: densa pero
  * escaneable. La arma un solo caso de uso para que el front no orqueste.
@@ -494,6 +597,14 @@ export interface BriefingSheet {
   /** Alertas duras: p. ej. cupo 90/10, o consentimiento vencido. */
   alertas: string[];
   generadoEn: IsoDateTime;
+
+  /**
+   * Una frase que explica el score en lenguaje natural. Adenda A8.
+   * Lo REDACTA el LLM a partir de los factores ya calculados; no los calcula
+   * (regla 12, glass-box).
+   */
+  resumenScore: string;
+  objeciones: ObjecionSugerida[];
 }
 
 /* ==========================================================================
@@ -574,5 +685,7 @@ export const API_ROUTES = {
     leads: '/api/closer/leads',
     briefing: '/api/closer/leads/briefing',
     call: '/api/closer/leads/call',
+    /** Revela el telefono real. Accion auditada (F4). Adenda A8. */
+    revealContact: '/api/closer/leads/reveal-contact',
   },
 } as const;

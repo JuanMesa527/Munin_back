@@ -16,7 +16,7 @@
     "lint:fix": "eslint . --fix",
     "format": "prettier --write \"**/*.{ts,json,md}\"",
     "format:check": "prettier --check \"**/*.{ts,json,md}\"",
-    "test": "vitest run",
+    "test": "vitest run --passWithNoTests",
     "test:watch": "vitest",
     "contracts:sync": "node scripts/sync-contracts.mjs",
     "contracts:check": "node scripts/sync-contracts.mjs --check",

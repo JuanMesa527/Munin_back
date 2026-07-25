@@ -206,7 +206,26 @@ npm run contracts:sync
 
 Las **adendas al contrato original del brief** (consentimiento, identidad de contacto
 enmascarada, `Meta`, DTOs de F1/F3/F4) están documentadas con su justificación en la cabecera
-de `contracts.ts`. Léela una vez antes de empezar.
+de `contracts.ts` (A1–A8). Léela una vez antes de empezar.
+
+> **Adenda A8 — la más reciente.** La añadió la implementación de F3/F4 en el frontend, que ya
+> están construidas contra el diseño aprobado. Lo que te toca si implementas el motor:
+> - `Factor.intensidad` (0-100) es **obligatorio**: es lo único que se puede dibujar como barra.
+>   `contribucion` trae signo y `peso` describe al modelo, no al lead.
+> - `ProjectMatch` ahora viaja con `nombre`, `etapa`, `precioDesde` y `tipologia` resueltos: el
+>   closer los lee en voz alta y no puede esperar un segundo round-trip por `proyectoId`.
+> - `ViableLeadListItem` cambió `proyectoTopId` por `proyectoTop`, y gana `edad`, `ocupacion`,
+>   `capacidadEstimada` y `cuotaEstimada`.
+> - `EnrichedLead` gana identidad y recorrido (`edad`, `ocupacion`, `hogar`, `ingresosSmmlv`,
+>   `subsidioEstimado`, `citaTextual`, `contactabilidad`, `horarioRazon`, `timeline`).
+> - `BriefingSheet` gana `resumenScore` (lo **redacta** el LLM sobre factores ya calculados,
+>   no los calcula) y `objeciones`.
+> - `LeadListFilters` gana `soloNutridos` y `busqueda`; `LeadListSort` gana `capacidad_desc`.
+> - Nueva ruta `API_ROUTES.closer.revealContact` — acción auditada, ver §9 regla 17.
+>
+> **`filters.busqueda` no llega por query string:** el término puede ser el nombre de un lead y
+> un nombre en la URL queda en logs de proxies y en el `Referer`. Hoy el frontend filtra el texto
+> localmente; si se mueve a servidor, va en el body de un POST.
 
 ### Única excepción documentada al aislamiento
 
