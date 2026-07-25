@@ -14,6 +14,7 @@ import type {
   EnrichedLead,
   LeadProfile,
   ProjectCard,
+  RegistroGestion,
   SwipeAction,
   SwipeEvent,
   Zona,
@@ -248,6 +249,9 @@ export function enriquecerConSwipes(
     // del chat, asi que no hay ninguna frase real del titular que citar.
     // Generar una con el LLM seria ponerle comillas a algo que nadie dijo.
     citaTextual: null,
+    // La gestion la escribe el closer desde F4; al enriquecer todavia no existe.
+    // Si el lead ya venia trabajado, se conserva en vez de pisarse.
+    gestion: 'gestion' in lead ? ((lead as { gestion: RegistroGestion | null }).gestion ?? null) : null,
     contactabilidad: construirContactabilidad(contexto.preferenciaContacto),
     horarioRazon: razonDelHorario(contexto.preferenciaContacto),
     timeline: construirTimeline(lead, contexto.journey),

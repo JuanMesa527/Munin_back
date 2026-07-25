@@ -84,6 +84,7 @@ function lead(id: string, overrides: Partial<EnrichedLead> = {}): EnrichedLead {
     ingresosSmmlv: 3,
     subsidioEstimado: null,
     citaTextual: null,
+    gestion: null,
     contactabilidad: [],
     horarioRazon: null,
     timeline: [],

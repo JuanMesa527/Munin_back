@@ -4,6 +4,7 @@ import type { Application, RequestHandler } from 'express';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import type { BriefingSheet, CloserSession } from '@contracts';
 import type { BuildBriefingUseCase } from '../application/build-briefing.use-case.js';
+import type { RegistrarGestionUseCase } from '../application/registrar-gestion.use-case.js';
 import type { RevealContactUseCase } from '../application/reveal-contact.use-case.js';
 import { ok } from '../../../shared/kernel/result.js';
 import { createCloserBriefingRouter } from './closer-briefing.controller.js';
@@ -28,6 +29,7 @@ function createApp(
     } as unknown as BriefingSheet),
   ),
   revealExecute = vi.fn().mockResolvedValue(ok({ telefono: '+573001234567' })),
+  gestionExecute = vi.fn().mockResolvedValue(ok({ id: 'lead-1', gestion: { estado: 'agendado' } })),
 ): Application {
   const closer: CloserSession = {
     closerId: 'closer-session',
@@ -46,6 +48,7 @@ function createApp(
     createCloserBriefingRouter({
       buildBriefing: { execute: buildExecute } as unknown as BuildBriefingUseCase,
       revealContact: { execute: revealExecute } as unknown as RevealContactUseCase,
+      registrarGestion: { execute: gestionExecute } as unknown as RegistrarGestionUseCase,
     }),
   );
   return app;

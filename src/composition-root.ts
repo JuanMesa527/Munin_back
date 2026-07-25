@@ -216,6 +216,7 @@ export async function createApp(env: AppEnv, server: Express = express()): Promi
     journeys,
     vault,
     clock,
+    audit,
     requireCloser: dashboard.requireCloser,
   });
   server.use(briefing.router);
