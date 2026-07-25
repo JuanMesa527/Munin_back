@@ -61,6 +61,9 @@ const SLOTS_COMPLETOS: Slot[] = [
   'segmentoFamiliar',
   'ahorro',
   'capacidadAhorroMensual',
+  'viviendaPropia',
+  'vinculacionLaboral',
+  'horizonteCompra',
 ];
 
 /**
@@ -92,6 +95,9 @@ export const LEADS_DEMO: readonly LeadProfile[] = [
     segmentoFamiliar: 'Pareja con hijos',
     ahorroDeclarado: 18_000_000,
     capacidadAhorroMensual: 850_000,
+    tieneVivienda: false,
+    vinculacionLaboral: 'formal',
+    horizonteCompra: 'ya',
     slotsLlenos: [...SLOTS_COMPLETOS],
     capacidad: {
       banda: 'media',
@@ -122,6 +128,9 @@ export const LEADS_DEMO: readonly LeadProfile[] = [
     segmentoFamiliar: 'Unipersonal',
     ahorroDeclarado: 9_000_000,
     capacidadAhorroMensual: 600_000,
+    tieneVivienda: false,
+    vinculacionLaboral: 'independiente',
+    horizonteCompra: 'pronto',
     slotsLlenos: [...SLOTS_COMPLETOS],
     capacidad: {
       banda: 'media',
@@ -152,6 +161,9 @@ export const LEADS_DEMO: readonly LeadProfile[] = [
     segmentoFamiliar: 'Pareja con hijos',
     ahorroDeclarado: 70_000_000,
     capacidadAhorroMensual: 2_400_000,
+    tieneVivienda: false,
+    vinculacionLaboral: 'formal',
+    horizonteCompra: 'ya',
     slotsLlenos: [...SLOTS_COMPLETOS],
     capacidad: {
       banda: 'alta',

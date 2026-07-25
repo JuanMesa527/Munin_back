@@ -38,6 +38,9 @@ function lead(id: string, overrides: Partial<EnrichedLead> = {}): EnrichedLead {
     segmentoFamiliar: 'Pareja con hijos',
     ahorroDeclarado: 20_000_000,
     capacidadAhorroMensual: 900_000,
+    tieneVivienda: null,
+    vinculacionLaboral: null,
+    horizonteCompra: null,
     slotsLlenos: [],
     capacidad: {
       banda: 'media',

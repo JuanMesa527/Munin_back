@@ -82,6 +82,9 @@ describe('missingSlots', () => {
       'segmentoFamiliar',
       'ahorro',
       'capacidadAhorroMensual',
+      'viviendaPropia',
+      'vinculacionLaboral',
+      'horizonteCompra',
     ]);
   });
 
@@ -98,6 +101,9 @@ describe('missingSlots', () => {
       'segmentoFamiliar',
       'ahorro',
       'capacidadAhorroMensual',
+      'viviendaPropia',
+      'vinculacionLaboral',
+      'horizonteCompra',
     ]);
   });
 });

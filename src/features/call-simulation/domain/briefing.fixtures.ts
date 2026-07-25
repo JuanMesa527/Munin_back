@@ -27,6 +27,9 @@ const LEAD_BASE: EnrichedLead = {
   segmentoFamiliar: 'Familia con hijos',
   ahorroDeclarado: 8_000_000,
   capacidadAhorroMensual: 400_000,
+  tieneVivienda: null,
+  vinculacionLaboral: null,
+  horizonteCompra: null,
   slotsLlenos: [],
   capacidad: {
     banda: 'media',

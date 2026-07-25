@@ -82,6 +82,11 @@ const LeadProfileObjectSchema = z.strictObject({
   segmentoFamiliar: z.string().nullable(),
   ahorroDeclarado: z.number().nullable(),
   capacidadAhorroMensual: z.number().nullable(),
+  // `.default(null)`: filas persistidas ANTES de agregar estos slots no traen
+  // la clave; sin el default, cargarlas rompería el parse en vez de degradar.
+  tieneVivienda: z.boolean().nullable().default(null),
+  vinculacionLaboral: z.enum(['formal', 'independiente', 'informal']).nullable().default(null),
+  horizonteCompra: z.enum(['ya', 'pronto', 'explorando']).nullable().default(null),
   slotsLlenos: z.array(SlotSchema),
   capacidad: CapacityBandSchema.nullable(),
   score: ScoreResultSchema.nullable(),

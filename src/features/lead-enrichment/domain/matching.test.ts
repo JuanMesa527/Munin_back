@@ -114,6 +114,19 @@ describe('calcularFactores', () => {
     expect(tipoDe(alto, false)).toBeGreaterThan(tipoDe(alto, true));
   });
 
+  it('gate de subsidio: si el lead YA tiene vivienda, la VIS pierde su argumento', () => {
+    const tipoVivienda = (lead: LeadProfile) =>
+      calcularFactores(lead, ficha({ esVIS: true })).find((f) => f.nombre === 'Tipo de vivienda')!;
+
+    // familia gana 2-4 SMMLV (bajo el tope del SFV): sin vivienda, la VIS aplica
+    // al subsidio; con vivienda propia, el subsidio de PRIMERA vivienda se cae.
+    const sinVivienda = tipoVivienda({ ...familia, tieneVivienda: false });
+    const conVivienda = tipoVivienda({ ...familia, tieneVivienda: true });
+
+    expect(conVivienda.contribucion).toBeLessThan(sinVivienda.contribucion);
+    expect(conVivienda.valor).toMatch(/subsidio de primera no aplica/i);
+  });
+
   it('castiga el apartaestudio para un hogar con tres dependientes', () => {
     const tamanoDe = (habitaciones: number): number =>
       calcularFactores(

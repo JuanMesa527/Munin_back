@@ -249,19 +249,33 @@ function aporteVivienda(lead: LeadProfile, ficha: ProjectCard): Aporte {
 
   const bajoTope = RANGOS_BAJO_TOPE_SFV.includes(rango);
   if (bajoTope) {
-    return ficha.esVIS
-      ? {
-          nombre: 'Tipo de vivienda',
-          ajuste: 1,
-          valor: `es VIS y aplica al subsidio (hasta ${String(TOPE_SFV_SMMLV)} SMMLV)`,
-          favorable: true,
-        }
-      : {
-          nombre: 'Tipo de vivienda',
-          ajuste: 0.15,
-          valor: 'no es VIS, asi que queda fuera del subsidio',
-          favorable: false,
-        };
+    if (!ficha.esVIS) {
+      return {
+        nombre: 'Tipo de vivienda',
+        ajuste: 0.15,
+        valor: 'no es VIS, asi que queda fuera del subsidio',
+        favorable: false,
+      };
+    }
+    // VIS + bajo tope: el argumento FUERTE es el subsidio. Pero el Subsidio
+    // Familiar de Vivienda es para PRIMERA vivienda (Ley 3 de 1991): si el
+    // titular ya es propietario, esa palanca no existe. Gate explicito, no un
+    // peso — el proyecto sigue siendo VIS y cabe en el bolsillo, pero no le
+    // vendemos un subsidio que no va a poder pedir.
+    if (lead.tieneVivienda === true) {
+      return {
+        nombre: 'Tipo de vivienda',
+        ajuste: 0.6,
+        valor: 'es VIS, pero como ya tienes vivienda el subsidio de primera no aplica',
+        favorable: false,
+      };
+    }
+    return {
+      nombre: 'Tipo de vivienda',
+      ajuste: 1,
+      valor: `es VIS y aplica al subsidio (hasta ${String(TOPE_SFV_SMMLV)} SMMLV)`,
+      favorable: true,
+    };
   }
 
   return ficha.esVIS
