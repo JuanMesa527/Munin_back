@@ -156,6 +156,20 @@ export function getNextStep(profile: LeadProfile): ConversationStep | null {
   };
 }
 
+/** Slots preguntados aun vacios (orden fijo de `ASKED_SLOTS`). */
+export function listPendingAskedSlots(profile: LeadProfile): readonly Slot[] {
+  return ASKED_SLOTS.filter((slot) => !isSlotFilled(profile, slot));
+}
+
+/** Vocabulario cerrado (valores de chips) para un slot preguntado; `[]` si no aplica. */
+export function vocabularyForAskedSlot(slot: Slot): readonly string[] {
+  const asked = ASKED_SLOTS.find((candidato) => candidato === slot);
+  if (asked === undefined) {
+    return [];
+  }
+  return copyFor(asked).quickReplies.map((qr) => qr.value);
+}
+
 function parseVocabulario<T extends string>(
   texto: string,
   vocabulario: readonly T[],

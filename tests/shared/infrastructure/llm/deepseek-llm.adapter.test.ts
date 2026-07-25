@@ -9,6 +9,7 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import {
   DeepSeekLlmAdapter,
+  parseConverseIntakeContent,
   parseExtractSlotValueContent,
   parseWriteExplanationContent,
 } from '../../../../src/shared/infrastructure/llm/deepseek-llm.adapter.js';
@@ -109,6 +110,56 @@ describe('parseWriteExplanationContent', () => {
   it('rechaza texto mas largo que 400 caracteres', () => {
     const resultado = parseWriteExplanationContent('a'.repeat(401));
     expect(resultado.ok).toBe(false);
+  });
+});
+
+describe('parseConverseIntakeContent', () => {
+  const pendientes = ['afiliacion', 'ciudad', 'rangoSalarial'] as const;
+
+  it('acepta extracciones de slots pendientes y la respuesta del bot', () => {
+    const resultado = parseConverseIntakeContent(
+      JSON.stringify({
+        extracciones: [
+          { slot: 'afiliacion', valor: true, confianza: 0.9 },
+          { slot: 'ciudad', valor: 'Bogotá', confianza: 0.8 },
+        ],
+        respuestaBot: 'Perfecto. ¿En qué rango están tus ingresos?',
+      }),
+      pendientes,
+    );
+    expect(resultado.ok).toBe(true);
+    if (!resultado.ok) return;
+    expect(resultado.value.extracciones).toEqual([
+      { slot: 'afiliacion', valor: 'true', confianza: 0.9 },
+      { slot: 'ciudad', valor: 'Bogotá', confianza: 0.8 },
+    ]);
+    expect(resultado.value.respuestaBot).toMatch(/ingresos/i);
+  });
+
+  it('descarta slots inventados fuera de slotsPermitidos', () => {
+    const resultado = parseConverseIntakeContent(
+      JSON.stringify({
+        extracciones: [
+          { slot: 'afiliacion', valor: 'true', confianza: 1 },
+          { slot: 'carril', valor: 'viable', confianza: 1 },
+          { slot: 'ahorro', valor: '1000000', confianza: 1 },
+        ],
+        respuestaBot: 'Seguimos.',
+      }),
+      pendientes,
+    );
+    expect(resultado.ok).toBe(true);
+    if (!resultado.ok) return;
+    expect(resultado.value.extracciones).toEqual([
+      { slot: 'afiliacion', valor: 'true', confianza: 1 },
+    ]);
+  });
+
+  it('rechaza JSON invalido o sin respuestaBot', () => {
+    expect(parseConverseIntakeContent('no-json', pendientes).ok).toBe(false);
+    expect(
+      parseConverseIntakeContent(JSON.stringify({ extracciones: [] }), pendientes).ok,
+    ).toBe(false);
   });
 });
 

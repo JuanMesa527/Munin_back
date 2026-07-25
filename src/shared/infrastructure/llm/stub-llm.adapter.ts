@@ -12,7 +12,11 @@
  */
 
 import type { Slot } from '@contracts';
-import type { LlmPort } from '../../application/ports/llm.port.js';
+import type {
+  ConverseIntakeInput,
+  ConverseIntakeResult,
+  LlmPort,
+} from '../../application/ports/llm.port.js';
 import type { Result } from '../../kernel/result.js';
 import { ok } from '../../kernel/result.js';
 
@@ -27,6 +31,9 @@ const EXPLICACIONES: Record<'razon_match' | 'razon_carril' | 'talking_point', st
   talking_point: 'Confirma con el lead los datos clave antes de avanzar.',
 };
 
+const RESPUESTA_CONVERSACIONAL_STUB =
+  'No logré entender tu respuesta. ¿Podrías contarme un poco más o usar una de las opciones?';
+
 export class StubLlmAdapter implements LlmPort {
   /**
    * Devuelve `valor: null` con `confianza: 0` para forzar al caso de uso a caer
@@ -40,6 +47,19 @@ export class StubLlmAdapter implements LlmPort {
     contexto: string;
   }): Promise<Result<{ valor: string | null; confianza: number }>> {
     return Promise.resolve(ok({ valor: null, confianza: 0 }));
+  }
+
+  /**
+   * Sin extracciones: el caso de uso repregunta. Asi los tests de texto libre
+   * con stub no dependen del modelo para avanzar (glass-box).
+   */
+  converseIntake(_input: ConverseIntakeInput): Promise<Result<ConverseIntakeResult>> {
+    return Promise.resolve(
+      ok({
+        extracciones: [],
+        respuestaBot: RESPUESTA_CONVERSACIONAL_STUB,
+      }),
+    );
   }
 
   writeExplanation(input: {

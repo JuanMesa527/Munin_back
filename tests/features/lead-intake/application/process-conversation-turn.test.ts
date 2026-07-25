@@ -206,6 +206,13 @@ describe('ProcessConversationTurnUseCase — loop de slots', () => {
     const leads = fakeLeadRepository(perfil);
     const llmConfianzaBaja: LlmPort = {
       extractSlotValue: () => Promise.resolve(ok({ valor: 'true', confianza: 0.1 })),
+      converseIntake: () =>
+        Promise.resolve(
+          ok({
+            extracciones: [{ slot: 'afiliacion', valor: 'true', confianza: 0.1 }],
+            respuestaBot: 'No estoy seguro, ¿eres afiliado?',
+          }),
+        ),
       writeExplanation: () => Promise.resolve(ok('explicacion')),
     };
     const useCase = new ProcessConversationTurnUseCase({
@@ -225,11 +232,89 @@ describe('ProcessConversationTurnUseCase — loop de slots', () => {
     expect(resultado.value.siguientePaso?.slot).toBe('afiliacion');
   });
 
+  it('un LLM conversacional con alta confianza puede llenar varios slots de un mensaje (D1)', async () => {
+    const perfil = perfilConConsentimientoVacio();
+    const leads = fakeLeadRepository(perfil);
+    const llmMultiSlot: LlmPort = {
+      extractSlotValue: () => Promise.resolve(ok({ valor: null, confianza: 0 })),
+      converseIntake: () =>
+        Promise.resolve(
+          ok({
+            extracciones: [
+              { slot: 'afiliacion', valor: 'true', confianza: 0.95 },
+              { slot: 'ciudad', valor: 'Bogotá', confianza: 0.9 },
+              { slot: 'rangoSalarial', valor: '4-6 SMMLV', confianza: 0.85 },
+            ],
+            respuestaBot: 'Listo: afiliado en Bogotá con ingresos 4-6 SMMLV. ¿Cómo es tu núcleo familiar?',
+          }),
+        ),
+      writeExplanation: () => Promise.resolve(ok('explicacion')),
+    };
+    const useCase = new ProcessConversationTurnUseCase({
+      leads,
+      catalog: fakeCatalog(),
+      llm: llmMultiSlot,
+      clock: fakeClock(),
+      ids: fakeIds(),
+      activePolicyVersion: VERSION_ACTIVA,
+    });
+
+    const resultado = await useCase.execute({
+      leadId: perfil.id,
+      texto: 'soy afiliado, vivo en Bogotá y gano entre 4 y 6 SMMLV',
+      quickReplyValue: null,
+    });
+
+    expect(resultado.ok).toBe(true);
+    if (!resultado.ok) return;
+    expect(resultado.value.profile.esAfiliado).toBe(true);
+    expect(resultado.value.profile.ciudad).toBe('Bogotá');
+    expect(resultado.value.profile.rangoSalarial).toBe('4-6 SMMLV');
+    expect(resultado.value.siguientePaso?.slot).toBe('segmentoFamiliar');
+    expect(resultado.value.mensajes[0]?.texto).toMatch(/núcleo familiar/i);
+  });
+
+  it('chip no llama a converseIntake (atajo determinista)', async () => {
+    const perfil = perfilConConsentimientoVacio();
+    const leads = fakeLeadRepository(perfil);
+    let converseLlamado = false;
+    const llm: LlmPort = {
+      extractSlotValue: () => Promise.resolve(ok({ valor: null, confianza: 0 })),
+      converseIntake: () => {
+        converseLlamado = true;
+        return Promise.resolve(ok({ extracciones: [], respuestaBot: 'no deberia' }));
+      },
+      writeExplanation: () => Promise.resolve(ok('explicacion')),
+    };
+    const useCase = new ProcessConversationTurnUseCase({
+      leads,
+      catalog: fakeCatalog(),
+      llm,
+      clock: fakeClock(),
+      ids: fakeIds(),
+      activePolicyVersion: VERSION_ACTIVA,
+    });
+
+    const resultado = await useCase.execute({ leadId: perfil.id, texto: null, quickReplyValue: 'true' });
+
+    expect(resultado.ok).toBe(true);
+    expect(converseLlamado).toBe(false);
+    if (!resultado.ok) return;
+    expect(resultado.value.profile.esAfiliado).toBe(true);
+  });
+
   it('un LLM con alta confianza cuyo valor SI pasa por parseAnswer completa el slot (D1)', async () => {
     const perfil = perfilConConsentimientoVacio();
     const leads = fakeLeadRepository(perfil);
     const llmConfianzaAlta: LlmPort = {
       extractSlotValue: () => Promise.resolve(ok({ valor: 'si', confianza: 0.9 })),
+      converseIntake: () =>
+        Promise.resolve(
+          ok({
+            extracciones: [{ slot: 'afiliacion', valor: 'true', confianza: 0.9 }],
+            respuestaBot: 'Genial, eres afiliado. ¿En qué rango están tus ingresos?',
+          }),
+        ),
       writeExplanation: () => Promise.resolve(ok('explicacion')),
     };
     const useCase = new ProcessConversationTurnUseCase({

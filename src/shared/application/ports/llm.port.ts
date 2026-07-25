@@ -2,16 +2,16 @@
  * Puerto del LLM. Capa: application (puerto compartido).
  *
  * GLASS-BOX (regla 12) — LA RESTRICCION MAS IMPORTANTE DEL PROYECTO:
- * este puerto tiene exactamente dos capacidades y ninguna es decidir.
- *   1. `extractSlotValue`: convertir texto libre del usuario en el valor de un slot.
- *   2. `writeExplanation`: redactar en lenguaje natural un "por que" que YA
- *      calculo una funcion pura y determinista.
+ * este puerto NO decide score, capacidad, matching ni carril.
+ * Capacidades permitidas:
+ *   1. `extractSlotValue`: convertir texto libre en el valor de UN slot.
+ *   2. `converseIntake`: extraer CERO O MAS slots pendientes + redactar la
+ *      siguiente pregunta en prosa (intake conversacional).
+ *   3. `writeExplanation`: redactar un "por que" que YA calculo una funcion
+ *      pura y determinista.
  *
- * PROHIBIDO agregar aqui un metodo que puntue, clasifique, ordene, decida
- * viabilidad o elija un proyecto. El score, la capacidad, el matching y el
- * enrutamiento salen de funciones deterministas calibradas contra los 4.142
- * compradores reales: si el jurado pregunta "por que este lead es viable", la
- * respuesta tiene que ser aritmetica auditable, no la opinion de un modelo.
+ * PROHIBIDO agregar un metodo que puntue, clasifique, ordene, decida
+ * viabilidad o elija un proyecto.
  *
  * La salida del modelo es entrada NO CONFIABLE: el adapter la valida con zod
  * antes de que entre al dominio (OWASP A03).
@@ -19,6 +19,28 @@
 
 import type { Slot } from '@contracts';
 import type { Result } from '../../kernel/result.js';
+
+/** Extraccion candidata de un slot; el caso de uso la revalida con `parseAnswer`. */
+export interface ConverseIntakeExtraction {
+  readonly slot: Slot;
+  readonly valor: string;
+  readonly confianza: number;
+}
+
+export interface ConverseIntakeResult {
+  readonly extracciones: readonly ConverseIntakeExtraction[];
+  readonly respuestaBot: string;
+}
+
+export interface ConverseIntakeInput {
+  readonly texto: string;
+  /** Solo estos slots pueden aparecer en `extracciones`. */
+  readonly slotsPendientes: readonly Slot[];
+  /** Valores ya capturados (sin PII extra): contexto para no repreguntar. */
+  readonly perfilParcial: Record<string, string>;
+  /** Vocabulario cerrado por slot pendiente (chips), cuando aplica. */
+  readonly vocabulario: Record<string, readonly string[]>;
+}
 
 export interface LlmPort {
   /**
@@ -31,6 +53,12 @@ export interface LlmPort {
     slot: Slot;
     contexto: string;
   }): Promise<Result<{ valor: string | null; confianza: number }>>;
+
+  /**
+   * Turno conversacional de F1: puede llenar varios slots pendientes a la vez
+   * y redacta la respuesta del bot. Nunca puntua ni decide carril.
+   */
+  converseIntake(input: ConverseIntakeInput): Promise<Result<ConverseIntakeResult>>;
 
   /**
    * Redacta el "por que" a partir de hechos ya calculados. `hechos` es la
