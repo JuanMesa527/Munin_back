@@ -100,6 +100,12 @@
  *      calculados), nunca aritmetica. `outcome` y `puntaje` los sigue
  *      decidiendo `verdict.ts`. Si el LLM falla, `highlights` es `null` y el
  *      veredicto se muestra igual.
+ *  A15. `Meta.completadaEn?` — AGREGADO. F2.2 · pantalla "Progreso": el
+ *      grafico de evolucion de aprendizaje del front fabricaba una curva
+ *      ease-out inventada porque el dominio no guardaba cuando se completo
+ *      cada meta. Se agrega la fecha real de la PRIMERA vez que la meta
+ *      alcanzo su objetivo (no se pisa en eventos posteriores) para que el
+ *      front derive una evolucion real en vez de una inventada (glass-box).
  * ============================================================================
  */
 
@@ -747,6 +753,12 @@ export interface Meta {
    * de `alcanzado`, que es solo el total acumulado.
    */
   aportes?: AporteAhorro[];
+  /**
+   * Fecha real en que esta meta se completó por primera vez (adenda A15).
+   * Opcional porque las metas aún no completadas no la tienen. Se preserva:
+   * un evento posterior sobre una meta ya completa no la reescribe.
+   */
+  completadaEn?: IsoDateTime;
   /**
    * Meta opcional para este lead en particular (adenda A12): cuando la razón
    * de ingreso a nutrición no involucra esta meta (p. ej. ya tiene buena

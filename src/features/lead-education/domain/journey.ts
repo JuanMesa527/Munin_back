@@ -180,10 +180,15 @@ export function trackProgress(
 ): EducationJourney {
   const metas = journey.metas.map((meta) => {
     if (meta.id !== event.metaId) return meta;
+    const eraCompletada = meta.completada;
     const incremento =
       meta.tipo === 'ahorro' ? meta.alcanzado + event.valor : Math.max(meta.alcanzado, event.valor);
     const alcanzado = Math.min(meta.objetivo, incremento);
     const completada = alcanzado >= meta.objetivo;
+    // Fecha real de la PRIMERA vez que se completa (adenda A15): si ya estaba
+    // completa (p. ej. un segundo aporte tras alcanzar la meta), se preserva
+    // la fecha original en vez de pisarla con `now`.
+    const completadaEn = !eraCompletada && completada ? now : meta.completadaEn;
 
     // Historial de abonos (adenda A10): PARALELO a `alcanzado`, nunca lo
     // reemplaza. Solo se agrega un `AporteAhorro` cuando el evento es un abono
@@ -204,6 +209,7 @@ export function trackProgress(
       alcanzado,
       completada,
       ...(aportes !== undefined ? { aportes } : {}),
+      ...(completadaEn !== undefined ? { completadaEn } : {}),
     };
   });
 

@@ -40,6 +40,7 @@ const MetaSchema = z.strictObject({
   etapa: EtapaIdSchema.optional(),
   fechaObjetivo: z.string().optional(),
   aportes: z.array(AporteAhorroSchema).optional(),
+  completadaEn: z.string().optional(),
   opcional: z.boolean().optional(),
 });
 

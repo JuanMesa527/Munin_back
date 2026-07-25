@@ -155,6 +155,39 @@ describe('trackProgress', () => {
     const ahorro = journey.metas.find((m) => m.id === 'meta-ahorro');
     expect(ahorro?.aportes ?? []).toHaveLength(0);
   });
+
+  it('setea completadaEn al now del evento que completa la meta por primera vez', () => {
+    let journey = journeyBase();
+    journey = trackProgress(
+      journey,
+      { tipo: 'ahorro_registrado', metaId: 'meta-ahorro', valor: PLAN.gap, ocurridoEn: NOW },
+      NOW,
+      'aporte-1',
+    );
+    const ahorro = journey.metas.find((m) => m.id === 'meta-ahorro');
+    expect(ahorro?.completada).toBe(true);
+    expect(ahorro?.completadaEn).toBe(NOW);
+  });
+
+  it('NO pisa completadaEn en un evento posterior sobre una meta ya completada', () => {
+    let journey = journeyBase();
+    journey = trackProgress(
+      journey,
+      { tipo: 'ahorro_registrado', metaId: 'meta-ahorro', valor: PLAN.gap, ocurridoEn: NOW },
+      NOW,
+      'aporte-1',
+    );
+    const luego = '2026-08-01T00:00:00.000Z';
+    journey = trackProgress(
+      journey,
+      { tipo: 'ahorro_registrado', metaId: 'meta-ahorro', valor: 5_000_000, ocurridoEn: luego },
+      luego,
+      'aporte-2',
+    );
+    const ahorro = journey.metas.find((m) => m.id === 'meta-ahorro');
+    expect(ahorro?.completada).toBe(true);
+    expect(ahorro?.completadaEn).toBe(NOW);
+  });
 });
 
 describe('configureFechaObjetivo', () => {
