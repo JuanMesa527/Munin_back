@@ -1,0 +1,68 @@
+# openspec/config.yaml
+schema: spec-driven
+
+context: |
+  Project: Munin_back — perfilador-vivienda-backend (Colsubsidio x 30X hackathon).
+  Stack: Node >=22, TypeScript 5.9 strict, Express 5, Zod 4, Vitest 4, ESLint 9 + typescript-eslint.
+  Architecture: Clean/Hexagonal — src/features/{feature}/{domain,application,infrastructure,interface}
+  + src/shared/{contracts.ts,kernel,domain,application/ports,infrastructure}. Dependency rule and
+  feature isolation are enforced by ESLint no-restricted-imports, not just documented.
+  Cross-feature comms ONLY via @contracts or shared/application/ports — never feature internals.
+  Hard rules: glass-box (LLM never decides, only parses/redacts), Result/Either for domain errors,
+  no `any`, zod validation at every controller boundary, no PII in logs, no DataCrédito calls.
+  Full rules: repo-root CLAUDE.md (EQUIPO.md, sections 8-9) — read before any proposal touching
+  scoring, auth, or data handling.
+
+strict_tdd: true
+
+testing:
+  test_command: "npm test"          # vitest run
+  watch_command: "npm run test:watch"
+  framework: vitest
+  coverage_command: "vitest run --coverage"
+  layers:
+    unit: true          # vitest, domain + application (per vitest.config.ts coverage.include)
+    integration: false  # no integration harness detected yet
+    e2e: false           # no playwright/cypress/selenium detected
+  quality:
+    linter: "npm run lint"
+    type_checker: "npm run typecheck"
+    formatter: "npm run format:check"
+    combined_gate: "npm run verify"  # contracts:check + typecheck + lint + test — required before every PR
+
+rules:
+  proposal:
+    - One feature (F1-F4) = one owner = one vertical slice; do not scope a proposal across two features
+      without explicit cross-team coordination.
+    - Flag any change to src/shared/contracts.ts or src/shared/application/ports/ as a breaking,
+      team-wide change requiring announcement before merge.
+    - Include rollback plan for risky changes (persistence is in-memory only; no migrations to reverse).
+  specs:
+    - Use Given/When/Then for scenarios.
+    - Use RFC 2119 keywords (MUST, SHALL, SHOULD, MAY).
+    - Any scoring/classification requirement MUST state its explainability output (ScoreResult.factores)
+      per the glass-box rule — no black-box requirements allowed.
+  design:
+    - Document which layer (domain/application/infrastructure/interface) each new symbol lives in and
+      why, to keep the dependency rule visible.
+    - Call out any new port (application/ports) explicitly; ports are the only sanctioned extension point
+      for infrastructure/LLM/persistence swaps.
+  tasks:
+    - Group by phase, use hierarchical numbering.
+    - Keep tasks completable in one session.
+    - Domain/application logic tasks MUST include a test task per the strict_tdd setting above.
+  apply:
+    guidelines:
+      - Follow existing code patterns (functional domain, class-per-use-case in application).
+      - Stubs first: typed signatures with `throw new Error('TODO: not implemented')` before full logic.
+      - Stay inside the feature folder being worked; changes to shared/ or contracts.ts are flagged and
+        announced separately.
+    tdd: true
+    test_command: "npm test"
+  verify:
+    test_command: "npm test"
+    build_command: "npm run build"
+    coverage_threshold: 0   # no explicit threshold enforced yet; coverage report is informational
+  archive:
+    - Warn before merging destructive deltas.
+    - Never remove the legal/security rules from EQUIPO.md sections 8-9 via a delta merge.

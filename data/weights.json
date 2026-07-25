@@ -1,22 +1,18 @@
 {
-  "placeholder": true,
-  "_aviso": "PLACEHOLDER. Estos pesos NO estan calibrados: son valores de forma para que el backend compile y la UI se pueda ver. Mientras exista la clave 'placeholder' con valor true, file-data-catalog.adapter.ts responde DATA_UNAVAILABLE a proposito, para que el sistema nunca sirva un score inventado como si fuera calibrado. El archivo real lo genera 'python analysis/scripts/05_export_artifacts.py' a partir de los 4.142 compradores. Ver analysis/README.md.",
-  "version": "0.0.0-placeholder",
+  "_aviso": "DEMO/MANUAL, NO CALIBRADO. Pesos razonados a mano (no salen de los 4.142 compradores reales del reto: ese Excel no esta disponible en este entorno) para destrabar el flujo viable/no_viable end-to-end en la demo. IMPORTANTE: las claves de 'pesos' deben ser EXACTAMENTE las que lee FACTOR_EXTRACTORS en src/features/lead-intake/domain/profiling.ts (afiliacion, rangoSalarial, ahorro, capacidadAhorroMensual, segmentoFamiliar) - el placeholder anterior usaba snake_case y casi ninguna clave matcheaba, asi que solo 'afiliacion' habria contado en el score. Reemplazar corriendo 'python analysis/scripts/03_calibrate_weights.py' + '05_export_artifacts.py' contra el Excel real antes de cualquier uso en produccion o de cualquier metrica que se presente como calibrada.",
+  "version": "0.1.0-demo-manual",
   "pesos": {
-    "afiliacion": 0.26,
-    "rango_salarial": 0.2,
-    "capacidad_ahorro_mensual": 0.16,
-    "ahorro_declarado": 0.12,
-    "ciudad_con_proyecto": 0.1,
-    "segmento": 0.08,
-    "segmento_familiar": 0.05,
-    "personas_a_cargo": -0.03
+    "afiliacion": 0.3,
+    "rangoSalarial": 0.25,
+    "capacidadAhorroMensual": 0.2,
+    "ahorro": 0.15,
+    "segmentoFamiliar": 0.1
   },
   "umbralViable": 60,
   "calibracion": {
-    "metrica": "AUC",
-    "valor": 0.5,
+    "metrica": "manual-no-calibrado",
+    "valor": 0,
     "n": 0
   },
-  "generadoEn": "2026-07-24T00:00:00.000Z"
+  "generadoEn": "2026-07-25T00:00:00.000Z"
 }

@@ -342,6 +342,9 @@ function aFactores(ejes: readonly Eje[]): Factor[] {
     valor: aporte.valor,
     // En puntos sobre 100, que es como se lee un score en la UI.
     contribucion: redondear(aporte.ajuste * peso * 100),
+    // Adenda A8: intensidad 0-100 = que tan bien puntua el lead en ESTE eje,
+    // independiente del peso. `ajuste` vive en 0..1.
+    intensidad: Math.round(Math.max(0, Math.min(1, aporte.ajuste)) * 100),
   }));
 }
 
@@ -423,6 +426,13 @@ export function matchProjects(
       proyectoId: ficha.proyectoId,
       similitud: similitudDe(factores),
       razon: explicarDesdeEjes(ejes, ficha),
+      // Adenda A8: el match viaja con el proyecto ya resuelto. La `ficha`
+      // completa va aparte en `ProjectMatchCard`; aqui se copian los campos
+      // que F3/F4 leen sin cruzar por id. `ProjectCard` no modela `etapa`.
+      nombre: ficha.nombre,
+      etapa: 'Única etapa',
+      precioDesde: ficha.precio.desde,
+      tipologia: ficha.tipologias[0]?.nombre ?? (ficha.esVIS ? 'VIS' : 'No VIS'),
     };
     return {
       ficha,

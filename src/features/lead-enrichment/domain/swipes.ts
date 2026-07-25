@@ -204,5 +204,17 @@ export function enriquecerConSwipes(
     intentScore: calcularIntentScore(swipes),
     enriquecidoEn: ahora,
     updatedAt: ahora,
+    // Adenda A8: campos que la ficha de llamada (F4) necesita. El
+    // enriquecimiento por swipes no los captura (salen del paso de contacto e
+    // identidad de F2.1), asi que quedan null/[] hasta entonces — sin inventar.
+    edad: null,
+    ocupacion: null,
+    hogar: null,
+    ingresosSmmlv: null,
+    subsidioEstimado: null,
+    citaTextual: null,
+    contactabilidad: [],
+    horarioRazon: null,
+    timeline: [],
   };
 }
