@@ -1,0 +1,71 @@
+name: Deploy to EC2
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+concurrency:
+  group: deploy-munin-back
+  cancel-in-progress: true
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+
+      - name: Install & build
+        run: |
+          npm ci
+          npm run build
+          test -f dist/main.js
+
+      - name: Prepare SSH
+        uses: webfactory/ssh-agent@v0.9.0
+        with:
+          ssh-private-key: ${{ secrets.EC2_SSH_KEY }}
+
+      - name: Add EC2 host key
+        run: |
+          mkdir -p ~/.ssh
+          ssh-keyscan -H "${{ secrets.EC2_HOST }}" >> ~/.ssh/known_hosts
+
+      - name: Upload build to staging
+        run: |
+          STAGE="${{ secrets.EC2_USER }}@${{ secrets.EC2_HOST }}:~/apps/munin/.deploy/back"
+          ssh "${{ secrets.EC2_USER }}@${{ secrets.EC2_HOST }}" 'mkdir -p ~/apps/munin/.deploy/back && rm -rf ~/apps/munin/.deploy/back/*'
+          rsync -az --delete \
+            --exclude '.git' \
+            --exclude '.github' \
+            --exclude 'node_modules' \
+            --exclude '.env' \
+            --exclude 'tests' \
+            --exclude 'docs' \
+            --exclude 'openspec' \
+            --exclude '.omc' \
+            ./ "${STAGE}/"
+
+      - name: Run remote deploy
+        run: |
+          ssh "${{ secrets.EC2_USER }}@${{ secrets.EC2_HOST }}" '~/apps/munin/deploy-back.sh'
+
+      - name: Health check
+        run: |
+          for i in 1 2 3 4 5; do
+            if curl -fsS https://munin.alxbryann.cloud/api/health; then
+              echo
+              exit 0
+            fi
+            sleep 3
+          done
+          echo "Health check failed" >&2
+          exit 1
