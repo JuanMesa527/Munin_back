@@ -34,6 +34,13 @@ function fakeEnv(overrides: Partial<AppEnv> = {}): AppEnv {
     projectProfilesPath: './data/project_profiles.json',
     projectsCatalogPath: './data/projects_catalog.json',
     privacyPolicyVersion: 'v1-test',
+    callSimProvider: 'stub',
+    speechProvider: 'none',
+    awsRegion: 'us-east-1',
+    pollyEngine: 'generative',
+    pollyVoiceFemale: 'Mia',
+    pollyVoiceMale: 'Andres',
+    transcriptionProvider: 'none',
     ...overrides,
   };
 }

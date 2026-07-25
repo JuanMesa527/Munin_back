@@ -17,7 +17,7 @@
  *   1. applySecurity   -> cabeceras, CORS, parser de JSON con techo
  *   2. httpLogger      -> despues de las cabeceras, antes de las rutas, con
  *                         redaccion de PII ya configurada
- *   3. rate limit + rutas de features (F1 + F2.1 + F2.2 + F3/F4)
+ *   3. rate limit + rutas de features (F1 + F2.1 + F2.2 + F3/F4 + F5)
  *   4. notFoundHandler -> 404 en formato `ApiResponse`
  *   5. errorHandler    -> ultima red, 4 argumentos
  */
@@ -25,6 +25,15 @@
 import express from 'express';
 import type { Express } from 'express';
 import { API_ROUTES } from '@contracts';
+import { createCallSimulationModule } from './features/call-simulation/call-simulation.module.js';
+import {
+  createCallSimulator,
+  createSpeechSynthesis,
+  createSpeechTranscription,
+  createCallHighlights,
+  createCallRecordingStore,
+} from './features/call-simulation/infrastructure/call-simulation.factory.js';
+import { InMemoryCallSessionStore } from './features/call-simulation/infrastructure/in-memory-call-session.store.js';
 import { createCloserBriefingModule } from './features/closer-briefing/closer-briefing.module.js';
 import { createCloserDashboardModule } from './features/closer-dashboard/closer-dashboard.module.js';
 import { EnvCloserAuthAdapter } from './features/closer-dashboard/infrastructure/env-closer-auth.adapter.js';
@@ -48,6 +57,7 @@ import {
   applySecurity,
   authRateLimiter,
   publicRateLimiter,
+  simulationRateLimiter,
 } from './shared/infrastructure/http/security.js';
 import { CryptoIdGenerator } from './shared/infrastructure/id/crypto-id-generator.adapter.js';
 import { createHttpLogger, logger } from './shared/infrastructure/logging/logger.js';
@@ -56,6 +66,7 @@ import { InMemoryLeadRepository } from './shared/infrastructure/persistence/in-m
 import { InMemorySessionStore } from './shared/infrastructure/persistence/in-memory/in-memory-session.store.js';
 import { seedDemoLeads } from './shared/infrastructure/persistence/demo-seed.js';
 import { createSupabaseClient } from './shared/infrastructure/persistence/supabase/supabase-client.js';
+import type { AppSupabaseClient } from './shared/infrastructure/persistence/supabase/supabase-client.js';
 import { SupabaseLeadRepository } from './shared/infrastructure/persistence/supabase/supabase-lead.repository.js';
 import { InMemoryContactVaultAdapter } from './shared/infrastructure/security/in-memory-contact-vault.adapter.js';
 
@@ -101,6 +112,9 @@ export async function createApp(env: AppEnv, server: Express = express()): Promi
   });
 
   let leads: LeadRepository;
+  // Se retiene para F5: el archivo de llamadas usa el MISMO cliente en vez de
+  // abrir una segunda conexion con la misma llave.
+  let supabaseClient: AppSupabaseClient | null = null;
   // Swipes y telemetria: Supabase cuando el driver lo pide, memoria/no-op si no.
   // Es la unica eleccion memoria-vs-DB de F2.1, y vive solo aqui.
   let swipes: SwipeStorePort;
@@ -111,6 +125,7 @@ export async function createApp(env: AppEnv, server: Express = express()): Promi
     env.supabaseServiceRoleKey !== null
   ) {
     const supabase = createSupabaseClient(env.supabaseUrl, env.supabaseServiceRoleKey);
+    supabaseClient = supabase;
     leads = new SupabaseLeadRepository(supabase);
     swipes = new SupabaseSwipeStore(supabase);
     telemetry = new SupabaseTelemetryStore(supabase);
@@ -124,11 +139,18 @@ export async function createApp(env: AppEnv, server: Express = express()): Promi
 
   // Los leads de demo NUNCA se siembran en produccion: alli los leads los crea
   // F1 con consentimiento real del titular.
+  // Un fallo sembrando datos de DEMO no puede impedir que el servidor arranque:
+  // sin este `catch`, un id o un esquema desalineado en la base tumbaba toda la
+  // app en desarrollo y dejaba F1..F5 inaccesibles por unos leads de ejemplo.
   if (!env.isProduction) {
-    await seedDemoLeads(leads, vault);
-    // Perfiles NO VIABLES adicionales (carril de nutricion de F2.2), distintos
-    // de los `viable` de arriba: ids propios (`demo-lead-*`), sin colision.
-    await seedEducationDemoLeads(leads, clock.now());
+    try {
+      await seedDemoLeads(leads, vault);
+      // Perfiles NO VIABLES adicionales (carril de nutricion de F2.2), distintos
+      // de los `viable` de arriba: ids propios (`demo-lead-*`), sin colision.
+      await seedEducationDemoLeads(leads, clock.now());
+    } catch (causa) {
+      logger.error({ err: causa }, 'no se pudieron sembrar los leads de demo; se sigue sin ellos');
+    }
   }
 
   // --- Health check: sin rate limit, para que el PaaS no se auto-bloquee ---
@@ -173,6 +195,22 @@ export async function createApp(env: AppEnv, server: Express = express()): Promi
     requireCloser: dashboard.requireCloser,
   });
   server.use(briefing.router);
+
+  // F5 call-simulation: entrenador de cierre por voz. Puerto propio
+  // (CallSimulatorPort), NO comparte LlmPort con F1 (regla 12, ver
+  // llm.port.ts). Rate limit propio y mas estricto: cada turno cuesta tokens
+  // de DeepSeek Y caracteres de Polly.
+  const callSimulation = createCallSimulationModule({
+    callSimulator: createCallSimulator(env),
+    speech: createSpeechSynthesis(env),
+    transcription: createSpeechTranscription(env),
+    highlights: createCallHighlights(env),
+    recordings: createCallRecordingStore(env, supabaseClient),
+    sessions: new InMemoryCallSessionStore(clock),
+    clock,
+    ids,
+  });
+  server.use(simulationRateLimiter, callSimulation.router);
 
   server.use(notFoundHandler);
   server.use(errorHandler);

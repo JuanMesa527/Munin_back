@@ -147,7 +147,7 @@ export function parseConverseIntakeContent(
   }
 
   const permitidos = new Set<string>(slotsPermitidos);
-  const extracciones: Array<ConverseIntakeResult['extracciones'][number]> = [];
+  const extracciones: ConverseIntakeResult['extracciones'][number][] = [];
 
   for (const item of validado.data.extracciones) {
     if (!SLOT_SET.has(item.slot) || !permitidos.has(item.slot)) {

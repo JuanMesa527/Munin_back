@@ -35,10 +35,16 @@ const consentimiento: ConsentRecord = {
   canal: 'seed-demo',
 };
 
+/**
+ * Contactos ficticios del vault, indexados por el `id` del lead. Las llaves son
+ * los UUID de `LEADS_DEMO` (ver la nota de abajo), no los slugs viejos: si se
+ * desincronizan, el seed loguea "falta el contacto ficticio" y F4 se queda sin
+ * telefono que revelar.
+ */
 const CONTACTOS_DEMO: Readonly<Record<string, { nombre: string; telefono: string }>> = {
-  'demo-familia-soacha': { nombre: 'DemoFamilia', telefono: '+57 300 000 0042' },
-  'demo-joven-bogota': { nombre: 'DemoJoven', telefono: '+57 300 000 0057' },
-  'demo-alto-bogota': { nombre: 'DemoAlto', telefono: '+57 300 000 0081' },
+  '8f14e45f-ce0a-4d1b-9a6f-1c0a2b3d4e51': { nombre: 'DemoFamilia', telefono: '+57 300 000 0042' },
+  '8f14e45f-ce0a-4d1b-9a6f-1c0a2b3d4e52': { nombre: 'DemoJoven', telefono: '+57 300 000 0057' },
+  '8f14e45f-ce0a-4d1b-9a6f-1c0a2b3d4e53': { nombre: 'DemoAlto', telefono: '+57 300 000 0081' },
 };
 
 const SLOTS_COMPLETOS: Slot[] = [
@@ -67,7 +73,10 @@ const SLOTS_COMPLETOS: Slot[] = [
  */
 export const LEADS_DEMO: readonly LeadProfile[] = [
   {
-    id: 'demo-familia-soacha',
+    // UUID fijo, no el slug `demo-familia-soacha`: la columna `id` de Supabase
+    // es `uuid` y rechazaba el texto, tumbando el arranque con el driver real.
+    // Quemados y no generados para que el mismo lead sobreviva a los reinicios.
+    id: '8f14e45f-ce0a-4d1b-9a6f-1c0a2b3d4e51',
     consentimiento: { ...consentimiento, finalidades: [...consentimiento.finalidades] },
     identidad: null,
     nombre: 'Laura Demo',
@@ -97,7 +106,7 @@ export const LEADS_DEMO: readonly LeadProfile[] = [
     updatedAt: SEMBRADO_EN,
   },
   {
-    id: 'demo-joven-bogota',
+    id: '8f14e45f-ce0a-4d1b-9a6f-1c0a2b3d4e52',
     consentimiento: { ...consentimiento, finalidades: [...consentimiento.finalidades] },
     identidad: null,
     nombre: 'Camila Demo',
@@ -127,7 +136,7 @@ export const LEADS_DEMO: readonly LeadProfile[] = [
     updatedAt: SEMBRADO_EN,
   },
   {
-    id: 'demo-alto-bogota',
+    id: '8f14e45f-ce0a-4d1b-9a6f-1c0a2b3d4e53',
     consentimiento: { ...consentimiento, finalidades: [...consentimiento.finalidades] },
     identidad: null,
     nombre: 'Andrés Demo',

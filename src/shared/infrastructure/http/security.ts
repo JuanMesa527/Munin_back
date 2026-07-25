@@ -14,6 +14,7 @@ import express from 'express';
 import type { Express, RequestHandler } from 'express';
 import { rateLimit } from 'express-rate-limit';
 import helmetImport from 'helmet';
+import { API_ROUTES } from '@contracts';
 import type { AppEnv } from '../config/env.js';
 
 /**
@@ -76,6 +77,21 @@ export const authRateLimiter = rateLimit({
   message: CUERPO_LIMITE_EXCEDIDO,
 });
 
+/**
+ * F5 (call-simulation): mas estricto que `publicRateLimiter` a proposito. Cada
+ * turno de la llamada simulada cuesta tokens de DeepSeek Y caracteres de
+ * Polly — un bucle accidental (o deliberado) ahi quema dinero real, no solo
+ * ciclos de CPU. 40 turnos / 5 minutos alcanza para varias llamadas de
+ * entrenamiento seguidas sin abrir la puerta a un abuso caro.
+ */
+export const simulationRateLimiter = rateLimit({
+  windowMs: 5 * MINUTO_MS,
+  limit: 40,
+  standardHeaders: 'draft-7',
+  legacyHeaders: false,
+  message: CUERPO_LIMITE_EXCEDIDO,
+});
+
 export function applySecurity(app: Express, env: AppEnv): void {
   // --- OWASP A05 (mala configuracion de seguridad) ---
   // `X-Powered-By` regala la version del framework a cualquier escaner.
@@ -131,7 +147,22 @@ export function applySecurity(app: Express, env: AppEnv): void {
   // Solo JSON y con techo de 32 kb: el body mas grande que manejamos es un turno
   // de conversacion (texto acotado a 500 chars en el DTO). Un limite bajo corta
   // de raiz los payloads gigantes de denegacion de servicio.
-  app.use(express.json({ limit: '32kb' }));
+  //
+  // UNICA excepcion: el dictado del closer (adenda A12) sube PCM en base64 y no
+  // cabe en 32 kb. Se le da su propio parser en vez de subir el techo global
+  // para que la holgura exista SOLO en esa ruta: cualquier otro endpoint sigue
+  // rechazando un payload gigante en el parser, antes de tocar codigo nuestro.
+  // El tope fino (y el 400 legible) lo pone `TranscribeBodySchema`; este techo
+  // es la red de seguridad de mas afuera.
+  const jsonEstricto = express.json({ limit: '32kb' });
+  const jsonAudio = express.json({ limit: '2mb' });
+  app.use((req, res, next) => {
+    if (req.path === API_ROUTES.closer.call.transcribe) {
+      jsonAudio(req, res, next);
+      return;
+    }
+    jsonEstricto(req, res, next);
+  });
 
   // No habilitamos `express.urlencoded` ni `multipart`: menos parsers, menos
   // superficie de ataque (A05).
