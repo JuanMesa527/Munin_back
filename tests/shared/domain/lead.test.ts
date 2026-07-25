@@ -66,9 +66,14 @@ describe('hasConsent', () => {
 });
 
 describe('missingSlots', () => {
-  it('retorna los 8 slots en el orden de SLOTS cuando slotsLlenos esta vacio', () => {
+  it('retorna todos los slots en el orden de SLOTS cuando slotsLlenos esta vacio', () => {
     const perfil = perfilBase({ slotsLlenos: [] });
     expect(missingSlots(perfil)).toEqual([
+      'nombre',
+      'email',
+      'telefono',
+      'edad',
+      'estadoCivil',
       'afiliacion',
       'rangoSalarial',
       'segmento',
@@ -81,8 +86,12 @@ describe('missingSlots', () => {
   });
 
   it('excluye los slots llenos preservando el orden de SLOTS', () => {
-    const perfil = perfilBase({ slotsLlenos: ['ciudad', 'afiliacion'] });
+    const perfil = perfilBase({ slotsLlenos: ['ciudad', 'afiliacion', 'nombre'] });
     expect(missingSlots(perfil)).toEqual([
+      'email',
+      'telefono',
+      'edad',
+      'estadoCivil',
       'rangoSalarial',
       'segmento',
       'personasACargo',

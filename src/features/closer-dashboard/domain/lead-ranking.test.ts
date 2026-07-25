@@ -26,6 +26,10 @@ function lead(id: string, overrides: Partial<EnrichedLead> = {}): EnrichedLead {
   return {
     id,
     consentimiento: null,
+    nombre: null,
+    email: null,
+    telefono: null,
+    estadoCivil: null,
     esAfiliado: true,
     rangoSalarial: '2-4 SMMLV',
     segmento: 'Basico',

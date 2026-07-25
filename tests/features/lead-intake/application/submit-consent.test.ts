@@ -75,7 +75,7 @@ describe('SubmitConsentUseCase', () => {
     if (!resultado.ok) return;
     expect(resultado.value.profile.id).toBe(leads.guardados[0]?.id);
     expect(resultado.value.profile.consentimiento?.otorgado).toBe(true);
-    expect(resultado.value.siguientePaso?.slot).toBe('afiliacion');
+    expect(resultado.value.siguientePaso?.slot).toBe('nombre');
   });
 
   it('ConsentRequiredError cuando otorgado es false, y nada se persiste', async () => {

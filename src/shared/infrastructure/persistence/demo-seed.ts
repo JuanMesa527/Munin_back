@@ -7,13 +7,14 @@
  * dejan de ser el camino principal y quedan solo como datos de prueba.
  *
  * PROHIBICION DURA (EQUIPO.md seccion 8): cero PII real. Los contactos son
- * completamente ficticios y el telefono solo se entrega al `ContactVaultPort`;
- * nunca se registra ni se incorpora directamente al perfil.
+ * completamente ficticios (dominio example.com / prefijo 300) y el telefono
+ * solo se entrega al `ContactVaultPort`; nunca se registra ni se incorpora
+ * directamente al perfil tokenizado (`identidad`).
  *
  * Solo se siembra fuera de produccion. `app.ts` lo hace explicito.
  */
 
-import type { ConsentRecord, LeadProfile } from '@contracts';
+import type { ConsentRecord, LeadProfile, Slot } from '@contracts';
 import type { ContactVaultPort } from '../../application/ports/contact-vault.port.js';
 import type { LeadRepository } from '../../application/ports/lead-repository.port.js';
 import { logger } from '../logging/logger.js';
@@ -40,6 +41,22 @@ const CONTACTOS_DEMO: Readonly<Record<string, { nombre: string; telefono: string
   'demo-alto-bogota': { nombre: 'DemoAlto', telefono: '+57 300 000 0081' },
 };
 
+const SLOTS_COMPLETOS: Slot[] = [
+  'nombre',
+  'email',
+  'telefono',
+  'edad',
+  'estadoCivil',
+  'afiliacion',
+  'rangoSalarial',
+  'segmento',
+  'personasACargo',
+  'ciudad',
+  'segmentoFamiliar',
+  'ahorro',
+  'capacidadAhorroMensual',
+];
+
 /**
  * Tres perfiles que ejercitan carriles distintos del matching:
  *   - familia con dependientes y presupuesto ajustado -> VIS con 3 habitaciones;
@@ -53,6 +70,11 @@ export const LEADS_DEMO: readonly LeadProfile[] = [
     id: 'demo-familia-soacha',
     consentimiento: { ...consentimiento, finalidades: [...consentimiento.finalidades] },
     identidad: null,
+    nombre: 'Laura Demo',
+    email: 'laura.demo@example.com',
+    telefono: '3001112233',
+    edad: 34,
+    estadoCivil: 'Casado/a',
     esAfiliado: true,
     rangoSalarial: '2-4 SMMLV',
     segmento: 'Basico',
@@ -61,16 +83,7 @@ export const LEADS_DEMO: readonly LeadProfile[] = [
     segmentoFamiliar: 'Pareja con hijos',
     ahorroDeclarado: 18_000_000,
     capacidadAhorroMensual: 850_000,
-    slotsLlenos: [
-      'afiliacion',
-      'rangoSalarial',
-      'segmento',
-      'personasACargo',
-      'ciudad',
-      'segmentoFamiliar',
-      'ahorro',
-      'capacidadAhorroMensual',
-    ],
+    slotsLlenos: [...SLOTS_COMPLETOS],
     capacidad: {
       banda: 'media',
       faltantes: [],
@@ -87,6 +100,11 @@ export const LEADS_DEMO: readonly LeadProfile[] = [
     id: 'demo-joven-bogota',
     consentimiento: { ...consentimiento, finalidades: [...consentimiento.finalidades] },
     identidad: null,
+    nombre: 'Camila Demo',
+    email: 'camila.demo@example.com',
+    telefono: '3002223344',
+    edad: 26,
+    estadoCivil: 'Soltero/a',
     esAfiliado: true,
     rangoSalarial: '2-4 SMMLV',
     segmento: 'Joven',
@@ -95,16 +113,7 @@ export const LEADS_DEMO: readonly LeadProfile[] = [
     segmentoFamiliar: 'Unipersonal',
     ahorroDeclarado: 9_000_000,
     capacidadAhorroMensual: 600_000,
-    slotsLlenos: [
-      'afiliacion',
-      'rangoSalarial',
-      'segmento',
-      'personasACargo',
-      'ciudad',
-      'segmentoFamiliar',
-      'ahorro',
-      'capacidadAhorroMensual',
-    ],
+    slotsLlenos: [...SLOTS_COMPLETOS],
     capacidad: {
       banda: 'media',
       faltantes: [],
@@ -121,6 +130,11 @@ export const LEADS_DEMO: readonly LeadProfile[] = [
     id: 'demo-alto-bogota',
     consentimiento: { ...consentimiento, finalidades: [...consentimiento.finalidades] },
     identidad: null,
+    nombre: 'Andrés Demo',
+    email: 'andres.demo@example.com',
+    telefono: '3003334455',
+    edad: 41,
+    estadoCivil: 'Unión libre',
     esAfiliado: true,
     rangoSalarial: '6-10 SMMLV',
     segmento: 'Alto',
@@ -129,16 +143,7 @@ export const LEADS_DEMO: readonly LeadProfile[] = [
     segmentoFamiliar: 'Pareja con hijos',
     ahorroDeclarado: 70_000_000,
     capacidadAhorroMensual: 2_400_000,
-    slotsLlenos: [
-      'afiliacion',
-      'rangoSalarial',
-      'segmento',
-      'personasACargo',
-      'ciudad',
-      'segmentoFamiliar',
-      'ahorro',
-      'capacidadAhorroMensual',
-    ],
+    slotsLlenos: [...SLOTS_COMPLETOS],
     capacidad: {
       banda: 'alta',
       faltantes: [],
@@ -168,9 +173,8 @@ export async function seedDemoLeads(leads: LeadRepository, vault: ContactVaultPo
     }
     const guardado = await leads.save({ ...lead, identidad: identidad.value });
     if (!guardado.ok) {
-      logger.error({ leadId: lead.id }, 'no se pudo sembrar el lead de demo');
-      return;
+      logger.warn({ leadId: lead.id, err: guardado.error }, 'No se pudo sembrar lead de demo');
     }
   }
-  logger.info({ cuantos: LEADS_DEMO.length }, 'leads de demo sembrados');
+  logger.info({ cantidad: LEADS_DEMO.length }, 'Leads de demo sembrados');
 }

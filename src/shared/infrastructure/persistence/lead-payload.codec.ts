@@ -2,6 +2,11 @@ import { z } from 'zod';
 import type { EnrichedLead, LeadProfile } from '@contracts';
 
 const SlotSchema = z.enum([
+  'nombre',
+  'email',
+  'telefono',
+  'edad',
+  'estadoCivil',
   'afiliacion',
   'rangoSalarial',
   'segmento',
@@ -64,6 +69,11 @@ const LeadProfileObjectSchema = z.strictObject({
   id: z.string(),
   consentimiento: ConsentRecordSchema.nullable(),
   identidad: ContactIdentitySchema.nullable(),
+  nombre: z.string().nullable(),
+  email: z.string().nullable(),
+  telefono: z.string().nullable(),
+  edad: z.number().nullable(),
+  estadoCivil: z.string().nullable(),
   esAfiliado: z.boolean().nullable(),
   rangoSalarial: z.string().nullable(),
   segmento: z.enum(['Basico', 'Medio', 'Alto', 'Joven']).nullable(),
@@ -107,7 +117,6 @@ export const EnrichedLeadPayloadSchema = LeadProfileObjectSchema.extend({
   contacto: ContactPreferenceSchema.nullable(),
   intentScore: z.number(),
   enriquecidoEn: z.string(),
-  edad: z.number().nullable(),
   ocupacion: z.string().nullable(),
   hogar: z.string().nullable(),
   ingresosSmmlv: z.number().nullable(),

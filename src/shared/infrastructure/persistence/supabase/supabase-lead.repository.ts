@@ -147,11 +147,17 @@ export class SupabaseLeadRepository implements LeadRepository {
 
 /**
  * Forma legacy de F1, conservada solo para compatibilidad de mappers y tests.
- * El repositorio activo persiste los payloads completos del agregado.
+ * El repositorio activo persiste los payloads completos del agregado
+ * (`0002_lead_profiles.sql`: base_payload / enriched_payload jsonb).
  */
 export interface SupabaseLeadRow {
   id: string;
   consentimiento: unknown;
+  nombre: string | null;
+  email: string | null;
+  telefono: string | null;
+  edad: number | null;
+  estado_civil: string | null;
   es_afiliado: boolean | null;
   rango_salarial: string | null;
   segmento: string | null;
@@ -174,6 +180,11 @@ export function toRow(profile: LeadProfile): SupabaseLeadRow {
   return {
     id: profile.id,
     consentimiento: profile.consentimiento,
+    nombre: profile.nombre,
+    email: profile.email,
+    telefono: profile.telefono,
+    edad: profile.edad,
+    estado_civil: profile.estadoCivil,
     es_afiliado: profile.esAfiliado,
     rango_salarial: profile.rangoSalarial,
     segmento: profile.segmento,
@@ -198,6 +209,11 @@ export function toDomain(row: SupabaseLeadRow): LeadProfile {
     id: row.id,
     consentimiento: row.consentimiento,
     identidad: null,
+    nombre: row.nombre,
+    email: row.email,
+    telefono: row.telefono,
+    edad: row.edad,
+    estadoCivil: row.estado_civil,
     esAfiliado: row.es_afiliado,
     rangoSalarial: row.rango_salarial,
     segmento: row.segmento,

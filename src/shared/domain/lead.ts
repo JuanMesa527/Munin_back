@@ -24,6 +24,11 @@ export function createEmptyLeadProfile(id: string, now: IsoDateTime): LeadProfil
     id,
     consentimiento: null,
     identidad: null,
+    nombre: null,
+    email: null,
+    telefono: null,
+    edad: null,
+    estadoCivil: null,
     esAfiliado: null,
     rangoSalarial: null,
     segmento: null,
@@ -80,6 +85,16 @@ export function isSlotFilled(profile: LeadProfile, slot: Slot): boolean {
 /** Traduce un `Slot` al valor crudo del campo correspondiente en `LeadProfile`. */
 function slotFieldValue(profile: LeadProfile, slot: Slot): unknown {
   switch (slot) {
+    case 'nombre':
+      return profile.nombre;
+    case 'email':
+      return profile.email;
+    case 'telefono':
+      return profile.telefono;
+    case 'edad':
+      return profile.edad;
+    case 'estadoCivil':
+      return profile.estadoCivil;
     case 'afiliacion':
       return profile.esAfiliado;
     case 'rangoSalarial':

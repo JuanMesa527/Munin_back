@@ -2,12 +2,14 @@
  * Caso de uso `/turn` de F1 (lead-intake). Capa: application.
  * Orquesta el loop de slots y las TRES salidas de carril persistidas
  * (`viable` | `no_viable` | `null`, design.md D3/D4) — todas por el MISMO
- * `LeadRepository.save`. El LLM solo entra cuando el parser puro
- * (`parseAnswer`, domain) falla con texto libre, y su salida vuelve a pasar
- * por ese mismo parser antes de tocar `updateProfile` (D1).
+ * `LeadRepository.save`.
+ *
+ * - Chip: parser puro del slot actual (sin LLM).
+ * - Texto libre: `llm.converseIntake` puede llenar N slots; cada valor vuelve
+ *   a pasar por `parseAnswer` + `updateProfile` (D1 / glass-box).
  */
 
-import type { ConversationTurn, IsoDateTime, LeadProfile } from '@contracts';
+import type { ConversationTurn, IsoDateTime, LeadProfile, Slot } from '@contracts';
 import type { ClockPort } from '@shared/application/ports/clock.port.js';
 import type { DataCatalogPort } from '@shared/application/ports/data-catalog.port.js';
 import type { IdGeneratorPort } from '@shared/application/ports/id-generator.port.js';
@@ -22,18 +24,21 @@ import {
   computeProgress,
   getNextStep,
   isReadyToRoute,
+  listPendingAskedSlots,
   parseAnswer,
   updateProfile,
+  vocabularyForAskedSlot,
 } from '../domain/conversation.js';
 import { filterByEligibility, matchProjects } from '../domain/matching.js';
 import { checkAffiliation, estimateCapacity, scoreLead } from '../domain/profiling.js';
 import { decideViability } from '../domain/routing.js';
 import { stepPromptFor } from './step-copy.js';
 
-/** Confianza minima del LLM para aceptar su extraccion (design.md D1). Placeholder documentado. */
+/** Confianza minima del LLM para aceptar su extraccion (design.md D1). */
 const CONFIANZA_MINIMA_LLM = 0.5;
 
-const TEXTO_NO_ENTENDIDO = 'No logré entender tu respuesta, ¿podrías intentarlo de nuevo?';
+const TEXTO_NO_ENTENDIDO =
+  'No logré entender tu respuesta. ¿Podrías contarme un poco más o usar una de las opciones?';
 const TEXTO_SIN_CLASIFICAR =
   'Gracias por tu tiempo. Todavía no podemos calcular tu perfil con los datos disponibles; te contactaremos pronto.';
 
@@ -64,7 +69,6 @@ export class ProcessConversationTurnUseCase {
     const profile = encontrado.value;
 
     if (!hasConsent(profile, this.deps.activePolicyVersion)) {
-      // Gate legal: ni un slot mas se procesa ni se guarda nada sin consentimiento vigente.
       return err(new ConsentRequiredError());
     }
 
@@ -73,43 +77,33 @@ export class ProcessConversationTurnUseCase {
       return this.finalize(profile);
     }
     if (paso.slot === null) {
-      // Defensivo: `getNextStep` solo produce pasos `tipo: 'pregunta'` con slot no-nulo.
       return err(new ValidationError('Paso de conversacion invalido'));
     }
-    const slot = paso.slot;
 
-    const respuestaCruda = input.quickReplyValue ?? input.texto;
-    if (respuestaCruda === null) {
-      return err(new ValidationError('Se requiere una respuesta', { respuesta: 'requerido' }));
+    if (input.quickReplyValue !== null) {
+      return this.procesarChip(profile, paso.slot, input.quickReplyValue);
     }
 
-    let parseado = parseAnswer(slot, respuestaCruda);
-
-    // D1: el LLM solo entra cuando el parser puro fallo Y la respuesta vino
-    // como texto libre (un quick reply ya es vocabulario cerrado — no hay
-    // ambiguedad que resolver con el modelo).
-    if (!parseado.ok && input.quickReplyValue === null && input.texto !== null) {
-      const extraccion = await this.deps.llm.extractSlotValue({
-        texto: input.texto,
-        slot,
-        contexto: contextoParaSlot(paso.quickReplies),
-      });
-      if (
-        extraccion.ok &&
-        extraccion.value.valor !== null &&
-        extraccion.value.confianza >= CONFIANZA_MINIMA_LLM
-      ) {
-        // La salida del LLM es entrada NO CONFIABLE: vuelve a pasar por el
-        // MISMO parser puro antes de entrar al dominio (D1, regla 22).
-        parseado = parseAnswer(slot, extraccion.value.valor);
-      }
+    if (input.texto !== null) {
+      return this.procesarTextoLibre(profile, paso.slot, input.texto);
     }
 
+    return err(new ValidationError('Se requiere una respuesta', { respuesta: 'requerido' }));
+  }
+
+  /** Atajo determinista: un solo slot, sin LLM. */
+  private async procesarChip(
+    profile: LeadProfile,
+    slot: Slot,
+    valor: string,
+  ): Promise<Result<ConversationTurn>> {
+    const parseado = parseAnswer(slot, valor);
     if (!parseado.ok) {
+      const paso = getNextStep(profile);
       const mensaje = buildBotMessage({
         id: this.deps.ids.newId(),
         texto: TEXTO_NO_ENTENDIDO,
-        quickReplies: paso.quickReplies,
+        quickReplies: paso?.quickReplies ?? [],
         now: this.deps.clock.now(),
       });
       return ok({
@@ -122,36 +116,137 @@ export class ProcessConversationTurnUseCase {
     }
 
     const actualizado = updateProfile(profile, parseado.value, this.deps.clock.now());
+    return this.persistirYContinuar(actualizado, null);
+  }
 
-    if (!isReadyToRoute(actualizado)) {
-      const guardado = await this.deps.leads.save(actualizado);
-      if (!guardado.ok) {
-        return guardado;
+  /**
+   * Camino conversacional: DeepSeek puede llenar varios slots pendientes;
+   * cada valor se revalida con `parseAnswer` antes de entrar al dominio.
+   */
+  private async procesarTextoLibre(
+    profile: LeadProfile,
+    slotActual: Slot,
+    texto: string,
+  ): Promise<Result<ConversationTurn>> {
+    const pendientes = listPendingAskedSlots(profile);
+    const vocabulario: Record<string, readonly string[]> = {};
+    for (const slot of pendientes) {
+      vocabulario[slot] = vocabularyForAskedSlot(slot);
+    }
+
+    const conversacion = await this.deps.llm.converseIntake({
+      texto,
+      slotsPendientes: pendientes,
+      perfilParcial: perfilParcialParaLlm(profile),
+      vocabulario,
+    });
+
+    let actualizado = profile;
+    let llenoAlgo = false;
+    /** Solo usamos `respuestaBot` del LLM si el modelo realmente extrajo algo. */
+    let llenoViaLlm = false;
+
+    if (conversacion.ok) {
+      const ordenPendiente = new Map(pendientes.map((slot, indice) => [slot, indice]));
+      const ordenadas = [...conversacion.value.extracciones]
+        .filter((item) => item.confianza >= CONFIANZA_MINIMA_LLM)
+        .sort(
+          (a, b) => (ordenPendiente.get(a.slot) ?? 99) - (ordenPendiente.get(b.slot) ?? 99),
+        );
+
+      for (const item of ordenadas) {
+        const parseado = parseAnswer(item.slot, item.valor);
+        if (!parseado.ok) {
+          continue;
+        }
+        actualizado = updateProfile(actualizado, parseado.value, this.deps.clock.now());
+        llenoAlgo = true;
+        llenoViaLlm = true;
       }
-      const siguientePaso = getNextStep(guardado.value);
+    }
+
+    // Fallback: si el modelo no aporto nada util, intenta el parser puro del
+    // slot actual (p. ej. el usuario escribio "Sí", "Ana" o "Bogotá").
+    // IMPORTANTE: no reutilizar `respuestaBot` del stub/LLM en este camino —
+    // el stub siempre dice "No logré entender…" aunque el parser haya avanzado.
+    if (!llenoAlgo) {
+      const directo = parseAnswer(slotActual, texto);
+      if (directo.ok) {
+        actualizado = updateProfile(profile, directo.value, this.deps.clock.now());
+        llenoAlgo = true;
+      }
+    }
+
+    if (!llenoAlgo) {
+      const paso = getNextStep(profile);
+      const textoBot =
+        conversacion.ok && conversacion.value.respuestaBot.trim().length > 0
+          ? conversacion.value.respuestaBot
+          : TEXTO_NO_ENTENDIDO;
       const mensaje = buildBotMessage({
         id: this.deps.ids.newId(),
-        texto: stepPromptFor(siguientePaso?.slot ?? null),
-        quickReplies: siguientePaso?.quickReplies ?? [],
+        texto: textoBot,
+        quickReplies: paso?.quickReplies ?? [],
         now: this.deps.clock.now(),
       });
       return ok({
-        profile: guardado.value,
+        profile,
         mensajes: [mensaje],
-        siguientePaso,
-        progreso: computeProgress(guardado.value),
+        siguientePaso: paso,
+        progreso: computeProgress(profile),
         routing: null,
       });
     }
 
-    return this.finalize(actualizado);
+    const respuestaBot =
+      llenoViaLlm &&
+      conversacion.ok &&
+      conversacion.value.respuestaBot.trim().length > 0
+        ? conversacion.value.respuestaBot
+        : null;
+
+    return this.persistirYContinuar(actualizado, respuestaBot);
+  }
+
+  private async persistirYContinuar(
+    profile: LeadProfile,
+    respuestaBot: string | null,
+  ): Promise<Result<ConversationTurn>> {
+    if (isReadyToRoute(profile)) {
+      return this.finalize(profile);
+    }
+
+    const guardado = await this.deps.leads.save(profile);
+    if (!guardado.ok) {
+      return guardado;
+    }
+
+    const siguientePaso = getNextStep(guardado.value);
+    const texto =
+      respuestaBot !== null && respuestaBot.trim().length > 0
+        ? respuestaBot
+        : stepPromptFor(siguientePaso?.slot ?? null);
+
+    const mensaje = buildBotMessage({
+      id: this.deps.ids.newId(),
+      texto,
+      quickReplies: siguientePaso?.quickReplies ?? [],
+      now: this.deps.clock.now(),
+    });
+
+    return ok({
+      profile: guardado.value,
+      mensajes: [mensaje],
+      siguientePaso,
+      progreso: computeProgress(guardado.value),
+      routing: null,
+    });
   }
 
   /**
    * Perfilamiento + matching + enrutamiento (design.md Data Flow, D3/D4).
-   * Cualquier fallo aguas abajo de este punto (catalogo indisponible, sin
-   * factores observables, sin evidencia para `decideViability`) degrada de
-   * forma honesta a `finalizeUnclassified` — nunca fabrica un carril.
+   * Cualquier fallo aguas abajo de este punto degrada de forma honesta a
+   * `finalizeUnclassified` — nunca fabrica un carril.
    */
   private async finalize(profile: LeadProfile): Promise<Result<ConversationTurn>> {
     const now = this.deps.clock.now();
@@ -224,11 +319,6 @@ export class ProcessConversationTurnUseCase {
     });
   }
 
-  /**
-   * D3: `carril: null` (expresado como `routing: null`) es una salida
-   * HONESTA, no un error. Persiste por el MISMO `LeadRepository.save` que
-   * viable/no_viable y nunca inventa un score.
-   */
   private async finalizeUnclassified(
     profile: LeadProfile,
     now: IsoDateTime,
@@ -263,12 +353,6 @@ export class ProcessConversationTurnUseCase {
     });
   }
 
-  /**
-   * `writeExplanation` es best-effort (design.md Open Questions): NUNCA
-   * bloquea el cierre del turno. Si falla, no valida, o el adapter llega a
-   * lanzar, el texto determinista de `decideViability` ya es explicable por
-   * si solo (glass-box, regla 21).
-   */
   private async explicacionMejorEsfuerzo(
     textoDeterminista: string,
     hechos: Record<string, string>,
@@ -285,9 +369,26 @@ export class ProcessConversationTurnUseCase {
   }
 }
 
-function contextoParaSlot(quickReplies: readonly { value: string }[]): string {
-  if (quickReplies.length === 0) {
-    return 'Respuesta de texto libre, sin vocabulario cerrado.';
+/** Solo slots ya capturados — sin telefono, nombre ni ids. */
+function perfilParcialParaLlm(profile: LeadProfile): Record<string, string> {
+  const parcial: Record<string, string> = {};
+  if (profile.esAfiliado !== null) {
+    parcial.afiliacion = profile.esAfiliado ? 'true' : 'false';
   }
-  return `Vocabulario permitido: ${quickReplies.map((qr) => qr.value).join(', ')}`;
+  if (profile.rangoSalarial !== null) {
+    parcial.rangoSalarial = profile.rangoSalarial;
+  }
+  if (profile.segmentoFamiliar !== null) {
+    parcial.segmentoFamiliar = profile.segmentoFamiliar;
+  }
+  if (profile.ciudad !== null) {
+    parcial.ciudad = profile.ciudad;
+  }
+  if (profile.ahorroDeclarado !== null) {
+    parcial.ahorro = String(profile.ahorroDeclarado);
+  }
+  if (profile.capacidadAhorroMensual !== null) {
+    parcial.capacidadAhorroMensual = String(profile.capacidadAhorroMensual);
+  }
+  return parcial;
 }

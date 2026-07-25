@@ -10,7 +10,7 @@
  *   1. applySecurity   -> cabeceras, CORS, parser de JSON con techo
  *   2. httpLogger      -> despues de las cabeceras, antes de las rutas, con
  *                         redaccion de PII ya configurada
- *   3. rate limit + rutas de features (F1 lead-intake + F2.1 lead-enrichment)
+ *   3. rate limit + rutas de features (F1 + F2.1 + F2.2 + F3/F4)
  *   4. notFoundHandler -> 404 en formato `ApiResponse`
  *   5. errorHandler    -> ultima red, 4 argumentos
  */
@@ -23,6 +23,8 @@ import { createCloserDashboardModule } from './features/closer-dashboard/closer-
 import { EnvCloserAuthAdapter } from './features/closer-dashboard/infrastructure/env-closer-auth.adapter.js';
 import { createLeadIntakeModule } from './features/lead-intake/lead-intake.module.js';
 import { createLeadEnrichmentModule } from './features/lead-enrichment/lead-enrichment.module.js';
+import { createLeadEducationModule } from './features/lead-education/lead-education.module.js';
+import { seedDemoLeads as seedEducationDemoLeads } from './features/lead-education/infrastructure/demo-seed.js';
 import type { SwipeStorePort } from './features/lead-enrichment/application/ports/swipe-store.port.js';
 import type { TelemetryStorePort } from './features/lead-enrichment/application/ports/telemetry.port.js';
 import { InMemorySwipeStore } from './features/lead-enrichment/infrastructure/in-memory-swipe.store.js';
@@ -50,6 +52,9 @@ import { createSupabaseClient } from './shared/infrastructure/persistence/supaba
 import { SupabaseLeadRepository } from './shared/infrastructure/persistence/supabase/supabase-lead.repository.js';
 import { InMemoryContactVaultAdapter } from './shared/infrastructure/security/in-memory-contact-vault.adapter.js';
 
+/** Prefijo de las rutas de F2.2, derivado del contrato para no inventar URLs. */
+const PREFIJO_EDUCATION = API_ROUTES.education.journey.replace(/\/journey$/u, '');
+
 export interface App {
   readonly server: Express;
 }
@@ -65,6 +70,7 @@ export async function createApp(env: AppEnv): Promise<App> {
   const ids = new CryptoIdGenerator();
   const audit = new PinoAuditLogAdapter();
   const vault = new InMemoryContactVaultAdapter({ ids, clock, audit });
+  // F2.2 lead-education + F4 briefing: mismo repositorio de journeys.
   const journeys = new InMemoryEducationRepository();
   const sessionStore = new InMemorySessionStore({
     clock,
@@ -108,6 +114,9 @@ export async function createApp(env: AppEnv): Promise<App> {
   // F1 con consentimiento real del titular.
   if (!env.isProduction) {
     await seedDemoLeads(leads, vault);
+    // Perfiles NO VIABLES adicionales (carril de nutricion de F2.2), distintos
+    // de los `viable` de arriba: ids propios (`demo-lead-*`), sin colision.
+    await seedEducationDemoLeads(leads, clock.now());
   }
 
   // --- Health check: sin rate limit, para que el PaaS no se auto-bloquee ---
@@ -116,14 +125,18 @@ export async function createApp(env: AppEnv): Promise<App> {
   });
 
   // --- Flujo publico del usuario final (sin login, autogestionado) ---
-  // F1 lead-intake: comparte el MISMO `leads` que F2.1 (son un solo flujo). Su
-  // router aplica su propio rate limit dentro del modulo.
+  // F1 lead-intake: comparte el MISMO `leads` que F2.1/F2.2 (son un solo flujo).
+  // Su router aplica su propio rate limit dentro del modulo.
   const intake = createLeadIntakeModule(env, { leads });
   server.use(intake.router);
 
   // F2.1 lead-enrichment: expande info del lead viable.
   const enrichment = createLeadEnrichmentModule({ leads, catalogo, clock, swipes, telemetry });
   server.use(publicRateLimiter, enrichment.router);
+
+  // F2.2 lead-education: camino gamificado de nutricion para leads no viables.
+  const education = createLeadEducationModule({ journeys, leads, catalog: catalogo, clock });
+  server.use(PREFIJO_EDUCATION, publicRateLimiter, education.router);
 
   // --- Login publico; el resto de las rutas closer exige sesion verificada ---
   const dashboard = createCloserDashboardModule({
@@ -134,7 +147,7 @@ export async function createApp(env: AppEnv): Promise<App> {
     leads,
   });
   // El limitador estricto aplica solo al login, no a intake ni a otras rutas
-  // publicas. El guard se acota al namespace closer para no capturar F1/F2.1.
+  // publicas. El guard se acota al namespace closer para no capturar F1/F2.x.
   server.use(API_ROUTES.closer.login, authRateLimiter);
   server.use(dashboard.publicRouter);
   server.use('/api/closer', dashboard.requireCloser);
