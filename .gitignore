@@ -9,6 +9,10 @@ coverage/
 *.pem
 *.key
 
+.atl/
+.claude/
+.codegraph/
+.openspec/*
 # Datos del reto: PII y fuentes crudas NO entran al repo (Ley 1581).
 # Solo los JSON derivados y anonimizados de data/ son versionables.
 analysis/raw/
