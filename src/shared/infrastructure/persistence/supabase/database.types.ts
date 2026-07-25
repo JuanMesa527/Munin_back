@@ -73,6 +73,10 @@ type LeadProfilesRow = {
   carril: string | null;
   score: number | null;
   intent_score: number | null;
+  // Denormalizados SOLO para el lookup del login por OTP (F2.2, adenda A14);
+  // `base_payload` sigue siendo la fuente de verdad de ambos campos.
+  telefono: string | null;
+  email: string | null;
   updated_at: Timestamptz;
 };
 
@@ -95,6 +99,19 @@ type CallSessionsRow = {
   iniciada_en: Timestamptz;
   terminada_en: Timestamptz;
   creado_en: Timestamptz;
+};
+
+/** F2.2 · progreso gamificado de nutricion de un lead no viable (adenda A12). */
+type EducationJourneysRow = {
+  lead_id: string;
+  // jsonb de solo-escritura, mismo criterio que `factores`/`transcripcion`
+  // arriba: `EducationJourney` es una interface del contrato y no calza en el
+  // `Json` recursivo.
+  journey_payload: unknown;
+  progreso: number | null;
+  puntos_totales: number | null;
+  reclasificado_a_viable: boolean | null;
+  updated_at: Timestamptz;
 };
 
 /** Los `id`/`created_at` los pone la base (default): opcionales al insertar. */
@@ -140,6 +157,12 @@ export interface Database {
         Row: CallSessionsRow;
         Insert: Omit<CallSessionsRow, 'creado_en'> & { creado_en?: Timestamptz };
         Update: Partial<Omit<CallSessionsRow, 'creado_en'>>;
+        Relationships: [];
+      };
+      education_journeys: {
+        Row: EducationJourneysRow;
+        Insert: Omit<EducationJourneysRow, 'updated_at'> & { updated_at?: Timestamptz };
+        Update: Partial<EducationJourneysRow>;
         Relationships: [];
       };
     };

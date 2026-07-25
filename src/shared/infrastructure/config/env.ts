@@ -52,6 +52,13 @@ const EnvSchema = z.object({
   CLOSER_USERNAME: z.string().trim().min(1, 'falta el usuario del closer'),
   CLOSER_PASSWORD: z.string().min(1, 'falta la contrasena del closer'),
 
+  /**
+   * Login por OTP del lead (F2.2, adenda A14). Deliberadamente MUCHO mas
+   * largo que `CLOSER_SESSION_TTL_MINUTES`: un lead vuelve a nutrirse a lo
+   * largo de dias/semanas, no en un turno de trabajo — 30 dias por defecto.
+   */
+  LEAD_SESSION_TTL_MINUTES: z.coerce.number().int().positive().max(129_600).default(43_200),
+
   PERSISTENCE_DRIVER: z.enum(['memory', 'supabase']).default('memory'),
 
   /**
@@ -116,6 +123,8 @@ export interface AppEnv {
   readonly closerSessionTtlMinutes: number;
   readonly closerUsername: string;
   readonly closerPassword: string;
+  /** Login por OTP del lead (F2.2, adenda A14). */
+  readonly leadSessionTtlMinutes: number;
   readonly persistenceDriver: PersistenceDriver;
   /** URL del proyecto Supabase. `null` con el driver `memory` (solo lo exige `supabase`, D10). */
   readonly supabaseUrl: string | null;
@@ -216,6 +225,7 @@ export function loadEnv(): AppEnv {
     closerSessionTtlMinutes: raw.CLOSER_SESSION_TTL_MINUTES,
     closerUsername: raw.CLOSER_USERNAME,
     closerPassword: raw.CLOSER_PASSWORD,
+    leadSessionTtlMinutes: raw.LEAD_SESSION_TTL_MINUTES,
     persistenceDriver: raw.PERSISTENCE_DRIVER,
     supabaseUrl: raw.SUPABASE_URL.length > 0 ? raw.SUPABASE_URL : null,
     supabaseServiceRoleKey:

@@ -29,6 +29,7 @@ const TEST_ENV: AppEnv = {
   closerSessionTtlMinutes: 60,
   closerUsername: 'closer.demo',
   closerPassword: 'correct-password',
+  leadSessionTtlMinutes: 43_200,
   persistenceDriver: 'memory',
   supabaseUrl: null,
   supabaseServiceRoleKey: null,

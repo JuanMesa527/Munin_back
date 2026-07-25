@@ -85,6 +85,8 @@ describe('SupabaseLeadRepository', () => {
         base_payload: lead,
         carril: lead.carril,
         score: lead.score?.valor ?? null,
+        telefono: lead.telefono,
+        email: lead.email,
         updated_at: lead.updatedAt,
       },
       { onConflict: 'lead_id' },

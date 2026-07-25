@@ -47,6 +47,7 @@ import { InMemorySwipeStore } from './features/lead-enrichment/infrastructure/in
 import { NoopTelemetryStore } from './features/lead-enrichment/infrastructure/noop-telemetry.store.js';
 import { SupabaseSwipeStore } from './features/lead-enrichment/infrastructure/supabase-swipe.store.js';
 import { SupabaseTelemetryStore } from './features/lead-enrichment/infrastructure/supabase-telemetry.store.js';
+import type { LeadContactLookupPort } from './shared/application/ports/lead-contact-lookup.port.js';
 import type { LeadRepository } from './shared/application/ports/lead-repository.port.js';
 import type { AppEnv } from './shared/infrastructure/config/env.js';
 import { PinoAuditLogAdapter } from './shared/infrastructure/audit/pino-audit-log.adapter.js';
@@ -56,17 +57,25 @@ import { errorHandler, notFoundHandler } from './shared/infrastructure/http/erro
 import {
   applySecurity,
   authRateLimiter,
+  otpRequestRateLimiter,
+  otpVerifyRateLimiter,
   publicRateLimiter,
   simulationRateLimiter,
 } from './shared/infrastructure/http/security.js';
 import { CryptoIdGenerator } from './shared/infrastructure/id/crypto-id-generator.adapter.js';
 import { createHttpLogger, logger } from './shared/infrastructure/logging/logger.js';
+import type { EducationJourneyRepository } from './shared/application/ports/education-repository.port.js';
+import { InMemoryLeadOtpStore } from './features/lead-education/infrastructure/in-memory-lead-otp.store.js';
 import { InMemoryEducationRepository } from './shared/infrastructure/persistence/in-memory/in-memory-education.repository.js';
+import { InMemoryLeadContactLookup } from './shared/infrastructure/persistence/in-memory/in-memory-lead-contact-lookup.adapter.js';
 import { InMemoryLeadRepository } from './shared/infrastructure/persistence/in-memory/in-memory-lead.repository.js';
+import { InMemoryLeadSessionStore } from './shared/infrastructure/persistence/in-memory/in-memory-lead-session.store.js';
 import { InMemorySessionStore } from './shared/infrastructure/persistence/in-memory/in-memory-session.store.js';
 import { seedDemoLeads } from './shared/infrastructure/persistence/demo-seed.js';
 import { createSupabaseClient } from './shared/infrastructure/persistence/supabase/supabase-client.js';
 import type { AppSupabaseClient } from './shared/infrastructure/persistence/supabase/supabase-client.js';
+import { SupabaseEducationRepository } from './shared/infrastructure/persistence/supabase/supabase-education.repository.js';
+import { SupabaseLeadContactLookup } from './shared/infrastructure/persistence/supabase/supabase-lead-contact-lookup.adapter.js';
 import { SupabaseLeadRepository } from './shared/infrastructure/persistence/supabase/supabase-lead.repository.js';
 import { InMemoryContactVaultAdapter } from './shared/infrastructure/security/in-memory-contact-vault.adapter.js';
 
@@ -93,8 +102,6 @@ export async function createApp(env: AppEnv, server: Express = express()): Promi
   const ids = new CryptoIdGenerator();
   const audit = new PinoAuditLogAdapter();
   const vault = new InMemoryContactVaultAdapter({ ids, clock, audit });
-  // F2.2 lead-education + F4 briefing: mismo repositorio de journeys.
-  const journeys = new InMemoryEducationRepository();
   const sessionStore = new InMemorySessionStore({
     clock,
     ttlMinutos: env.closerSessionTtlMinutes,
@@ -104,6 +111,15 @@ export async function createApp(env: AppEnv, server: Express = express()): Promi
     password: env.closerPassword,
     clock,
     ttlMinutes: env.closerSessionTtlMinutes,
+  });
+  // Login por OTP del lead (F2.2, adenda A14): igual que la sesion del
+  // closer, SIEMPRE en memoria — el OTP y la sesion son estado efimero
+  // (TTL corto), a diferencia del journey, que si necesitaba sobrevivir un
+  // restart (bloque 1 del plan).
+  const leadOtp = new InMemoryLeadOtpStore({ clock });
+  const leadSessionStore = new InMemoryLeadSessionStore({
+    clock,
+    ttlMinutos: env.leadSessionTtlMinutes,
   });
   const catalogo = new FileDataCatalogAdapter({
     weightsPath: env.weightsPath,
@@ -119,6 +135,11 @@ export async function createApp(env: AppEnv, server: Express = express()): Promi
   // Es la unica eleccion memoria-vs-DB de F2.1, y vive solo aqui.
   let swipes: SwipeStorePort;
   let telemetry: TelemetryStorePort;
+  // F2.2 lead-education + F4 briefing: mismo repositorio de journeys.
+  let journeys: EducationJourneyRepository;
+  // Login por OTP del lead (F2.2): resuelve telefono/email -> leadId contra
+  // el MISMO almacen de leads, sin tocar el puerto compartido `LeadRepository`.
+  let contactLookup: LeadContactLookupPort;
   if (
     env.persistenceDriver === 'supabase' &&
     env.supabaseUrl !== null &&
@@ -129,11 +150,16 @@ export async function createApp(env: AppEnv, server: Express = express()): Promi
     leads = new SupabaseLeadRepository(supabase);
     swipes = new SupabaseSwipeStore(supabase);
     telemetry = new SupabaseTelemetryStore(supabase);
+    journeys = new SupabaseEducationRepository(supabase);
+    contactLookup = new SupabaseLeadContactLookup(supabase);
     logger.info({ driver: 'supabase' }, 'persistencia en Supabase');
   } else {
-    leads = new InMemoryLeadRepository();
+    const inMemoryLeads = new InMemoryLeadRepository();
+    leads = inMemoryLeads;
     swipes = new InMemorySwipeStore();
     telemetry = new NoopTelemetryStore();
+    journeys = new InMemoryEducationRepository();
+    contactLookup = new InMemoryLeadContactLookup(inMemoryLeads);
     logger.info({ driver: 'memory' }, 'persistencia en memoria');
   }
 
@@ -169,7 +195,25 @@ export async function createApp(env: AppEnv, server: Express = express()): Promi
   server.use(publicRateLimiter, enrichment.router);
 
   // F2.2 lead-education: camino gamificado de nutricion para leads no viables.
-  const education = createLeadEducationModule({ journeys, leads, catalog: catalogo, clock, ids });
+  const education = createLeadEducationModule({
+    journeys,
+    leads,
+    catalog: catalogo,
+    clock,
+    ids,
+    contactLookup,
+    otp: leadOtp,
+    sessionStore: leadSessionStore,
+    secureCookie: env.isProduction,
+    sessionTtlMinutes: env.leadSessionTtlMinutes,
+    isProduction: env.isProduction,
+  });
+  // Limitadores mas estrictos SOLO en las 2 rutas que "envian"/verifican OTP,
+  // mismo criterio que `authRateLimiter` del closer: se acotan a su ruta
+  // exacta para no capturar `/journey`/`/progress`, que siguen publicas.
+  server.use(API_ROUTES.education.auth.requestOtp, otpRequestRateLimiter);
+  server.use(API_ROUTES.education.auth.verifyOtp, otpVerifyRateLimiter);
+  server.use(PREFIJO_EDUCATION, education.authRouter);
   server.use(PREFIJO_EDUCATION, publicRateLimiter, education.router);
 
   // --- Login publico; el resto de las rutas closer exige sesion verificada ---

@@ -1289,6 +1289,13 @@ export const API_ROUTES = {
   education: {
     journey: '/api/leads/education/journey',
     progress: '/api/leads/education/progress',
+    /** Login por OTP del lead (adenda A14): permite retomar F2.2 sin F1. */
+    auth: {
+      requestOtp: '/api/leads/education/auth/otp/request',
+      verifyOtp: '/api/leads/education/auth/otp/verify',
+      session: '/api/leads/education/auth/session',
+      logout: '/api/leads/education/auth/logout',
+    },
   },
   closer: {
     login: '/api/closer/auth/login',

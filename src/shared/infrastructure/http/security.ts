@@ -78,6 +78,34 @@ export const authRateLimiter = rateLimit({
 });
 
 /**
+ * OWASP A07: login por OTP del lead (F2.2, adenda A14). Pedir un codigo es lo
+ * caro de limitar (cada uno "envia" un mensaje, real en produccion): 5
+ * intentos / 15 minutos por IP alcanza para reintentar un typo de telefono o
+ * email sin abrir la puerta a bombardear un contacto ajeno de OTPs.
+ */
+export const otpRequestRateLimiter = rateLimit({
+  windowMs: 15 * MINUTO_MS,
+  limit: 5,
+  standardHeaders: 'draft-7',
+  legacyHeaders: false,
+  message: CUERPO_LIMITE_EXCEDIDO,
+});
+
+/**
+ * OWASP A07: verificar el OTP es lo que hay que frenar contra fuerza bruta
+ * sobre el espacio de 10^6 codigos. Mas laxo que pedirlo (10 vs 5): un usuario
+ * real puede tipear mal el codigo un par de veces sin toparse el limite antes
+ * que el bloqueo por intentos de `InMemoryLeadOtpStore`.
+ */
+export const otpVerifyRateLimiter = rateLimit({
+  windowMs: 15 * MINUTO_MS,
+  limit: 10,
+  standardHeaders: 'draft-7',
+  legacyHeaders: false,
+  message: CUERPO_LIMITE_EXCEDIDO,
+});
+
+/**
  * F5 (call-simulation): mas estricto que `publicRateLimiter` a proposito. Cada
  * turno de la llamada simulada cuesta tokens de DeepSeek Y caracteres de
  * Polly — un bucle accidental (o deliberado) ahi quema dinero real, no solo

@@ -1,0 +1,26 @@
+/**
+ * Puerto de busqueda inversa telefono/email -> leadId. Capa: application
+ * (puerto compartido). Existe SOLO para el login por OTP del lead (F2.2): sin
+ * el, la unica forma de identificar un lead es tener su `leadId` a mano
+ * (`localStorage`), y si el usuario cierra la pestana y lo pierde no hay forma
+ * de volver a su recorrido.
+ *
+ * Deliberadamente SEPARADO de `LeadRepository`: agregar aqui un metodo mas no
+ * toca el puerto que ya consumen F1/F2.1/F3/F4, ni sus dobles de test.
+ */
+
+import type { Result } from '../../kernel/result.js';
+
+export interface LeadContactInput {
+  readonly telefono: string | null;
+  readonly email: string | null;
+}
+
+export interface LeadContactLookupPort {
+  /**
+   * Resuelve el `leadId` dueno de un telefono o email. El mismo
+   * `NotFoundError` cubre "no existe" y "campo vacio": distinguirlos
+   * permitiria enumerar que telefonos/emails estan registrados (OWASP A07).
+   */
+  findLeadIdByContact(contact: LeadContactInput): Promise<Result<string>>;
+}

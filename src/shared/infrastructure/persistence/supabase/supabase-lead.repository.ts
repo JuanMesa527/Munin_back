@@ -80,6 +80,10 @@ export class SupabaseLeadRepository implements LeadRepository {
           base_payload: stored,
           carril: stored.carril,
           score: stored.score?.valor ?? null,
+          // Denormalizados SOLO para el lookup del login por OTP (F2.2);
+          // `base_payload` sigue siendo la fuente de verdad.
+          telefono: stored.telefono,
+          email: stored.email,
           updated_at: stored.updatedAt,
         },
         { onConflict: 'lead_id' },
@@ -129,6 +133,8 @@ export class SupabaseLeadRepository implements LeadRepository {
           carril: stored.carril,
           score: stored.score?.valor ?? null,
           intent_score: stored.intentScore,
+          telefono: stored.telefono,
+          email: stored.email,
           updated_at: stored.updatedAt,
         },
         { onConflict: 'lead_id' },

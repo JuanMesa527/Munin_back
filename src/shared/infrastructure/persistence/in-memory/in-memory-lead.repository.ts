@@ -72,4 +72,20 @@ export class InMemoryLeadRepository implements LeadRepository {
     const page = rankAndPageViableLeads(leads, filters, sort, pagina, porPagina);
     return Promise.resolve(ok(structuredClone(page)));
   }
+
+  /**
+   * Busqueda por telefono/email, SOLO para `InMemoryLeadContactLookup` (login
+   * por OTP de F2.2). Deliberadamente NO es parte de `LeadRepository`: es la
+   * unica forma de resolver un lead sin conocer su `leadId` de antemano, y
+   * agregarlo al puerto compartido obligaria a tocar cada doble de test de
+   * F1/F2.1/F3/F4 que implementa esa interfaz.
+   */
+  findByContact(contact: { telefono: string | null; email: string | null }): LeadProfile | null {
+    for (const perfil of this.perfiles.values()) {
+      const coincideTelefono = contact.telefono !== null && perfil.telefono === contact.telefono;
+      const coincideEmail = contact.email !== null && perfil.email === contact.email;
+      if (coincideTelefono || coincideEmail) return structuredClone(perfil);
+    }
+    return null;
+  }
 }
