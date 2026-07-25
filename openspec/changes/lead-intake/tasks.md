@@ -85,20 +85,20 @@ Phase 5's own diff swap that one line to `createLeadRepository(env)`; no duplica
 either way. `createLlmPort(env)` already exists pre-amendment, so the LLM half of 2.11 is
 unaffected.
 
-- [ ] 2.1 RED `tests/features/lead-intake/application/start-conversation.test.ts` — returns ephemeral, unpersisted profile.
-- [ ] 2.2 GREEN implement `application/start-conversation.use-case.ts`.
-- [ ] 2.3 RED `tests/features/lead-intake/application/submit-consent.test.ts` — server mints id, strips any client-supplied `leadId` (D6, threat matrix "client-controlled identifier"), `ConsentRequiredError` on decline/version mismatch, first `leads.save`.
-- [ ] 2.4 GREEN implement `application/submit-consent.use-case.ts`.
-- [ ] 2.5 RED `tests/features/lead-intake/application/process-conversation-turn.test.ts` — 3 carril outcomes (`viable`/`no_viable`/`null`); no-consent → `save` never called; injected-instruction free text → slot unchanged, re-ask (prompt-injection threat row); LLM low-confidence → re-ask; `StubLlmAdapter` completes the flow; `DataUnavailableError` → `carril:null`, `routing:null`, still `leads.save`. Spec: lead-intake-conversation DATA_UNAVAILABLE + Non-Classified Persisted; lead-intake-routing "Three Persisted Outcomes".
-- [ ] 2.6 GREEN implement `application/process-conversation-turn.use-case.ts`.
-- [ ] 2.7 RED `tests/features/lead-intake/interface/intake.dto.test.ts` — malformed body rejected, `texto` ≤500 chars. Spec: lead-intake-interface "Zod Validation at Every Endpoint".
-- [ ] 2.8 GREEN implement `interface/intake.dto.ts`.
-- [ ] 2.9 RED `tests/features/lead-intake/interface/intake.controller.test.ts` — malformed `/turn` never reaches use case; no raw PII/payload in logs; 61st request in window → 429; forced adapter failure → no stack/path in body. Spec: lead-intake-interface "No PII in Logs"; threat matrix "public-endpoint abuse", "information leakage in errors".
-- [ ] 2.10 GREEN implement `interface/intake.controller.ts` (`createIntakeRouter`, `publicRateLimiter`, `asyncHandler`, `sendOk`/`sendError`).
-- [ ] 2.11 GREEN implement `lead-intake.module.ts` (`createLeadIntakeModule(env): { router }` — no new port); construct the LLM port via `createLlmPort(env)` and the lead repository via `createLeadRepository(env)` (D10/D11 amendment — Phase 5) instead of hardcoding `StubLlmAdapter`/`InMemoryLeadRepository`; both factories default to `stub`/`memory`, so this task stays credential-free at test time. Spec: lead-intake-interface "Feature Isolation via Module Boundary".
-- [ ] 2.12 RED bootstrap test — `GET /api/health` responds without LLM key; only `lead-intake.module.ts` mounted, no F2–F4 wiring. Spec: app-bootstrap-back (both scenarios).
-- [ ] 2.13 GREEN implement `src/app.ts` (`security→logger→health→intake router→notFoundHandler→errorHandler` order).
-- [ ] 2.14 GREEN implement `src/main.ts` (`loadEnv → createApp → listen → SIGTERM`).
+- [x] 2.1 RED `tests/features/lead-intake/application/start-conversation.test.ts` — returns ephemeral, unpersisted profile.
+- [x] 2.2 GREEN implement `application/start-conversation.use-case.ts`.
+- [x] 2.3 RED `tests/features/lead-intake/application/submit-consent.test.ts` — server mints id, strips any client-supplied `leadId` (D6, threat matrix "client-controlled identifier"), `ConsentRequiredError` on decline/version mismatch, first `leads.save`.
+- [x] 2.4 GREEN implement `application/submit-consent.use-case.ts`.
+- [x] 2.5 RED `tests/features/lead-intake/application/process-conversation-turn.test.ts` — 3 carril outcomes (`viable`/`no_viable`/`null`); no-consent → `save` never called; injected-instruction free text → slot unchanged, re-ask (prompt-injection threat row); LLM low-confidence → re-ask; `StubLlmAdapter` completes the flow; `DataUnavailableError` → `carril:null`, `routing:null`, still `leads.save`. Spec: lead-intake-conversation DATA_UNAVAILABLE + Non-Classified Persisted; lead-intake-routing "Three Persisted Outcomes".
+- [x] 2.6 GREEN implement `application/process-conversation-turn.use-case.ts`.
+- [x] 2.7 RED `tests/features/lead-intake/interface/intake.dto.test.ts` — malformed body rejected, `texto` ≤500 chars. Spec: lead-intake-interface "Zod Validation at Every Endpoint".
+- [x] 2.8 GREEN implement `interface/intake.dto.ts`.
+- [x] 2.9 RED `tests/features/lead-intake/interface/intake.controller.test.ts` (+ dedicated `intake.controller.rate-limit.test.ts`, see Deviations note) — malformed `/turn` never reaches use case; no raw PII/payload in logs; 61st request in window → 429; forced adapter failure → no stack/path in body. Spec: lead-intake-interface "No PII in Logs"; threat matrix "public-endpoint abuse", "information leakage in errors".
+- [x] 2.10 GREEN implement `interface/intake.controller.ts` (`createIntakeRouter`, `publicRateLimiter`, `asyncHandler`, `sendOk`/`sendError`).
+- [x] 2.11 GREEN implement `lead-intake.module.ts` (`createLeadIntakeModule(env): { router }` — no new port). Deviation from this line's literal text (see apply-progress Deviations): wires `StubLlmAdapter`/`InMemoryLeadRepository` DIRECTLY instead of `createLlmPort(env)`/`createLeadRepository(env)`, per this work unit's explicit scope (Phase 5 lands `persistence.factory.ts` and swaps these two lines; `createLlmPort(env)` already exists but is intentionally not wired yet either, to keep both adapter choices consistent and swap together in Phase 5). Spec: lead-intake-interface "Feature Isolation via Module Boundary".
+- [x] 2.12 RED bootstrap test (`tests/app.test.ts`) — `GET /api/health` responds without LLM key; only `lead-intake.module.ts` mounted, no F2–F4 wiring. Spec: app-bootstrap-back (both scenarios).
+- [x] 2.13 GREEN implement `src/app.ts` (`security→logger→health→intake router→notFoundHandler→errorHandler` order).
+- [x] 2.14 GREEN implement `src/main.ts` (`loadEnv → createApp → listen → SIGTERM`).
 
 ## Phase 3: Frontend Feature Slice + Fixtures (Unit 3 · Munin_front)
 
