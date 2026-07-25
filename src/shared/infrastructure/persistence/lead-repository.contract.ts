@@ -30,6 +30,7 @@ export function leadProfile(id: string, score = 80, carril: Carril = 'viable'): 
     telefono: null,
     edad: null,
     estadoCivil: null,
+    ocupacion: 'Independiente',
     esAfiliado: true,
     rangoSalarial: '2-4 SMMLV',
     segmento: 'Basico',

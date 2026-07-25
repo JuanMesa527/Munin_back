@@ -28,9 +28,17 @@ const CAMPOS_IDENTIDAD = {
   telefono: '3001234567',
   edad: 30,
   estadoCivil: 'Soltero/a',
+  ocupacion: 'Empleado',
 } as const;
 
-const SLOTS_IDENTIDAD = ['nombre', 'email', 'telefono', 'edad', 'estadoCivil'] as const;
+const SLOTS_IDENTIDAD = [
+  'nombre',
+  'email',
+  'telefono',
+  'edad',
+  'estadoCivil',
+  'ocupacion',
+] as const;
 
 describe('getNextStep', () => {
   it('pregunta nombre primero cuando el perfil esta vacio', () => {
@@ -259,12 +267,12 @@ describe('computeProgress', () => {
     expect(computeProgress(perfilBase())).toBe(0);
   });
 
-  it('retorna ~0.45 con 5 de los 11 slots preguntados llenos (identidad)', () => {
+  it('retorna 0.5 con 6 de los 12 slots preguntados llenos (identidad)', () => {
     const perfil = perfilBase({
       ...CAMPOS_IDENTIDAD,
       slotsLlenos: [...SLOTS_IDENTIDAD],
     });
-    expect(computeProgress(perfil)).toBeCloseTo(5 / 11);
+    expect(computeProgress(perfil)).toBeCloseTo(6 / 12);
   });
 
   it('retorna 1 cuando los slots preguntados estan llenos', () => {

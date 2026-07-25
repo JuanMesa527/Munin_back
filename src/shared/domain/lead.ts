@@ -29,6 +29,7 @@ export function createEmptyLeadProfile(id: string, now: IsoDateTime): LeadProfil
     telefono: null,
     edad: null,
     estadoCivil: null,
+    ocupacion: null,
     esAfiliado: null,
     rangoSalarial: null,
     segmento: null,
@@ -95,6 +96,8 @@ function slotFieldValue(profile: LeadProfile, slot: Slot): unknown {
       return profile.edad;
     case 'estadoCivil':
       return profile.estadoCivil;
+    case 'ocupacion':
+      return profile.ocupacion;
     case 'afiliacion':
       return profile.esAfiliado;
     case 'rangoSalarial':

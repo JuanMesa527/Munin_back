@@ -171,8 +171,8 @@ export const ESTADOS_CIVILES: readonly string[] = [
 
 /**
  * Datos que la conversacion de F1 tiene que llenar.
- * Incluye identidad de contacto (nombre/email/telefono/edad/estadoCivil) +
- * los 8 campos de perfilamiento/scoring.
+ * Incluye identidad de contacto (nombre/email/telefono/edad/estadoCivil/
+ * ocupacion) + los 8 campos de perfilamiento/scoring.
  */
 export type Slot =
   | 'nombre'
@@ -180,6 +180,7 @@ export type Slot =
   | 'telefono'
   | 'edad'
   | 'estadoCivil'
+  | 'ocupacion'
   | 'afiliacion'
   | 'rangoSalarial'
   | 'segmento'
@@ -195,6 +196,7 @@ export const SLOTS: readonly Slot[] = [
   'telefono',
   'edad',
   'estadoCivil',
+  'ocupacion',
   'afiliacion',
   'rangoSalarial',
   'segmento',
@@ -342,8 +344,11 @@ export interface LeadProfile {
   email: string | null;
   /** Telefono normalizado (solo digitos). No viaja al dashboard del closer sin vault. */
   telefono: string | null;
+  /** Edad EXACTA declarada por el titular, no un tramo. */
   edad: number | null;
   estadoCivil: string | null;
+  /** Ocupacion declarada en texto libre, p. ej. `Independiente`. */
+  ocupacion: string | null;
 
   /** --- Se llena en la conversacion (F1) --- */
   esAfiliado: boolean | null;

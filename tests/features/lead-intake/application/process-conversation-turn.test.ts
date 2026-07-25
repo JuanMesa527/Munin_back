@@ -141,6 +141,7 @@ function perfilListoParaEnrutar(overrides: Partial<LeadProfile> = {}): LeadProfi
     telefono: '3001234567',
     edad: 30,
     estadoCivil: 'Soltero/a',
+    ocupacion: 'Empleado',
     esAfiliado: true,
     rangoSalarial: '4-6 SMMLV',
     segmentoFamiliar: 'Unipersonal',
@@ -153,6 +154,7 @@ function perfilListoParaEnrutar(overrides: Partial<LeadProfile> = {}): LeadProfi
       'telefono',
       'edad',
       'estadoCivil',
+      'ocupacion',
       'afiliacion',
       'rangoSalarial',
       'segmentoFamiliar',
@@ -190,7 +192,8 @@ function perfilListoParaAfiliacion(): LeadProfile {
     telefono: '3001234567',
     edad: 30,
     estadoCivil: 'Soltero/a',
-    slotsLlenos: ['nombre', 'email', 'telefono', 'edad', 'estadoCivil'],
+    ocupacion: 'Empleado',
+    slotsLlenos: ['nombre', 'email', 'telefono', 'edad', 'estadoCivil', 'ocupacion'],
   };
 }
 
