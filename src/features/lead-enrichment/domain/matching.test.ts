@@ -7,7 +7,7 @@
  */
 
 import { describe, expect, it } from 'vitest';
-import type { LeadProfile, ProjectCard } from '@contracts';
+import type { Factor, LeadProfile, ProjectCard } from '@contracts';
 import { LEADS_DEMO } from '../../../shared/infrastructure/persistence/demo-seed.js';
 import {
   cabeEnCapacidad,
@@ -115,7 +115,7 @@ describe('calcularFactores', () => {
   });
 
   it('gate de subsidio: si el lead YA tiene vivienda, la VIS pierde su argumento', () => {
-    const tipoVivienda = (lead: LeadProfile) =>
+    const tipoVivienda = (lead: LeadProfile): Factor =>
       calcularFactores(lead, ficha({ esVIS: true })).find((f) => f.nombre === 'Tipo de vivienda')!;
 
     // familia gana 2-4 SMMLV (bajo el tope del SFV): sin vivienda, la VIS aplica

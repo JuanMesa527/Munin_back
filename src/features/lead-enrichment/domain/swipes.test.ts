@@ -193,11 +193,26 @@ describe('enriquecerConSwipes', () => {
     );
 
     expect(enriched).toMatchObject({
-      edad: null,
-      ocupacion: null,
       hogar: expect.any(String),
       contactabilidad: expect.any(Array),
       timeline: expect.any(Array),
     });
+  });
+
+  it('arrastra edad y ocupacion declaradas en F1 en vez de anularlas', () => {
+    const lead = LEADS_DEMO[0]!;
+    const enriched = enriquecerConSwipes(
+      lead,
+      [swipe('favorito-1', 'favorito')],
+      '2026-07-25T11:00:00.000Z',
+    );
+
+    // Son datos DECLARADOS por el titular, no inferencias del swipe. Estaban
+    // fijados en `null`, y por eso la ficha del closer los mostraba como "—"
+    // aunque el chat los hubiera preguntado.
+    expect(enriched.edad).toBe(lead.edad);
+    expect(enriched.ocupacion).toBe(lead.ocupacion);
+    expect(enriched.edad).not.toBeNull();
+    expect(enriched.ocupacion).not.toBeNull();
   });
 });

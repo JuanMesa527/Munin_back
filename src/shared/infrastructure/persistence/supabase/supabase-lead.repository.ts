@@ -186,6 +186,19 @@ export class SupabaseLeadRepository implements LeadRepository {
 
       const leads: EnrichedLead[] = [];
       for (const row of data) {
+        // `carril = 'viable'` lo escribe F1; `enriched_payload` lo escribe F2.1
+        // al cerrar. Entre una cosa y la otra la fila existe con el payload en
+        // NULL: es un lead a mitad de camino, no una fila corrupta. Todavia no
+        // le pertenece al closer, asi que se omite.
+        //
+        // Antes caia en el `safeParse` de abajo y se llevaba por delante la
+        // consulta ENTERA: un solo usuario que se quedaba a medias dejaba el
+        // dashboard del closer en 503, sin un lead. `InMemoryLeadRepository`
+        // nunca tuvo el problema porque lista `enriquecidos`, no `viables`.
+        if (row.enriched_payload === null || row.enriched_payload === undefined) {
+          continue;
+        }
+
         const payload = EnrichedLeadPayloadSchema.safeParse(row.enriched_payload);
         if (!payload.success) {
           return unavailable(

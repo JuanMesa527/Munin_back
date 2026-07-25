@@ -198,8 +198,11 @@ export function enriquecerConSwipes(
     contacto: null,
     intentScore: calcularIntentScore(swipes),
     enriquecidoEn: ahora,
-    edad: null,
-    ocupacion: null,
+    // Vienen DECLARADOS de F1, no se infieren de los swipes. Estaban en `null`
+    // fijo: el titular daba su edad y su ocupacion en el chat y la ficha del
+    // closer los pintaba como "—", porque el enriquecimiento los pisaba aqui.
+    edad: lead.edad,
+    ocupacion: lead.ocupacion,
     hogar:
       lead.segmentoFamiliar ??
       (lead.personasACargo === null ? null : `${String(lead.personasACargo)} personas a cargo`),

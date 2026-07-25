@@ -30,6 +30,7 @@ export function leadProfile(id: string, score = 80, carril: Carril = 'viable'): 
     telefono: null,
     edad: null,
     estadoCivil: null,
+    ocupacion: 'Independiente',
     esAfiliado: true,
     rangoSalarial: '2-4 SMMLV',
     segmento: 'Basico',
@@ -166,6 +167,24 @@ export function runLeadRepositoryContract(
       expect(result.ok).toBe(true);
       if (result.ok) {
         expect(result.value.items.map((item) => item.leadId)).toEqual(['intent-90']);
+        expect(result.value.total).toBe(1);
+      }
+    });
+
+    it('un lead viable que aun no cerro F2.1 no rompe el listado', async () => {
+      const repository = createRepository();
+      await repository.saveEnriched(enrichedLead('ya-enriquecido', 90));
+      // Tal cual lo deja F1: `carril = 'viable'` y nada mas. El usuario todavia
+      // no paso por el enriquecimiento, asi que no hay vista enriquecida.
+      await repository.save(leadProfile('viable-sin-enriquecer', 85));
+
+      const result = await repository.listViable(NO_FILTERS, 'score_desc', 1, 20);
+
+      // El lead a medio camino no aparece (aun no es del closer), pero TAMPOCO
+      // tumba la consola: antes un solo lead asi dejaba el listado entero en 503.
+      expect(result.ok).toBe(true);
+      if (result.ok) {
+        expect(result.value.items.map((item) => item.leadId)).toEqual(['ya-enriquecido']);
         expect(result.value.total).toBe(1);
       }
     });

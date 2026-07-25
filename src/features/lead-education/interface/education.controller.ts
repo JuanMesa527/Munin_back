@@ -54,7 +54,7 @@ export function createEducationRouter(deps: EducationControllerDeps): Router {
         ocurridoEn: deps.clock.now(),
       };
 
-      const resultado = await deps.recordProgress.execute(body.leadId, evento);
+      const resultado = await deps.recordProgress.execute(body.leadId, evento, body.fechaObjetivo);
       if (!resultado.ok) {
         sendError(res, resultado.error);
         return;

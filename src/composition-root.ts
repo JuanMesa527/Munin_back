@@ -161,7 +161,9 @@ export async function createApp(env: AppEnv, server: Express = express()): Promi
   // --- Flujo publico del usuario final (sin login, autogestionado) ---
   // F1 lead-intake: comparte el MISMO `leads` que F2.1/F2.2 (son un solo flujo).
   // Su router aplica su propio rate limit dentro del modulo.
-  const intake = createLeadIntakeModule(env, { leads });
+  // `vault` es el MISMO que recibe el briefing (F4) mas abajo: F1 emite el
+  // token de contacto y F4 lo canjea. Dos instancias = "revelar contacto" roto.
+  const intake = createLeadIntakeModule(env, { leads, vault });
   server.use(intake.router);
 
   // F2.1 lead-enrichment: expande info del lead viable.
@@ -169,7 +171,7 @@ export async function createApp(env: AppEnv, server: Express = express()): Promi
   server.use(publicRateLimiter, enrichment.router);
 
   // F2.2 lead-education: camino gamificado de nutricion para leads no viables.
-  const education = createLeadEducationModule({ journeys, leads, catalog: catalogo, clock });
+  const education = createLeadEducationModule({ journeys, leads, catalog: catalogo, clock, ids });
   server.use(PREFIJO_EDUCATION, publicRateLimiter, education.router);
 
   // --- Login publico; el resto de las rutas closer exige sesion verificada ---

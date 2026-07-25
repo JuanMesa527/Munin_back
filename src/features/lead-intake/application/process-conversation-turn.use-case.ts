@@ -11,6 +11,7 @@
 
 import type { ConversationTurn, IsoDateTime, LeadProfile, Slot } from '@contracts';
 import type { ClockPort } from '@shared/application/ports/clock.port.js';
+import type { ContactVaultPort } from '@shared/application/ports/contact-vault.port.js';
 import type { DataCatalogPort } from '@shared/application/ports/data-catalog.port.js';
 import type { IdGeneratorPort } from '@shared/application/ports/id-generator.port.js';
 import type { LeadRepository } from '@shared/application/ports/lead-repository.port.js';
@@ -48,6 +49,11 @@ export interface ProcessConversationTurnDeps {
   readonly llm: LlmPort;
   readonly clock: ClockPort;
   readonly ids: IdGeneratorPort;
+  /**
+   * Boveda de contacto. Tiene que ser LA MISMA instancia que usa F4: el token
+   * que se emite aqui es el que el closer canjea al revelar el telefono.
+   */
+  readonly vault: ContactVaultPort;
   /** `env.privacyPolicyVersion`, inyectado desde `lead-intake.module.ts` (design.md D2). */
   readonly activePolicyVersion: string;
 }
@@ -208,6 +214,55 @@ export class ProcessConversationTurnUseCase {
     return this.persistirYContinuar(actualizado, respuestaBot);
   }
 
+  /**
+   * TODA escritura de F1 pasa por aqui, no por `leads.save` directo.
+   *
+   * El motivo es la tokenizacion de abajo: un `leads.save` suelto guarda el
+   * lead con `identidad = null`, y ese lead le llega al closer como "Lead sin
+   * nombre" y sin telefono que revelar. Es un fallo silencioso — nada explota,
+   * simplemente el dato no esta — asi que el unico modo de no repetirlo es que
+   * no exista otra puerta.
+   */
+  private async guardar(profile: LeadProfile): Promise<Result<LeadProfile>> {
+    const conIdentidad = await this.tokenizarContacto(profile);
+    if (!conIdentidad.ok) {
+      return conIdentidad;
+    }
+    return this.deps.leads.save(conIdentidad.value);
+  }
+
+  /**
+   * Cambia el contacto declarado por una `ContactIdentity` tokenizada.
+   *
+   * F1 captura `nombre` y `telefono` como slots planos, pero lo que circula
+   * hacia F3/F4 es `identidad`: nombre + telefono ENMASCARADO + token opaco
+   * (minimizacion de datos, Ley 1581 art. 4). Sin este paso el vault nunca
+   * recibe el dato real y `RevealContactUseCase` no tiene token que canjear.
+   *
+   * Se hace una sola vez por lead (`identidad !== null` corta) para no emitir
+   * un token nuevo en cada turno de la conversacion.
+   */
+  private async tokenizarContacto(profile: LeadProfile): Promise<Result<LeadProfile>> {
+    if (profile.identidad !== null) {
+      return ok(profile);
+    }
+    // Todavia no estan los dos slots: se guarda el perfil como esta y se
+    // tokenizara en el turno que complete el par.
+    if (profile.nombre === null || profile.telefono === null) {
+      return ok(profile);
+    }
+
+    const identidad = await this.deps.vault.store({
+      nombre: profile.nombre,
+      telefono: profile.telefono,
+    });
+    if (!identidad.ok) {
+      return identidad;
+    }
+
+    return ok({ ...profile, identidad: identidad.value });
+  }
+
   private async persistirYContinuar(
     profile: LeadProfile,
     respuestaBot: string | null,
@@ -216,7 +271,7 @@ export class ProcessConversationTurnUseCase {
       return this.finalize(profile);
     }
 
-    const guardado = await this.deps.leads.save(profile);
+    const guardado = await this.guardar(profile);
     if (!guardado.ok) {
       return guardado;
     }
@@ -293,7 +348,7 @@ export class ProcessConversationTurnUseCase {
       updatedAt: now,
     };
 
-    const guardado = await this.deps.leads.save(perfilFinal);
+    const guardado = await this.guardar(perfilFinal);
     if (!guardado.ok) {
       return guardado;
     }
@@ -332,7 +387,7 @@ export class ProcessConversationTurnUseCase {
       updatedAt: now,
     };
 
-    const guardado = await this.deps.leads.save(perfilFinal);
+    const guardado = await this.guardar(perfilFinal);
     if (!guardado.ok) {
       return guardado;
     }

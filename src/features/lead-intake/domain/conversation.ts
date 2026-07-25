@@ -43,7 +43,15 @@ import { err, ok } from '@shared/kernel/result.js';
 export type SlotValue =
   | { slot: 'afiliacion' | 'viviendaPropia'; valor: boolean }
   | {
-      slot: 'nombre' | 'email' | 'telefono' | 'estadoCivil' | 'rangoSalarial' | 'ciudad' | 'segmentoFamiliar';
+      slot:
+        | 'nombre'
+        | 'email'
+        | 'telefono'
+        | 'estadoCivil'
+        | 'ocupacion'
+        | 'rangoSalarial'
+        | 'ciudad'
+        | 'segmentoFamiliar';
       valor: string;
     }
   | { slot: 'segmento'; valor: Segmento }
@@ -65,6 +73,7 @@ type AskedSlot =
   | 'telefono'
   | 'edad'
   | 'estadoCivil'
+  | 'ocupacion'
   | 'afiliacion'
   | 'viviendaPropia'
   | 'rangoSalarial'
@@ -90,6 +99,7 @@ const ASKED_SLOTS: readonly AskedSlot[] = [
   'telefono',
   'edad',
   'estadoCivil',
+  'ocupacion',
   'afiliacion',
   'viviendaPropia',
   'rangoSalarial',
@@ -103,6 +113,17 @@ const ASKED_SLOTS: readonly AskedSlot[] = [
 
 /** Ciudades sugeridas como chips. `permiteTextoLibre` sigue habilitado: no es exhaustivo. */
 const CIUDADES_SUGERIDAS: readonly string[] = ['Bogotá', 'Medellín', 'Cali', 'Barranquilla'];
+
+/**
+ * Ocupaciones sugeridas como chips. Igual que las ciudades: son un atajo de UI,
+ * no un vocabulario cerrado — `parseOcupacion` acepta cualquier texto.
+ */
+const OCUPACIONES_SUGERIDAS: readonly string[] = [
+  'Empleado',
+  'Independiente',
+  'Pensionado',
+  'Estudiante',
+];
 
 /**
  * Los chips de ahorro son un atajo de UI: el dato que entra al dominio es el
@@ -174,19 +195,29 @@ function copyFor(slot: AskedSlot): { texto: string; quickReplies: QuickReply[] }
         quickReplies: [],
       };
     case 'edad':
+      // SIN chips a proposito. Los tramos ('26-35' -> 30) guardaban un valor
+      // representativo, no la edad del titular: la ficha del closer decia "30
+      // años" de alguien de 27. Es un dato declarado, no una estimacion, y
+      // ademas alimenta el subsidio de F2.2 — se pregunta exacto.
       return {
-        texto: '¿Cuántos años tienes?',
-        quickReplies: [
-          { label: '18-25', value: '22' },
-          { label: '26-35', value: '30' },
-          { label: '36-45', value: '40' },
-          { label: '46 o más', value: '50' },
-        ],
+        texto: '¿Cuántos años tienes exactamente?',
+        quickReplies: [],
       };
     case 'estadoCivil':
       return {
         texto: '¿Cuál es tu estado civil?',
         quickReplies: ESTADOS_CIVILES.map((estado) => ({ label: estado, value: estado })),
+      };
+    case 'ocupacion':
+      // Chips como atajo, texto libre igual de valido (`permiteTextoLibre`):
+      // "Rappitendero" o "Contratista del Estado" tienen que poder entrar tal
+      // cual. El contrato la tipa `string | null`, no como vocabulario cerrado.
+      return {
+        texto: '¿A qué te dedicas?',
+        quickReplies: OCUPACIONES_SUGERIDAS.map((ocupacion) => ({
+          label: ocupacion,
+          value: ocupacion,
+        })),
       };
     case 'afiliacion':
       return {
@@ -341,6 +372,22 @@ function parseCiudad(texto: string): Result<SlotValue, ValidationError> {
   return ok({ slot: 'ciudad', valor: texto });
 }
 
+function parseOcupacion(texto: string): Result<SlotValue, ValidationError> {
+  if (texto.length === 0) {
+    return err(
+      new ValidationError('La ocupación no puede estar vacía', { ocupacion: 'requerido' }),
+    );
+  }
+  if (texto.length > 80) {
+    return err(
+      new ValidationError('La ocupación es demasiado larga', {
+        ocupacion: 'máximo 80 caracteres',
+      }),
+    );
+  }
+  return ok({ slot: 'ocupacion', valor: texto });
+}
+
 function parseNombre(texto: string): Result<SlotValue, ValidationError> {
   if (texto.length < 2) {
     return err(new ValidationError('El nombre es demasiado corto', { nombre: 'mínimo 2 caracteres' }));
@@ -463,6 +510,8 @@ export function parseAnswer(slot: Slot, texto: string): Result<SlotValue, Valida
         slot: 'estadoCivil',
         valor,
       }));
+    case 'ocupacion':
+      return parseOcupacion(normalizado);
     case 'afiliacion':
       return parseBooleano(normalizado, 'afiliacion', 'afiliación');
     case 'viviendaPropia':
@@ -521,6 +570,8 @@ function applyDirectValue(profile: LeadProfile, valor: SlotValue): LeadProfile {
       return { ...profile, edad: valor.valor };
     case 'estadoCivil':
       return { ...profile, estadoCivil: valor.valor };
+    case 'ocupacion':
+      return { ...profile, ocupacion: valor.valor };
     case 'afiliacion':
       return { ...profile, esAfiliado: valor.valor };
     case 'viviendaPropia':

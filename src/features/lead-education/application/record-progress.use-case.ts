@@ -9,33 +9,59 @@
  * explicable. Aqui solo se orquesta y se persiste.
  */
 
-import type { EducationJourney, ProgressEvent } from '@contracts';
+import type { EducationJourney, IsoDateTime, ProgressEvent } from '@contracts';
 import type {
   ClockPort,
   EducationJourneyRepository,
+  IdGeneratorPort,
   LeadRepository,
 } from '@shared/application/ports/index.js';
+import { ValidationError } from '@shared/kernel/errors.js';
 import type { Result } from '@shared/kernel/result.js';
 import { err, ok } from '@shared/kernel/result.js';
-import { trackProgress } from '../domain/journey.js';
+import { configureFechaObjetivo, trackProgress } from '../domain/journey.js';
 
 export interface RecordProgressDeps {
   readonly journeys: EducationJourneyRepository;
   readonly leads: LeadRepository;
   readonly clock: ClockPort;
+  readonly ids: IdGeneratorPort;
 }
 
 export class RecordProgressUseCase {
   constructor(private readonly deps: RecordProgressDeps) {}
 
-  async execute(leadId: string, event: ProgressEvent): Promise<Result<EducationJourney>> {
+  /**
+   * `fechaObjetivo` es OPCIONAL y ortogonal al evento: cuando viaja, configura
+   * la fecha limite de `event.metaId` (via `configureFechaObjetivo`, que NO
+   * toca `alcanzado`/`completada`/`aportes`) ADEMAS de aplicar el evento de
+   * progreso normal. Son dos actualizaciones independientes sobre el mismo
+   * journey, encadenadas antes de un unico `save`.
+   */
+  async execute(
+    leadId: string,
+    event: ProgressEvent,
+    fechaObjetivo?: IsoDateTime | null,
+  ): Promise<Result<EducationJourney>> {
     const actual = await this.deps.journeys.findByLeadId(leadId);
     if (!actual.ok) {
       return err(actual.error);
     }
 
-    const yaEraViable = actual.value.reclasificadoAViable;
-    const actualizado = trackProgress(actual.value, event, this.deps.clock.now());
+    const now = this.deps.clock.now();
+    let journey = actual.value;
+
+    if (fechaObjetivo !== undefined && fechaObjetivo !== null) {
+      if (event.metaId === null) {
+        return err(
+          new ValidationError('fechaObjetivo requiere una meta', { metaId: 'requerido' }),
+        );
+      }
+      journey = configureFechaObjetivo(journey, event.metaId, fechaObjetivo, now);
+    }
+
+    const yaEraViable = journey.reclasificadoAViable;
+    const actualizado = trackProgress(journey, event, now, this.deps.ids.newId());
 
     const guardado = await this.deps.journeys.save(actualizado);
     if (!guardado.ok) {

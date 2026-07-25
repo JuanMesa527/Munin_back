@@ -74,6 +74,10 @@ const LeadProfileObjectSchema = z.strictObject({
   telefono: z.string().nullable(),
   edad: z.number().nullable(),
   estadoCivil: z.string().nullable(),
+  // `.default(null)` y no solo `.nullable()`: los leads guardados ANTES de que
+  // existiera este slot no traen la clave, y sin el default `strictObject` los
+  // rechazaria al releerlos — cada lead viejo se volveria un 503.
+  ocupacion: z.string().nullable().default(null),
   esAfiliado: z.boolean().nullable(),
   rangoSalarial: z.string().nullable(),
   segmento: z.enum(['Basico', 'Medio', 'Alto', 'Joven']).nullable(),

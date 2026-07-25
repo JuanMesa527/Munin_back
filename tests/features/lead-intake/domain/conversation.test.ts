@@ -28,9 +28,17 @@ const CAMPOS_IDENTIDAD = {
   telefono: '3001234567',
   edad: 30,
   estadoCivil: 'Soltero/a',
+  ocupacion: 'Empleado',
 } as const;
 
-const SLOTS_IDENTIDAD = ['nombre', 'email', 'telefono', 'edad', 'estadoCivil'] as const;
+const SLOTS_IDENTIDAD = [
+  'nombre',
+  'email',
+  'telefono',
+  'edad',
+  'estadoCivil',
+  'ocupacion',
+] as const;
 
 /** Señales de elegibilidad/bancabilidad/timing agregadas al flujo. */
 const SLOTS_SENALES = ['viviendaPropia', 'vinculacionLaboral', 'horizonteCompra'] as const;
@@ -304,12 +312,12 @@ describe('computeProgress', () => {
     expect(computeProgress(perfilBase())).toBe(0);
   });
 
-  it('retorna ~0.36 con 5 de los 14 slots preguntados llenos (identidad)', () => {
+  it('retorna 0.4 con 6 de los 15 slots preguntados llenos (identidad)', () => {
     const perfil = perfilBase({
       ...CAMPOS_IDENTIDAD,
       slotsLlenos: [...SLOTS_IDENTIDAD],
     });
-    expect(computeProgress(perfil)).toBeCloseTo(5 / 14);
+    expect(computeProgress(perfil)).toBeCloseTo(6 / 15);
   });
 
   it('retorna 1 cuando los slots preguntados estan llenos', () => {
