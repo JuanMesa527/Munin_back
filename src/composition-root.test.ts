@@ -36,6 +36,13 @@ const TEST_ENV: AppEnv = {
   projectProfilesPath: './data/project_profiles.json',
   projectsCatalogPath: './data/projects_catalog.json',
   privacyPolicyVersion: 'demo-v1',
+  callSimProvider: 'stub',
+  speechProvider: 'none',
+  awsRegion: 'us-east-1',
+  pollyEngine: 'generative',
+  pollyVoiceFemale: 'Mia',
+  pollyVoiceMale: 'Andres',
+  transcriptionProvider: 'none',
 };
 
 async function request(
@@ -79,7 +86,9 @@ afterEach(async () => {
 describe('createApp', () => {
   it('integra summary, lista, briefing y reveal de un contacto ficticio', async () => {
     const { server } = await createApp(TEST_ENV);
-    const leadId = 'demo-familia-soacha';
+    // UUID del lead de demo (`LEADS_DEMO[0]`): la columna `id` de Supabase es
+    // `uuid` y el slug viejo la rompia.
+    const leadId = '8f14e45f-ce0a-4d1b-9a6f-1c0a2b3d4e51';
 
     const login = await request(
       server,

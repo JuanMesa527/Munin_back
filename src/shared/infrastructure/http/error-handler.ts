@@ -24,6 +24,19 @@ export function notFoundHandler(req: Request, res: Response): void {
 }
 
 /**
+ * `body-parser` marca este caso con `type: 'entity.too.large'`. Se mira esa
+ * propiedad y no el `message`, que cambia entre versiones.
+ */
+function esPayloadDemasiadoGrande(err: unknown): boolean {
+  return (
+    typeof err === 'object' &&
+    err !== null &&
+    'type' in err &&
+    err.type === 'entity.too.large'
+  );
+}
+
+/**
  * Firma de 4 argumentos: asi es como Express 5 reconoce un middleware de error.
  * No la cambies ni le quites `next`, o Express lo tratara como middleware normal.
  */
@@ -41,6 +54,19 @@ export function errorHandler(err: unknown, req: Request, res: Response, next: Ne
 
   if (isDomainError(err)) {
     sendError(res, err);
+    return;
+  }
+
+  // Body que excede el techo de `express.json`. Es un fallo DEL CLIENTE y sale
+  // del body parser, no de un controller, asi que sin este caso caia en el 500
+  // generico de abajo: el front recibia "error inesperado" cuando el problema
+  // era el tamano de lo que mando y podia corregirlo.
+  if (esPayloadDemasiadoGrande(err)) {
+    sendError(
+      res,
+      new DomainError('PAYLOAD_TOO_LARGE', 'El contenido enviado es demasiado grande.'),
+      413,
+    );
     return;
   }
 

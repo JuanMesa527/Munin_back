@@ -71,6 +71,35 @@
  *      rompen a F1/F2.1/F3/F4, que pueden ignorarlos. El scoring y la
  *      reclasificacion siguen siendo deterministas (glass-box); estos tipos
  *      solo describen la presentacion del recorrido, no deciden nada.
+ *  A11. F5 · call-simulation — AGREGADO. Entrenador de cierre por voz: el
+ *      closer practica la llamada con un lead simulado antes de marcar de
+ *      verdad. `API_ROUTES.closer.call` pasa de string a `{start,turn,end}`.
+ *      Nuevos tipos: `CallDifficulty`, `CallMood`, `CallOutcome`,
+ *      `SimulatedVoice`, `CallTurnAudio`, `CallTurn`, `PersonaContext`,
+ *      `CallSimulationSession`, `CallScorecard`.
+ *  A12. F5 · transcripcion del closer — AGREGADO. La Web Speech API del
+ *      navegador NO es un motor local: es un mando a distancia al servicio en
+ *      la nube de cada fabricante. Chrome habla con el de Google y funciona;
+ *      Edge enruta al suyo y en macOS devuelve `network` siempre; Firefox no
+ *      la implementa. Como el dictado tiene que servir en cualquier navegador,
+ *      la transcripcion pasa a ser NUESTRA: el front captura PCM crudo con
+ *      Web Audio API (universal) y el backend la resuelve.
+ *      `API_ROUTES.closer.call` gana `transcribe`. Nuevos tipos:
+ *      `UtteranceAudio`, `TranscriptionResult`.
+ *  A13. F5 · `CallScorecard` gana `factores: Factor[]` — AGREGADO. El puntaje
+ *      es una media ponderada (55% interes, 25% guion, 20% objeciones) y sin
+ *      el desglose el dial parece contradecir al `interesFinal` que se muestra
+ *      al lado. Reutiliza el `Factor` del scoring de leads: es el mismo
+ *      compromiso glass-box, y el front ya sabe dibujarlo con `FactorBars`.
+ *  A14. F5 · grabacion y highlights — AGREGADO. La llamada se guarda entera
+ *      (transcripcion + audio) y un LLM redacta el analisis. Nuevos tipos:
+ *      `CallHighlightTipo`, `CallHighlight`, `CallHighlights`,
+ *      `CallRecordingRef`, `CallRecord`. `CallScorecard` gana `highlights`.
+ *
+ *      GLASS-BOX: los highlights son NARRATIVA (el LLM redacta sobre hechos ya
+ *      calculados), nunca aritmetica. `outcome` y `puntaje` los sigue
+ *      decidiendo `verdict.ts`. Si el LLM falla, `highlights` es `null` y el
+ *      veredicto se muestra igual.
  * ============================================================================
  */
 
@@ -784,7 +813,246 @@ export interface BriefingSheet {
 }
 
 /* ==========================================================================
- *  10. Datos calibrados (salida del pipeline offline de `analysis/`)
+ *  10. F5 · call-simulation — entrenador de cierre
+ *
+ *  Roleplay de voz para que el closer practique la llamada ANTES de marcar de
+ *  verdad. NO es telefonia: nadie se marca, `revealContact` no interviene.
+ *
+ *  GLASS-BOX (regla 12), igual que el resto del contrato: el LLM detras de
+ *  `CallSimulatorPort` (nuevo, separado de `LlmPort`) solo interpreta a la
+ *  persona turno a turno; el `outcome` y el `puntaje` de `CallScorecard` los
+ *  calcula una funcion pura determinista a partir de la senal que el LLM
+ *  reporta (`interes`, `mood`, objeciones), nunca el LLM directamente.
+ *
+ *  SIN PII: `PersonaContext` es un recorte del `BriefingSheet` sin telefono,
+ *  sin apellidos y sin documento — es lo unico que via a un prompt de LLM.
+ * ========================================================================== */
+
+/** Que tan dificil de convencer es el lead simulado. Elegido antes de llamar. */
+export type CallDifficulty = 'receptivo' | 'realista' | 'dificil';
+
+/** Estado de animo del lead simulado en un turno. Lo reporta el LLM, validado con zod. */
+export type CallMood = 'frio' | 'neutral' | 'interesado' | 'entusiasta' | 'molesto';
+
+/** Resultado de la llamada. Lo decide `verdict.ts` (dominio puro), no el LLM. */
+export type CallOutcome = 'agenda_visita' | 'lo_piensa' | 'no_cierra' | 'colgo';
+
+/** Voz de Polly asignada a la sesion. No existe `es-CO`: se usa `es-MX`/`es-US`. */
+export interface SimulatedVoice {
+  voiceId: string;
+  engine: 'generative' | 'neural' | 'standard';
+  languageCode: string;
+}
+
+/** Audio sintetizado de una replica. `null` cuando Polly no esta disponible. */
+export interface CallTurnAudio {
+  /** MP3 codificado en base64: un solo round-trip, sin storage ni URLs firmadas. */
+  base64: string;
+  contentType: 'audio/mpeg';
+  /** Estimada por conteo de caracteres, no medida: anima el indicador de "hablando". */
+  duracionMs: number;
+}
+
+/** Un turno de la llamada simulada: lo que dijo el closer + como respondio el lead. */
+export interface CallTurn {
+  indice: number;
+  closerDijo: string;
+  leadRespondio: string;
+  /** `null` si `SPEECH_PROVIDER=none` o si Polly fallo: la UI cae a solo texto. */
+  audio: CallTurnAudio | null;
+  mood: CallMood;
+  /** 0-100, acumulado. Sube o baja segun `temperature.ts`. */
+  interes: number;
+  objecionesPlanteadas: string[];
+  objecionesResueltas: string[];
+  /** Indices contra `BriefingSheet.talkingPoints` que este turno cubrio. */
+  talkingPointsUsados: number[];
+  ocurridoEn: IsoDateTime;
+}
+
+/**
+ * Recorte SIN PII del `BriefingSheet`, para que el backend no dependa de
+ * `LeadRepository` (los leads de la demo del front no existen ahi). Solo
+ * primer nombre + atributos de perfil; nunca telefono ni apellidos.
+ */
+export interface PersonaContext {
+  primerNombre: string;
+  edad: number | null;
+  ocupacion: string | null;
+  ciudad: string | null;
+  hogar: string | null;
+  ingresosSmmlv: number | null;
+  segmento: Segmento | null;
+  motivacion: string | null;
+  intereses: string[];
+  citaTextual: string | null;
+  objeciones: ObjecionSugerida[];
+  talkingPoints: TalkingPoint[];
+}
+
+/** Sesion de llamada recien iniciada: el saludo del lead ya viene sintetizado. */
+export interface CallSimulationSession {
+  callId: string;
+  leadId: string;
+  dificultad: CallDifficulty;
+  voz: SimulatedVoice;
+  apertura: CallTurn;
+  interes: number;
+  iniciadaEn: IsoDateTime;
+}
+
+/**
+ * Veredicto al colgar. Lo arma `verdict.ts` (dominio puro, testeado) a partir
+ * de la sesion completa: es la pieza que responde "¿de verdad se cierra con
+ * esta ficha?" ante el jurado con aritmetica auditable, no con la opinion de
+ * un modelo.
+ */
+export interface CallScorecard {
+  outcome: CallOutcome;
+  puntaje: number;
+  interesFinal: number;
+  /** Interes turno a turno, para graficar la curva. */
+  curvaInteres: number[];
+  talkingPointsUsados: number[];
+  talkingPointsIgnorados: number[];
+  objecionesResueltas: string[];
+  objecionesVivas: string[];
+  duracionSegundos: number;
+  turnos: number;
+  explicacion: string;
+  /**
+   * Desglose del `puntaje`, mismo contrato de glass-box que `ScoreResult.factores`
+   * (regla 12). Adenda A13.
+   *
+   * SIN ESTO el veredicto miente por omision: la UI mostraba un dial de "54"
+   * al lado de la frase "interes final de 70/100" y no habia forma de saber
+   * por que no coinciden — el puntaje mide al CLOSER (interes que logro +
+   * guion que cubrio + objeciones que resolvio), no el interes del lead.
+   */
+  factores: Factor[];
+  /** Incumplimientos detectados, p. ej. prometer "aprobado". Nunca vacio en falso. */
+  alertas: string[];
+  /**
+   * Analisis redactado por el LLM (adenda A14). `null` cuando no se pudo
+   * generar: el veredicto NUNCA depende de esto para mostrarse.
+   */
+  highlights: CallHighlights | null;
+}
+
+/**
+ * Un tramo de voz del CLOSER, listo para transcribir. Adenda A12.
+ *
+ * PCM 16-bit con signo, little-endian, MONO. Ese formato y no un contenedor
+ * (WebM/MP4) por dos razones: es lo que aceptan los motores de transcripcion
+ * sin transcodificar, y es lo unico que todos los navegadores pueden producir
+ * igual — `MediaRecorder` da WebM en Chrome/Edge/Firefox pero MP4 en Safari,
+ * mientras que Web Audio API entrega las muestras crudas en todos.
+ *
+ * SIN PII: es la voz del comercial practicando, nunca la del titular. No se
+ * persiste — se transcribe y se descarta en la misma request.
+ */
+export interface UtteranceAudio {
+  /** Las muestras PCM codificadas en base64. */
+  base64: string;
+  /** Muestras por segundo, p. ej. 16000. El motor lo necesita explicito. */
+  sampleRate: number;
+}
+
+/** Lo que el closer dijo, ya en texto. Vacio si no se entendio nada. */
+export interface TranscriptionResult {
+  texto: string;
+}
+
+/* ==========================================================================
+ *  10.b F5 · grabacion y highlights de la llamada (adenda A14)
+ * ========================================================================== */
+
+/**
+ * Que clase de hallazgo es. El front colorea y agrupa por esto, asi que es un
+ * union cerrado y no un `string` libre.
+ */
+export type CallHighlightTipo =
+  /** El turno donde el interes dio el mayor salto, y por que. */
+  | 'momento_clave'
+  /** Donde la conversacion se estanco o el interes cayo. */
+  | 'momento_perdido'
+  /** La frase del closer que mejor funciono, citada textual. */
+  | 'acierto'
+  /** El error mas costoso, con la alternativa concreta. */
+  | 'error'
+  /** Lo que el lead pidio y nunca recibio. Incluye peticiones fuera del guion. */
+  | 'objecion_sin_resolver'
+  /** Promesa indebida ("esta aprobado", "garantizado"), con el turno exacto. */
+  | 'cumplimiento';
+
+export interface CallHighlight {
+  tipo: CallHighlightTipo;
+  /** Titular corto, escaneable de un vistazo. */
+  titulo: string;
+  /** El detalle: que paso y por que importa. 1-3 frases. */
+  detalle: string;
+  /** Indice del `CallTurn` al que se refiere. `null` si es transversal. */
+  turno: number | null;
+  /** Cita TEXTUAL de ese turno. Es lo que hace verificable el hallazgo. */
+  cita: string | null;
+  /** Solo en `error` y `objecion_sin_resolver`: que decir la proxima vez. */
+  sugerencia: string | null;
+}
+
+/**
+ * Analisis redactado por el LLM sobre la transcripcion ya cerrada.
+ *
+ * Es un tipo aparte y no un `CallHighlight[]` suelto para poder trazar QUIEN
+ * lo redacto: un analisis de hace dos semanas hecho por otro modelo no se
+ * interpreta igual que el de hoy.
+ */
+export interface CallHighlights {
+  items: CallHighlight[];
+  /** Dos o tres frases de cierre para el closer. Lo unico que muchos leeran. */
+  resumen: string;
+  /** Modelo que lo redacto, p. ej. `deepseek-v4-flash`. Auditabilidad. */
+  generadoPor: string;
+  generadoEn: IsoDateTime;
+}
+
+/** Puntero al audio de UN turno dentro del bucket. Nunca una URL publica. */
+export interface CallRecordingRef {
+  turno: number;
+  /** Quien habla: el comercial en entrenamiento o el lead simulado. */
+  quien: 'closer' | 'lead';
+  /** Ruta dentro del bucket. Se resuelve a URL firmada al reproducir. */
+  path: string;
+  /** `audio/pcm` para el closer (crudo), `audio/mpeg` para Polly. */
+  contentType: 'audio/pcm' | 'audio/mpeg';
+  /** Solo para el PCM del closer: sin esto el audio no se puede reproducir. */
+  sampleRate: number | null;
+}
+
+/**
+ * La llamada completa, tal como queda guardada. Es el registro historico:
+ * permite volver a escuchar, releer y comparar entrenamientos.
+ *
+ * DATO PERSONAL: `grabaciones` apunta a la voz del COMERCIAL (no la del
+ * titular — el lead es sintetico). Aun asi es un dato de una persona real y
+ * por eso vive en un bucket privado, se sirve con URL firmada y nunca se
+ * expone en un DTO publico.
+ */
+export interface CallRecord {
+  callId: string;
+  leadId: string;
+  dificultad: CallDifficulty;
+  /** La conversacion completa, turno a turno, SIN el audio embebido. */
+  transcripcion: CallTurn[];
+  scorecard: CallScorecard;
+  /** `null` si el LLM no estaba disponible: el registro se guarda igual. */
+  highlights: CallHighlights | null;
+  grabaciones: CallRecordingRef[];
+  iniciadaEn: IsoDateTime;
+  terminadaEn: IsoDateTime;
+}
+
+/* ==========================================================================
+ *  11. Datos calibrados (salida del pipeline offline de `analysis/`)
  * ========================================================================== */
 
 /**
@@ -895,7 +1163,7 @@ export interface ProjectCard {
 }
 
 /* ==========================================================================
- *  11. Envoltura de API — acuerdo backend <-> frontend
+ *  12. Envoltura de API — acuerdo backend <-> frontend
  * ========================================================================== */
 
 export interface ApiError {
@@ -941,7 +1209,14 @@ export const API_ROUTES = {
     session: '/api/closer/auth/session',
     leads: '/api/closer/leads',
     briefing: '/api/closer/leads/briefing',
-    call: '/api/closer/leads/call',
+    /** F5 · llamada simulada de entrenamiento. Adenda A11. */
+    call: {
+      start: '/api/closer/leads/call/start',
+      turn: '/api/closer/leads/call/turn',
+      end: '/api/closer/leads/call/end',
+      /** Voz del closer -> texto. Nuestra, no la del navegador (adenda A12). */
+      transcribe: '/api/closer/leads/call/transcribe',
+    },
     /** Revela el telefono real. Accion auditada (F4). Adenda A8. */
     revealContact: '/api/closer/leads/reveal-contact',
   },
