@@ -39,9 +39,18 @@ const DEEPSEEK_URL = 'https://api.deepseek.com/chat/completions';
 const TIMEOUT_MS = 8_000;
 
 const ExtractSlotValueSchema = z.object({
-  valor: z.string().max(120).nullable(),
+  // El prompt pide un string, pero para slots boolean-like (si/no) DeepSeek
+  // suele devolver el tipo JSON nativo (`true`/`false`) en vez de la cadena
+  // "true"/"false" — comportamiento verificado contra la API real. Se acepta
+  // string|number|boolean y se normaliza a string en `parseExtractSlotValueContent`:
+  // el contrato de `LlmPort` exige `string | null`, y `parseAnswer` (domain)
+  // espera texto, nunca un tipo JSON crudo.
+  valor: z.union([z.string(), z.number(), z.boolean()]).nullable(),
   confianza: z.number().min(0).max(1),
 });
+
+/** Mismo limite que antes (120 chars): acota lo que entra al parser puro. */
+const LARGO_MAXIMO_VALOR = 120;
 
 const WriteExplanationSchema = z.string().trim().min(1).max(400);
 
@@ -91,7 +100,12 @@ export function parseExtractSlotValueContent(
     );
   }
 
-  return ok(validado.data);
+  const valor = validado.data.valor === null ? null : String(validado.data.valor);
+  if (valor !== null && valor.length > LARGO_MAXIMO_VALOR) {
+    return err(new ValidationError('El valor extraido por DeepSeek es demasiado largo'));
+  }
+
+  return ok({ valor, confianza: validado.data.confianza });
 }
 
 /** Igual que arriba, para `writeExplanation`: texto plano, no JSON. */

@@ -35,7 +35,10 @@ const EnvSchema = z.object({
   ANTHROPIC_API_KEY: z.string().trim().default(''),
   LLM_MODEL: z.string().trim().min(1).default('claude-sonnet-5'),
   DEEPSEEK_API_KEY: z.string().trim().default(''),
-  DEEPSEEK_MODEL: z.string().trim().min(1).default('deepseek-chat'),
+  // Verificado contra la API real (2026-07-25): "deepseek-chat" responde
+  // invalid_request_error para esta cuenta, exige deepseek-v4-pro/-flash.
+  // "flash" es el default: rapido y barato, apropiado para extraer un slot.
+  DEEPSEEK_MODEL: z.string().trim().min(1).default('deepseek-v4-flash'),
 
   CLOSER_SESSION_SECRET: z.string().min(1, 'falta el secreto de sesion del closer'),
   CLOSER_SESSION_TTL_MINUTES: z.coerce.number().int().positive().max(1440).default(480),
