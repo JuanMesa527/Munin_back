@@ -92,6 +92,19 @@ const EnvSchema = z.object({
    * Amazon Transcribe Streaming con las MISMAS credenciales que Polly.
    */
   TRANSCRIPTION_PROVIDER: z.enum(['none', 'aws']).default('none'),
+
+  /**
+   * Envio real del OTP del lead (F2.2, adenda A14). `mock` (default) loguea
+   * el envio sin tocar red, igual que `LLM_PROVIDER=stub`; `smtp` manda un
+   * correo real (pensado para Gmail con "contrasena de aplicacion").
+   */
+  EMAIL_PROVIDER: z.enum(['mock', 'smtp']).default('mock'),
+  SMTP_HOST: z.string().trim().default('smtp.gmail.com'),
+  SMTP_PORT: z.coerce.number().int().min(1).max(65_535).default(587),
+  SMTP_USER: z.string().trim().default(''),
+  SMTP_PASSWORD: z.string().trim().default(''),
+  /** Remitente que ve el lead. Vacio por defecto: el adapter cae a `SMTP_USER`. */
+  SMTP_FROM: z.string().trim().default(''),
 });
 
 export type LogLevel = z.infer<typeof EnvSchema>['LOG_LEVEL'];
@@ -101,6 +114,7 @@ export type CallSimProvider = z.infer<typeof EnvSchema>['CALL_SIM_PROVIDER'];
 export type SpeechProvider = z.infer<typeof EnvSchema>['SPEECH_PROVIDER'];
 export type PollyEngine = z.infer<typeof EnvSchema>['POLLY_ENGINE'];
 export type TranscriptionProvider = z.infer<typeof EnvSchema>['TRANSCRIPTION_PROVIDER'];
+export type EmailProvider = z.infer<typeof EnvSchema>['EMAIL_PROVIDER'];
 
 export interface AppEnv {
   readonly nodeEnv: 'development' | 'test' | 'production';
@@ -146,6 +160,17 @@ export interface AppEnv {
   readonly pollyVoiceMale: string;
   /** Dictado del closer. Comparte `awsRegion` y credenciales con Polly (A12). */
   readonly transcriptionProvider: TranscriptionProvider;
+
+  /** Envio real del OTP del lead (F2.2, adenda A14). */
+  readonly emailProvider: EmailProvider;
+  readonly smtpHost: string;
+  readonly smtpPort: number;
+  /** `null` cuando no hay usuario configurado: solo lo exige `EMAIL_PROVIDER=smtp`. */
+  readonly smtpUser: string | null;
+  /** `null` cuando no hay contrasena configurada. Nunca se loguea. */
+  readonly smtpPassword: string | null;
+  /** `null` cuando no se configuro: el adapter cae a `smtpUser` como remitente. */
+  readonly smtpFrom: string | null;
 }
 
 function parseOrigins(valor: string): readonly string[] {
@@ -241,6 +266,12 @@ export function loadEnv(): AppEnv {
     transcriptionProvider: raw.TRANSCRIPTION_PROVIDER,
     pollyVoiceFemale: raw.POLLY_VOICE_FEMALE,
     pollyVoiceMale: raw.POLLY_VOICE_MALE,
+    emailProvider: raw.EMAIL_PROVIDER,
+    smtpHost: raw.SMTP_HOST,
+    smtpPort: raw.SMTP_PORT,
+    smtpUser: raw.SMTP_USER.length > 0 ? raw.SMTP_USER : null,
+    smtpPassword: raw.SMTP_PASSWORD.length > 0 ? raw.SMTP_PASSWORD : null,
+    smtpFrom: raw.SMTP_FROM.length > 0 ? raw.SMTP_FROM : null,
   };
 
   // El provider `anthropic` sin llave arrancaria y fallaria en el primer turno
@@ -271,6 +302,12 @@ export function loadEnv(): AppEnv {
     throw new Error(
       'Configuracion invalida: PERSISTENCE_DRIVER=supabase exige SUPABASE_URL y SUPABASE_SERVICE_ROLE_KEY',
     );
+  }
+
+  // `smtp` sin usuario o sin contrasena fallaria en el primer OTP real (mismo
+  // fail-early que `anthropic`/`deepseek` arriba).
+  if (env.emailProvider === 'smtp' && (env.smtpUser === null || env.smtpPassword === null)) {
+    throw new Error('Configuracion invalida: EMAIL_PROVIDER=smtp exige SMTP_USER y SMTP_PASSWORD');
   }
 
   if (env.isProduction) {

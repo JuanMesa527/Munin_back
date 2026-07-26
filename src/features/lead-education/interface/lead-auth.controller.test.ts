@@ -7,6 +7,8 @@ import { InMemoryLeadContactLookup } from '@shared/infrastructure/persistence/in
 import { InMemoryLeadRepository } from '@shared/infrastructure/persistence/in-memory/in-memory-lead.repository.js';
 import { InMemoryLeadSessionStore } from '@shared/infrastructure/persistence/in-memory/in-memory-lead-session.store.js';
 import type { ClockPort } from '@shared/application/ports/clock.port.js';
+import type { LeadOtpDeliveryPort } from '@shared/application/ports/lead-otp-delivery.port.js';
+import { ok } from '@shared/kernel/result.js';
 import { InMemoryLeadOtpStore } from '../infrastructure/in-memory-lead-otp.store.js';
 import { createLeadAuthRouter } from './lead-auth.controller.js';
 import { createRequireLead } from './require-lead.js';
@@ -36,12 +38,14 @@ function createTestContext(options: { isProduction?: boolean; secureCookie?: boo
   void leads.save({ ...leadProfile('lead-1'), telefono: '+573001112233', email: 'persona@correo.com' });
 
   const sessionStore = new InMemoryLeadSessionStore({ clock, ttlMinutos: 60 });
+  const otpDelivery: LeadOtpDeliveryPort = { send: () => Promise.resolve(ok(undefined)) };
   const app = express();
   app.use(express.json());
   app.use(
     createLeadAuthRouter({
       contactLookup: new InMemoryLeadContactLookup(leads),
       otp: new InMemoryLeadOtpStore({ clock }),
+      otpDelivery,
       sessionStore,
       secureCookie: options.secureCookie ?? false,
       sessionTtlMinutes: 60,

@@ -66,6 +66,7 @@ import { CryptoIdGenerator } from './shared/infrastructure/id/crypto-id-generato
 import { createHttpLogger, logger } from './shared/infrastructure/logging/logger.js';
 import type { EducationJourneyRepository } from './shared/application/ports/education-repository.port.js';
 import { InMemoryLeadOtpStore } from './features/lead-education/infrastructure/in-memory-lead-otp.store.js';
+import { createLeadOtpDeliveryPort } from './shared/infrastructure/email/email.factory.js';
 import { InMemoryEducationRepository } from './shared/infrastructure/persistence/in-memory/in-memory-education.repository.js';
 import { InMemoryLeadContactLookup } from './shared/infrastructure/persistence/in-memory/in-memory-lead-contact-lookup.adapter.js';
 import { InMemoryLeadRepository } from './shared/infrastructure/persistence/in-memory/in-memory-lead.repository.js';
@@ -118,6 +119,9 @@ export async function createApp(env: AppEnv, server: Express = express()): Promi
   // (TTL corto), a diferencia del journey, que si necesitaba sobrevivir un
   // restart (bloque 1 del plan).
   const leadOtp = new InMemoryLeadOtpStore({ clock });
+  // Envio real del OTP (adenda A14): `mock` (default) o `smtp` segun
+  // `EMAIL_PROVIDER` — unica eleccion de canal de envio, vive solo aqui.
+  const leadOtpDelivery = createLeadOtpDeliveryPort(env);
   const leadSessionStore = new InMemoryLeadSessionStore({
     clock,
     ttlMinutos: env.leadSessionTtlMinutes,
@@ -236,6 +240,7 @@ export async function createApp(env: AppEnv, server: Express = express()): Promi
     ids,
     contactLookup,
     otp: leadOtp,
+    otpDelivery: leadOtpDelivery,
     sessionStore: leadSessionStore,
     secureCookie: env.isProduction,
     sessionTtlMinutes: env.leadSessionTtlMinutes,

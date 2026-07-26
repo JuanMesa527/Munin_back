@@ -1,11 +1,11 @@
 /**
  * Controller HTTP del login por OTP del lead (F2.2, adenda A14). Capa: interface.
  *
- * El envio del codigo es MOCK a proposito (mismo criterio que
- * `scheduleFollowUp` en `content.ts`): un SMS/correo real exige consentimiento
- * para esa finalidad especifica y queda fuera de alcance del reto. Fuera de
- * produccion el codigo viaja en la respuesta para poder probar el flujo sin
- * bandeja de entrada real.
+ * El envio del codigo pasa por `LeadOtpDeliveryPort`: real por correo SMTP
+ * cuando `EMAIL_PROVIDER=smtp`, o mock (solo log, sin red) por defecto para
+ * desarrollo sin credenciales — ver `email.factory.ts`. El controller no sabe
+ * cual de los dos esta activo. Fuera de produccion el codigo ADEMAS viaja en
+ * la respuesta para poder probar el flujo sin bandeja de entrada real.
  */
 
 import { Router } from 'express';
@@ -16,6 +16,7 @@ import type {
   LeadContactLookupPort,
 } from '@shared/application/ports/lead-contact-lookup.port.js';
 import type { LeadOtpPort, LeadSessionStorePort } from '@shared/application/ports/lead-auth.port.js';
+import type { LeadOtpDeliveryPort } from '@shared/application/ports/lead-otp-delivery.port.js';
 import { sendError, sendOk } from '@shared/infrastructure/http/api-response.js';
 import { asyncHandler } from '@shared/infrastructure/http/async-handler.js';
 import {
@@ -33,6 +34,7 @@ import { readLeadSessionToken } from './require-lead.js';
 export interface LeadAuthControllerDeps {
   readonly contactLookup: LeadContactLookupPort;
   readonly otp: LeadOtpPort;
+  readonly otpDelivery: LeadOtpDeliveryPort;
   readonly sessionStore: LeadSessionStorePort;
   readonly secureCookie: boolean;
   readonly sessionTtlMinutes: number;
@@ -65,12 +67,28 @@ export function createLeadAuthRouter(deps: LeadAuthControllerDeps): Router {
       if (resuelto.ok) {
         const emitido = await deps.otp.requestOtp(resuelto.value);
         if (emitido.ok) {
-          // Envio MOCK: el canal real (SMS/correo) exige consentimiento
-          // especifico y esta fuera de alcance del reto (ver `content.ts`).
-          logger.info(
-            { leadId: resuelto.value, canal: 'mock' },
-            'OTP generado (envio simulado)',
-          );
+          // Best-effort: el codigo YA se genero y es valido aunque el envio
+          // falle, asi que un fallo de correo/SMTP NUNCA tumba esta respuesta
+          // (mismo criterio que `emitirSesionSiNoViableMejorEsfuerzo` en
+          // `intake.controller.ts`) — solo se loguea para poder investigarlo.
+          try {
+            const enviado = await deps.otpDelivery.send({
+              email: body.email,
+              telefono: body.telefono,
+              codigo: emitido.value.codigo,
+            });
+            if (!enviado.ok) {
+              logger.error(
+                { leadId: resuelto.value, err: enviado.error },
+                'fallo el envio del OTP; el codigo sigue siendo valido',
+              );
+            }
+          } catch (causa) {
+            logger.error(
+              { leadId: resuelto.value, err: causa },
+              'fallo inesperado enviando el OTP; el codigo sigue siendo valido',
+            );
+          }
         }
         sendOk(res, {
           enviado: true,

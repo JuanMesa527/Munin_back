@@ -13,5 +13,6 @@ export * from './education-repository.port.js';
 export * from './id-generator.port.js';
 export * from './lead-auth.port.js';
 export * from './lead-contact-lookup.port.js';
+export * from './lead-otp-delivery.port.js';
 export * from './lead-repository.port.js';
 export * from './llm.port.js';

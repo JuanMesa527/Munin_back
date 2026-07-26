@@ -13,6 +13,7 @@ import type {
   EducationJourneyRepository,
   IdGeneratorPort,
   LeadContactLookupPort,
+  LeadOtpDeliveryPort,
   LeadOtpPort,
   LeadRepository,
   LeadSessionStorePort,
@@ -35,6 +36,8 @@ export interface LeadEducationModuleDeps {
   /** Login por OTP (adenda A14): recupera el `leadId` cuando se perdio de `localStorage`. */
   readonly contactLookup: LeadContactLookupPort;
   readonly otp: LeadOtpPort;
+  /** Envio real del OTP (adenda A14): `mock` o `smtp` segun `EMAIL_PROVIDER`. */
+  readonly otpDelivery: LeadOtpDeliveryPort;
   readonly sessionStore: LeadSessionStorePort;
   readonly secureCookie: boolean;
   readonly sessionTtlMinutes: number;
@@ -67,6 +70,7 @@ export function createLeadEducationModule(deps: LeadEducationModuleDeps): LeadEd
     authRouter: createLeadAuthRouter({
       contactLookup: deps.contactLookup,
       otp: deps.otp,
+      otpDelivery: deps.otpDelivery,
       sessionStore: deps.sessionStore,
       secureCookie: deps.secureCookie,
       sessionTtlMinutes: deps.sessionTtlMinutes,
