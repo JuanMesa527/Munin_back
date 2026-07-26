@@ -216,7 +216,25 @@ export class SupabaseLeadRepository implements LeadRepository {
         leads.push(structuredClone(payload.data));
       }
 
-      return ok(rankAndPageViableLeads(leads, filters, sort, pagina, porPagina));
+      // Denominador de la reduccion de ruido: TODOS los que entraron, en
+      // cualquier carril. `head: true` no trae ni una fila — solo el conteo —
+      // asi que no arrastra el payload de cada lead (con su PII) para acabar
+      // usando `length`.
+      const { count, error: errorConteo } = await this.client
+        .from(TABLE)
+        .select('lead_id', { count: 'exact', head: true });
+
+      if (errorConteo) {
+        return unavailable(
+          'No se pudieron contar los leads ingresados',
+          'listViable.count',
+          errorConteo,
+        );
+      }
+
+      return ok(
+        rankAndPageViableLeads(leads, filters, sort, pagina, porPagina, count ?? undefined),
+      );
     } catch (error) {
       return unavailable('No se pudieron listar los leads viables', 'listViable', error);
     }

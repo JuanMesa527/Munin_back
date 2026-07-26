@@ -153,6 +153,32 @@ describe('rankAndPageViableLeads', () => {
     expect(page.items.map((item) => item.leadId)).toEqual(['objetivo']);
   });
 
+  it('el denominador de la reduccion de ruido llega del repositorio, no de la lista', () => {
+    // Solo un viable en la lista, pero al perfilador entraron 214: los otros
+    // 213 son el ruido que se filtro y NO estan en `leads`. Por eso el dato
+    // viene por parametro; derivarlo de la lista diria siempre "1 de 1".
+    const page = rankAndPageViableLeads([lead('viable')], SIN_FILTROS, 'score_desc', 1, 20, 214);
+
+    expect(page.total).toBe(1);
+    expect(page.totalIngresados).toBe(214);
+  });
+
+  it('sin denominador conocido no inventa uno mayor', () => {
+    // El fallback es "N de N" (ninguna reduccion), que es lo unico verdadero
+    // que se puede afirmar. Un numero mayor sacado de la nada seria justo lo
+    // que hacia la constante de demo.
+    const page = rankAndPageViableLeads(
+      [lead('uno'), lead('dos'), lead('no-viable', { carril: 'no_viable' })],
+      SIN_FILTROS,
+      'score_desc',
+      1,
+      20,
+    );
+
+    expect(page.total).toBe(2);
+    expect(page.totalIngresados).toBe(2);
+  });
+
   it('ignora busqueda en servidor para no procesar PII', () => {
     const page = rankAndPageViableLeads(
       [lead('visible')],

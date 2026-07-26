@@ -32,7 +32,9 @@ function createTestContext(page?: LeadListPage): TestContext {
   const leads = new InMemoryLeadRepository();
   const listViable = vi
     .spyOn(leads, 'listViable')
-    .mockResolvedValue(ok(page ?? { items: [], total: 0, pagina: 1, porPagina: 20 }));
+    .mockResolvedValue(
+      ok(page ?? { items: [], total: 0, totalIngresados: 0, pagina: 1, porPagina: 20 }),
+    );
   const sessionStore = new InMemorySessionStore({ clock, ttlMinutos: 60 });
   const auth = new EnvCloserAuthAdapter({
     username: 'closer.demo',
@@ -141,6 +143,7 @@ describe('GET /api/closer/leads', () => {
     const context = createTestContext({
       items: [],
       total: 0,
+      totalIngresados: 0,
       pagina: 2,
       porPagina: 10,
     });

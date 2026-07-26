@@ -102,6 +102,18 @@ export function rankAndPageViableLeads(
   sort: LeadListSort,
   pagina: number,
   porPagina: number,
+  /**
+   * Leads que entraron al perfilador, en cualquier carril. Entra COMO PARAMETRO
+   * y no se deriva de `leads` porque aqui solo llegan los enriquecidos: los
+   * no viables y los sin clasificar no estan en esta lista, y son justamente
+   * el ruido que el contador presume haber filtrado. Solo el repositorio puede
+   * contarlos.
+   *
+   * Sin valor cae a los viables encontrados, que es lo unico verdadero que se
+   * puede afirmar con la informacion disponible: la reduccion se lee como
+   * "N de N" (ninguna) en vez de inventar un denominador mayor.
+   */
+  totalIngresados?: number,
 ): LeadListPage {
   const ranked = leads
     .filter((lead) => lead.carril === 'viable')
@@ -113,6 +125,7 @@ export function rankAndPageViableLeads(
   return {
     items: ranked.slice(inicio, inicio + porPagina),
     total: ranked.length,
+    totalIngresados: totalIngresados ?? ranked.length,
     pagina,
     porPagina,
   };

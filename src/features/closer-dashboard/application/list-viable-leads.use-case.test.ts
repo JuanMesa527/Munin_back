@@ -15,7 +15,7 @@ describe('ListViableLeadsUseCase', () => {
       banda: 'media',
       busqueda: null,
     };
-    const page: LeadListPage = { items: [], total: 0, pagina: 2, porPagina: 10 };
+    const page: LeadListPage = { items: [], total: 0, totalIngresados: 0, pagina: 2, porPagina: 10 };
     const repository = new InMemoryLeadRepository();
     const listViable = vi.spyOn(repository, 'listViable').mockResolvedValue(ok(page));
     const useCase = new ListViableLeadsUseCase(repository);

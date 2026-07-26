@@ -982,7 +982,21 @@ export type LeadListSort = 'score_desc' | 'capacidad_desc' | 'intent_desc' | 're
 
 export interface LeadListPage {
   items: ViableLeadListItem[];
+  /** Viables que pasaron los filtros. Es el numerador de la reduccion de ruido. */
   total: number;
+  /**
+   * Leads que ENTRARON al perfilador, sin importar en que carril quedaron.
+   *
+   * Es el denominador del contador "N viables de M entradas" del dashboard, y
+   * la evidencia de que el motor filtra ruido. Antes ese M era una constante de
+   * la semilla de demo (`SEED_LEADS_CRUDOS = 214`) pintada al lado de un `total`
+   * real: dos numeros indistinguibles en pantalla, uno medido y otro inventado.
+   *
+   * Cuenta desde el consentimiento, que es la primera escritura del lead: quien
+   * abrio el chat y no autorizo nunca existio para el sistema, y contarlo seria
+   * inflar el denominador justo en la cifra que sostiene el argumento.
+   */
+  totalIngresados: number;
   pagina: number;
   porPagina: number;
 }

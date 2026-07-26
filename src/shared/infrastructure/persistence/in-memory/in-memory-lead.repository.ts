@@ -68,7 +68,17 @@ export class InMemoryLeadRepository implements LeadRepository {
     porPagina: number,
   ): Promise<Result<LeadListPage>> {
     const leads = [...this.enriquecidos.values()].map((lead) => structuredClone(lead));
-    const page = rankAndPageViableLeads(leads, filters, sort, pagina, porPagina);
+    // `perfiles` y no `enriquecidos`: el denominador son TODOS los que entraron,
+    // incluidos los no viables y los que se quedaron sin clasificar. Contar los
+    // enriquecidos daria "N de N" y borraria justo el ruido que se filtro.
+    const page = rankAndPageViableLeads(
+      leads,
+      filters,
+      sort,
+      pagina,
+      porPagina,
+      this.perfiles.size,
+    );
     return Promise.resolve(ok(structuredClone(page)));
   }
 
