@@ -34,10 +34,74 @@ jobs:
         with:
           ssh-private-key: ${{ secrets.EC2_SSH_KEY }}
 
+      # `ssh-keyscan` a secas fallaba con un `exit 1` pelado. Como el host va
+      # enmascarado en el log, ese fallo era indistinguible entre secreto vacio,
+      # secreto mal escrito, DNS caido y puerto 22 cerrado para el runner. Aqui
+      # cada causa se comprueba por separado y se nombra, sin imprimir el valor.
+      #
+      # NO se cambia a `StrictHostKeyChecking=no`: eso haria pasar el deploy
+      # apagando la verificacion de host, que es justo lo que impide un
+      # man-in-the-middle sobre la clave de despliegue.
       - name: Add EC2 host key
+        env:
+          EC2_HOST: ${{ secrets.EC2_HOST }}
+          EC2_PORT: ${{ secrets.EC2_PORT }}
         run: |
+          set -euo pipefail
+          PUERTO="${EC2_PORT:-22}"
+
+          if [ -z "${EC2_HOST}" ]; then
+            echo "::error::El secreto EC2_HOST esta vacio o no existe en este repositorio."
+            exit 1
+          fi
+
+          # Formas mal escritas del secreto. `ssh-keyscan` espera SOLO el host.
+          case "${EC2_HOST}" in
+            *@*)   echo "::error::EC2_HOST incluye un usuario (usuario@host). El usuario va en EC2_USER."; exit 1 ;;
+            *://*) echo "::error::EC2_HOST incluye un esquema (https:// o ssh://). Debe ser solo el host o la IP."; exit 1 ;;
+            *:*)   echo "::error::EC2_HOST incluye un puerto. El puerto va en el secreto EC2_PORT."; exit 1 ;;
+            *\ *)  echo "::error::EC2_HOST tiene espacios o un salto de linea pegado al guardar el secreto."; exit 1 ;;
+          esac
+
           mkdir -p ~/.ssh
-          ssh-keyscan -H "${{ secrets.EC2_HOST }}" >> ~/.ssh/known_hosts
+          chmod 700 ~/.ssh
+
+          # Condicionado a que `getent` exista: si no estuviera, su ausencia se
+          # reportaria como "el DNS no resuelve", que es una pista falsa y manda
+          # a revisar el lado equivocado. Sin el, la prueba de TCP de abajo
+          # cubre igual el caso (solo que sin separar DNS de puerto).
+          if command -v getent > /dev/null 2>&1; then
+            if ! getent hosts "${EC2_HOST}" > /dev/null 2>&1; then
+              echo "::error::EC2_HOST no resuelve por DNS desde el runner. Si es una IP fija, revisa que siga siendo la del EC2: al parar y arrancar la instancia cambia (a menos que tenga Elastic IP)."
+              exit 1
+            fi
+            echo "DNS: resuelve."
+          fi
+
+          # Distingue "no llego al puerto" de "llegue pero no dio llaves".
+          if ! timeout 10 bash -c ": > /dev/tcp/${EC2_HOST}/${PUERTO}" 2>/dev/null; then
+            echo "::error::El puerto ${PUERTO} no responde desde el runner de GitHub. El host resuelve, asi que suele ser el security group: los runners salen por IPs dinamicas de Azure y no sirve permitir solo tu IP."
+            exit 1
+          fi
+          echo "TCP ${PUERTO}: responde."
+
+          # `-T 15` porque el timeout por defecto (5 s) es corto para una
+          # instancia con algo de carga; el reintento cubre los cortes de red.
+          for intento in 1 2 3; do
+            if ssh-keyscan -T 15 -p "${PUERTO}" -H "${EC2_HOST}" > /tmp/hostkey 2> /tmp/keyscan.err \
+              && [ -s /tmp/hostkey ]; then
+              cat /tmp/hostkey >> ~/.ssh/known_hosts
+              chmod 600 ~/.ssh/known_hosts
+              echo "Host key agregada (intento ${intento})."
+              exit 0
+            fi
+            echo "Intento ${intento}: sin llaves."
+            sed 's/^/  ssh-keyscan: /' /tmp/keyscan.err || true
+            sleep 5
+          done
+
+          echo "::error::ssh-keyscan no obtuvo la host key tras 3 intentos, aunque el puerto ${PUERTO} si responde. Revisa que ese puerto sea SSH y no otro servicio."
+          exit 1
 
       - name: Upload build to staging
         run: |
