@@ -9,7 +9,7 @@
  */
 
 import { Router } from 'express';
-import type { CookieOptions, Request, Response } from 'express';
+import type { Request, Response } from 'express';
 import { API_ROUTES } from '@contracts';
 import type {
   LeadContactInput,
@@ -18,12 +18,17 @@ import type {
 import type { LeadOtpPort, LeadSessionStorePort } from '@shared/application/ports/lead-auth.port.js';
 import { sendError, sendOk } from '@shared/infrastructure/http/api-response.js';
 import { asyncHandler } from '@shared/infrastructure/http/async-handler.js';
+import {
+  LEAD_SESSION_COOKIE,
+  leadSessionClearCookieOptions,
+  leadSessionCookieOptions,
+} from '@shared/infrastructure/http/lead-session-cookie.js';
 import { validateBody } from '@shared/infrastructure/http/validate.js';
 import { logger } from '@shared/infrastructure/logging/logger.js';
 import { UnauthorizedError } from '@shared/kernel/errors.js';
 import type { RequestOtpBody, VerifyOtpBody } from './lead-auth.dto.js';
 import { RequestOtpBodySchema, VerifyOtpBodySchema } from './lead-auth.dto.js';
-import { LEAD_SESSION_COOKIE, readLeadSessionToken } from './require-lead.js';
+import { readLeadSessionToken } from './require-lead.js';
 
 export interface LeadAuthControllerDeps {
   readonly contactLookup: LeadContactLookupPort;
@@ -33,25 +38,6 @@ export interface LeadAuthControllerDeps {
   readonly sessionTtlMinutes: number;
   /** Fuera de produccion, el codigo viaja en la respuesta (demo sin SMS real). */
   readonly isProduction: boolean;
-}
-
-function cookieOptions(deps: LeadAuthControllerDeps): CookieOptions {
-  return {
-    httpOnly: true,
-    sameSite: 'strict',
-    secure: deps.secureCookie,
-    path: '/',
-    maxAge: deps.sessionTtlMinutes * 60 * 1000,
-  };
-}
-
-function clearCookieOptions(deps: LeadAuthControllerDeps): CookieOptions {
-  return {
-    httpOnly: true,
-    sameSite: 'strict',
-    secure: deps.secureCookie,
-    path: '/',
-  };
 }
 
 /** Error unico para "contacto inexistente", "codigo incorrecto" y "vencido": distinguirlos permite enumerar contactos registrados (OWASP A07). */
@@ -120,7 +106,7 @@ export function createLeadAuthRouter(deps: LeadAuthControllerDeps): Router {
         return;
       }
 
-      res.cookie(LEAD_SESSION_COOKIE, issued.value.token, cookieOptions(deps));
+      res.cookie(LEAD_SESSION_COOKIE, issued.value.token, leadSessionCookieOptions(deps));
       sendOk(res, { leadId: resuelto.value });
     }),
   );
@@ -137,7 +123,7 @@ export function createLeadAuthRouter(deps: LeadAuthControllerDeps): Router {
         }
       }
 
-      res.clearCookie(LEAD_SESSION_COOKIE, clearCookieOptions(deps));
+      res.clearCookie(LEAD_SESSION_COOKIE, leadSessionClearCookieOptions(deps));
       sendOk(res, null);
     }),
   );

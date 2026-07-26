@@ -2,9 +2,10 @@ import type { Request, RequestHandler } from 'express';
 import type { LeadSessionStorePort } from '@shared/application/ports/lead-auth.port.js';
 import { asyncHandler } from '@shared/infrastructure/http/async-handler.js';
 import { sendError } from '@shared/infrastructure/http/api-response.js';
+import { LEAD_SESSION_COOKIE } from '@shared/infrastructure/http/lead-session-cookie.js';
 import { UnauthorizedError } from '@shared/kernel/errors.js';
 
-export const LEAD_SESSION_COOKIE = 'lead_session';
+export { LEAD_SESSION_COOKIE };
 
 export function readLeadSessionToken(req: Request): string | null {
   const cookieHeader = req.headers.cookie;

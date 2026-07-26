@@ -41,14 +41,28 @@ export interface ConverseIntakeInput {
   /** Vocabulario cerrado por slot pendiente (chips), cuando aplica. */
   readonly vocabulario: Record<string, readonly string[]>;
   /**
-   * Copy determinista (`stepPromptFor`) del siguiente slot segun `ASKED_SLOTS`.
-   * El modelo puede parafrasearla con su tono, pero `respuestaBot` tiene que
-   * terminar preguntando ESTO — nunca combinar otro slot ni inventar una
-   * pregunta distinta. Sin esta ancla el modelo ve `slotsPendientes` como una
-   * bolsa sin orden y redacta preguntas que no coinciden con los quickReplies
-   * reales que la UI muestra (los quickReplies SI siguen el orden fijo).
+   * Copy determinista (`stepPromptFor`) del slot ACTUAL (el que el usuario
+   * esta respondiendo en este turno) segun `ASKED_SLOTS`. Es el ancla para el
+   * camino de FALLO: si el modelo no logra extraer nada relevante, su
+   * `respuestaBot` tiene que terminar preguntando ESTO — nunca combinar otro
+   * slot ni inventar una pregunta distinta. Sin esta ancla el modelo ve
+   * `slotsPendientes` como una bolsa sin orden y redacta preguntas que no
+   * coinciden con los quickReplies reales que la UI muestra (los quickReplies
+   * SI siguen el orden fijo).
    */
   readonly preguntaAnclada: string;
+  /**
+   * Copy determinista del slot que pasaria a ser "actual" SI el modelo logra
+   * extraer con confianza el valor del slot de `preguntaAnclada` en este mismo
+   * mensaje (`pendientes[1]` en `procesarTextoLibre`). `null` cuando no queda
+   * ningun slot pendiente despues de este (el perfilamiento terminaria).
+   *
+   * Ancla del camino de EXITO, complementaria a `preguntaAnclada`: sin este
+   * segundo ancla el modelo, siguiendo la instruccion de `preguntaAnclada` al
+   * pie de la letra, termina preguntando de nuevo por el slot que EL MISMO
+   * acaba de extraer con exito — el bug de "confirma y repregunta lo mismo".
+   */
+  readonly preguntaSiguienteProbable: string | null;
 }
 
 export interface LlmPort {

@@ -420,6 +420,80 @@ describe('ProcessConversationTurnUseCase — loop de slots', () => {
     expect(resultado.value.mensajes[0]?.texto).toMatch(/vivienda propia/i);
   });
 
+  it('calcula preguntaSiguienteProbable como el slot que seguiria a slotActual si la extraccion tiene exito (bug de repregunta)', async () => {
+    const perfil = perfilListoParaAfiliacion();
+    const leads = fakeLeadRepository(perfil);
+    const capturas: Parameters<LlmPort['converseIntake']>[0][] = [];
+    const llmEspia: LlmPort = {
+      extractSlotValue: () => Promise.resolve(ok({ valor: null, confianza: 0 })),
+      converseIntake: (input) => {
+        capturas.push(input);
+        return Promise.resolve(
+          ok({
+            extracciones: [{ slot: 'afiliacion', valor: 'true', confianza: 0.9 }],
+            respuestaBot: 'Genial, eres afiliado. ¿Ya tienes vivienda propia?',
+          }),
+        );
+      },
+      writeExplanation: () => Promise.resolve(ok('explicacion')),
+    };
+    const useCase = new ProcessConversationTurnUseCase({
+      leads,
+      catalog: fakeCatalog(),
+      llm: llmEspia,
+      clock: fakeClock(),
+      ids: fakeIds(),
+      vault: fakeVault(),
+      activePolicyVersion: VERSION_ACTIVA,
+    });
+
+    await useCase.execute({
+      leadId: perfil.id,
+      texto: 'sí, estoy afiliado',
+      quickReplyValue: null,
+    });
+
+    expect(capturas).toHaveLength(1);
+    // slotActual = 'afiliacion' (pendientes[0]); el siguiente pendiente real es
+    // 'viviendaPropia' (pendientes[1]) — la pregunta ancla NO cambia (sigue
+    // siendo la de 'afiliacion', para el camino de fallo).
+    expect(capturas[0]?.preguntaAnclada).toBe('¿Estás afiliado a Colsubsidio?');
+    expect(capturas[0]?.preguntaSiguienteProbable).toBe('¿Ya tienes vivienda propia?');
+  });
+
+  it('preguntaSiguienteProbable es null cuando el slot actual es el ultimo pendiente', async () => {
+    // 'horizonteCompra' es el ultimo de ASKED_SLOTS: sin nada despues, pendientes queda con 1 solo elemento.
+    const perfil = perfilListoParaEnrutar({ id: 'lead-ultimo-slot', horizonteCompra: null });
+    const leads = fakeLeadRepository(perfil);
+    const capturas: Parameters<LlmPort['converseIntake']>[0][] = [];
+    const llmEspia: LlmPort = {
+      extractSlotValue: () => Promise.resolve(ok({ valor: null, confianza: 0 })),
+      converseIntake: (input) => {
+        capturas.push(input);
+        return Promise.resolve(ok({ extracciones: [], respuestaBot: ' ' }));
+      },
+      writeExplanation: () => Promise.resolve(ok('explicacion')),
+    };
+    const useCase = new ProcessConversationTurnUseCase({
+      leads,
+      catalog: fakeCatalog(),
+      llm: llmEspia,
+      clock: fakeClock(),
+      ids: fakeIds(),
+      vault: fakeVault(),
+      activePolicyVersion: VERSION_ACTIVA,
+    });
+
+    await useCase.execute({
+      leadId: perfil.id,
+      texto: 'texto ambiguo que no dice nada',
+      quickReplyValue: null,
+    });
+
+    expect(capturas).toHaveLength(1);
+    expect(capturas[0]?.preguntaSiguienteProbable).toBeNull();
+  });
+
   it('chip no llama a converseIntake (atajo determinista)', async () => {
     const perfil = perfilListoParaAfiliacion();
     const leads = fakeLeadRepository(perfil);

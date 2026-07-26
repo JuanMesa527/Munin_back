@@ -140,12 +140,19 @@ export class ProcessConversationTurnUseCase {
       vocabulario[slot] = vocabularyForAskedSlot(slot);
     }
 
+    // `pendientes[0]` es SIEMPRE `slotActual` (mismo orden fijo que usa
+    // `getNextStep`); `pendientes[1]` es el slot que pasaria a ser "actual" SI
+    // el modelo SI logra extraer el valor de `slotActual` en este mensaje.
+    const preguntaSiguienteProbable =
+      pendientes[1] !== undefined ? stepPromptFor(pendientes[1]) : null;
+
     const conversacion = await this.deps.llm.converseIntake({
       texto,
       slotsPendientes: pendientes,
       perfilParcial: perfilParcialParaLlm(profile),
       vocabulario,
       preguntaAnclada: stepPromptFor(slotActual),
+      preguntaSiguienteProbable,
     });
 
     let actualizado = profile;

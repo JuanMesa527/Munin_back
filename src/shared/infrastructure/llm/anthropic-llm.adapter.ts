@@ -24,7 +24,11 @@
  */
 
 import type { Slot } from '@contracts';
-import type { LlmPort } from '../../application/ports/llm.port.js';
+import type {
+  ConverseIntakeInput,
+  ConverseIntakeResult,
+  LlmPort,
+} from '../../application/ports/llm.port.js';
 import type { Result } from '../../kernel/result.js';
 
 export interface AnthropicLlmAdapterConfig {
@@ -60,13 +64,7 @@ export class AnthropicLlmAdapter implements LlmPort {
     throw new Error(`TODO: not implemented (modelo ${this.config.model})`);
   }
 
-  converseIntake(_input: {
-    texto: string;
-    slotsPendientes: readonly Slot[];
-    perfilParcial: Record<string, string>;
-    vocabulario: Record<string, readonly string[]>;
-    preguntaAnclada: string;
-  }): Promise<Result<{ extracciones: readonly { slot: Slot; valor: string; confianza: number }[]; respuestaBot: string }>> {
+  converseIntake(_input: ConverseIntakeInput): Promise<Result<ConverseIntakeResult>> {
     throw new Error(`TODO: not implemented (modelo ${this.config.model})`);
   }
 }

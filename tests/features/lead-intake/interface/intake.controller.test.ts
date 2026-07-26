@@ -17,8 +17,10 @@ import { afterEach, describe, expect, it, vi } from 'vitest';
 import type { ConversationTurn } from '@contracts';
 import { createIntakeRouter } from '../../../../src/features/lead-intake/interface/intake.controller.js';
 import type { IntakeControllerDeps } from '../../../../src/features/lead-intake/interface/intake.controller.js';
+import type { LeadSessionStorePort } from '../../../../src/shared/application/ports/lead-auth.port.js';
 import { errorHandler } from '../../../../src/shared/infrastructure/http/error-handler.js';
-import { ok } from '../../../../src/shared/kernel/result.js';
+import { DataUnavailableError } from '../../../../src/shared/kernel/errors.js';
+import { err, ok } from '../../../../src/shared/kernel/result.js';
 
 const AHORA = '2026-07-25T00:00:00.000Z';
 
@@ -65,6 +67,41 @@ function fakeDeps(overrides: Partial<IntakeControllerDeps> = {}): IntakeControll
     startConversation: { execute: vi.fn(() => Promise.resolve(ok(turnoVacio()))) },
     submitConsent: { execute: vi.fn(() => Promise.resolve(ok(turnoVacio()))) },
     processConversationTurn: { execute: vi.fn(() => Promise.resolve(ok(turnoVacio()))) },
+    ...overrides,
+  };
+}
+
+/** Turno con carril ya decidido (`viable`/`no_viable`), para los tests de auto-sesion. */
+function turnoConCarril(carril: 'viable' | 'no_viable'): ConversationTurn {
+  const base = turnoVacio();
+  return {
+    ...base,
+    profile: { ...base.profile, id: 'lead-no-viable-1', carril },
+    routing: {
+      carril,
+      razones: carril === 'no_viable' ? ['ahorro_insuficiente'] : [],
+      explicacion: 'Explicacion de prueba',
+      decididoEn: AHORA,
+    },
+  };
+}
+
+function fakeSessionStore(
+  overrides: Partial<LeadSessionStorePort> = {},
+): LeadSessionStorePort & { emitidoPara: string[] } {
+  const emitidoPara: string[] = [];
+  return {
+    emitidoPara,
+    issue: (leadId) => {
+      emitidoPara.push(leadId);
+      return Promise.resolve(ok({ token: 'token-de-sesion' }));
+    },
+    verify: () => {
+      throw new Error('no usado en estos tests');
+    },
+    revoke: () => {
+      throw new Error('no usado en estos tests');
+    },
     ...overrides,
   };
 }
@@ -169,5 +206,103 @@ describe('createIntakeRouter', () => {
 
     expect(respuesta.status).toBe(200);
     expect(deps.startConversation.execute).toHaveBeenCalledTimes(1);
+  });
+});
+
+describe('createIntakeRouter — auto-sesion del lead no_viable', () => {
+  afterEach(async () => {
+    await close();
+  });
+
+  it('cuando el turno resulta no_viable, la respuesta trae el Set-Cookie de lead_session', async () => {
+    const sessionStore = fakeSessionStore();
+    const deps = fakeDeps({
+      processConversationTurn: {
+        execute: vi.fn(() => Promise.resolve(ok(turnoConCarril('no_viable')))),
+      },
+      sessionStore,
+      secureCookie: false,
+      sessionTtlMinutes: 60,
+    });
+    await startTestApp(deps);
+
+    const respuesta = await fetch(`${baseUrl}/api/leads/intake/turn`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ leadId: 'lead-no-viable-1', texto: 'hola', quickReplyValue: null }),
+    });
+
+    expect(respuesta.status).toBe(200);
+    const setCookie = respuesta.headers.get('set-cookie') ?? '';
+    expect(setCookie).toContain('lead_session=token-de-sesion');
+    expect(sessionStore.emitidoPara).toEqual(['lead-no-viable-1']);
+  });
+
+  it('cuando el turno resulta viable, NO se setea la cookie de lead_session', async () => {
+    const sessionStore = fakeSessionStore();
+    const deps = fakeDeps({
+      processConversationTurn: {
+        execute: vi.fn(() => Promise.resolve(ok(turnoConCarril('viable')))),
+      },
+      sessionStore,
+      secureCookie: false,
+      sessionTtlMinutes: 60,
+    });
+    await startTestApp(deps);
+
+    const respuesta = await fetch(`${baseUrl}/api/leads/intake/turn`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ leadId: 'lead-viable-1', texto: 'hola', quickReplyValue: null }),
+    });
+
+    expect(respuesta.status).toBe(200);
+    const setCookie = respuesta.headers.get('set-cookie');
+    expect(setCookie).toBeNull();
+    expect(sessionStore.emitidoPara).toEqual([]);
+  });
+
+  it('sin sessionStore configurado, un turno no_viable responde igual sin Set-Cookie (no rompe otros consumidores)', async () => {
+    const deps = fakeDeps({
+      processConversationTurn: {
+        execute: vi.fn(() => Promise.resolve(ok(turnoConCarril('no_viable')))),
+      },
+    });
+    await startTestApp(deps);
+
+    const respuesta = await fetch(`${baseUrl}/api/leads/intake/turn`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ leadId: 'lead-no-viable-1', texto: 'hola', quickReplyValue: null }),
+    });
+
+    expect(respuesta.status).toBe(200);
+    expect(respuesta.headers.get('set-cookie')).toBeNull();
+  });
+
+  it('si sessionStore.issue falla, el turno igual responde 200 sin cookie (best-effort, no tumba la respuesta)', async () => {
+    const sessionStore = fakeSessionStore({
+      issue: () => Promise.resolve(err(new DataUnavailableError())),
+    });
+    const deps = fakeDeps({
+      processConversationTurn: {
+        execute: vi.fn(() => Promise.resolve(ok(turnoConCarril('no_viable')))),
+      },
+      sessionStore,
+      secureCookie: false,
+      sessionTtlMinutes: 60,
+    });
+    await startTestApp(deps);
+
+    const respuesta = await fetch(`${baseUrl}/api/leads/intake/turn`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ leadId: 'lead-no-viable-1', texto: 'hola', quickReplyValue: null }),
+    });
+    const cuerpo = (await respuesta.json()) as { ok: boolean };
+
+    expect(respuesta.status).toBe(200);
+    expect(cuerpo.ok).toBe(true);
+    expect(respuesta.headers.get('set-cookie')).toBeNull();
   });
 });

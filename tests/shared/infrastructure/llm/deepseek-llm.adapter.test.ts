@@ -273,4 +273,68 @@ describe('DeepSeekLlmAdapter', () => {
 
     expect(resultado.ok).toBe(false);
   });
+
+  it('converseIntake envia AMBOS anclajes (pregunta actual y siguiente probable) condicionados en el system prompt', async () => {
+    const fetchMock = vi.fn().mockResolvedValue(
+      new Response(
+        chatCompletionBody(
+          JSON.stringify({
+            extracciones: [{ slot: 'email', valor: 'ana@example.com', confianza: 0.95 }],
+            respuestaBot: 'Gracias, he registrado tu correo electrónico. ¿A qué número te contactamos?',
+          }),
+        ),
+        { status: 200 },
+      ),
+    );
+    vi.stubGlobal('fetch', fetchMock);
+
+    const adapter = new DeepSeekLlmAdapter('test-key', 'deepseek-chat');
+    await adapter.converseIntake({
+      texto: 'mi correo es ana@example.com',
+      slotsPendientes: ['email', 'telefono'],
+      perfilParcial: {},
+      vocabulario: {},
+      preguntaAnclada: '¿Cuál es tu correo electrónico?',
+      preguntaSiguienteProbable: '¿A qué número de celular te podemos contactar?',
+    });
+
+    const [, init] = fetchMock.mock.calls[0] as [string, RequestInit];
+    const body = JSON.parse(init.body as string) as {
+      messages: { role: string; content: string }[];
+    };
+    const systemPrompt = body.messages.find((m) => m.role === 'system')?.content ?? '';
+
+    expect(systemPrompt).toContain('¿Cuál es tu correo electrónico?');
+    expect(systemPrompt).toContain('¿A qué número de celular te podemos contactar?');
+  });
+
+  it('converseIntake, cuando preguntaSiguienteProbable es null, instruye a no cerrar con otra pregunta', async () => {
+    const fetchMock = vi.fn().mockResolvedValue(
+      new Response(
+        chatCompletionBody(
+          JSON.stringify({ extracciones: [], respuestaBot: 'Perfecto, ya tengo todo lo que necesitaba.' }),
+        ),
+        { status: 200 },
+      ),
+    );
+    vi.stubGlobal('fetch', fetchMock);
+
+    const adapter = new DeepSeekLlmAdapter('test-key', 'deepseek-chat');
+    await adapter.converseIntake({
+      texto: 'lo antes posible',
+      slotsPendientes: ['horizonteCompra'],
+      perfilParcial: {},
+      vocabulario: {},
+      preguntaAnclada: '¿Para cuándo estás buscando tu vivienda?',
+      preguntaSiguienteProbable: null,
+    });
+
+    const [, init] = fetchMock.mock.calls[0] as [string, RequestInit];
+    const body = JSON.parse(init.body as string) as {
+      messages: { role: string; content: string }[];
+    };
+    const systemPrompt = body.messages.find((m) => m.role === 'system')?.content ?? '';
+
+    expect(systemPrompt).toContain('no hagas ninguna pregunta de cierre');
+  });
 });

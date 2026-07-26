@@ -16,6 +16,7 @@
 import type { Router } from 'express';
 import type { AppEnv } from '@shared/infrastructure/config/env.js';
 import type { ContactVaultPort } from '@shared/application/ports/contact-vault.port.js';
+import type { LeadSessionStorePort } from '@shared/application/ports/lead-auth.port.js';
 import type { LeadRepository } from '@shared/application/ports/lead-repository.port.js';
 import { FileDataCatalogAdapter } from '@shared/infrastructure/catalog/file-data-catalog.adapter.js';
 import { SystemClock } from '@shared/infrastructure/clock/system-clock.adapter.js';
@@ -48,6 +49,15 @@ export interface LeadIntakeModuleDeps {
    * compilar que descubrirlo en vivo.
    */
   readonly vault: ContactVaultPort;
+
+  /**
+   * Auto-login del lead `no_viable` sin OTP (ver `intake.controller.ts`).
+   * Opcionales EN CONJUNTO, mismo criterio que `leads`: sin ellos F1 sigue
+   * funcionando igual, solo que no emite la cookie de sesion automatica.
+   */
+  readonly sessionStore?: LeadSessionStorePort;
+  readonly secureCookie?: boolean;
+  readonly sessionTtlMinutes?: number;
 }
 
 export function createLeadIntakeModule(
@@ -83,7 +93,17 @@ export function createLeadIntakeModule(
     activePolicyVersion: env.privacyPolicyVersion,
   });
 
-  const router = createIntakeRouter({ startConversation, submitConsent, processConversationTurn });
+  const router = createIntakeRouter({
+    startConversation,
+    submitConsent,
+    processConversationTurn,
+    // `exactOptionalPropertyTypes`: solo se asignan las claves si el dep vino.
+    ...(deps.sessionStore !== undefined ? { sessionStore: deps.sessionStore } : {}),
+    ...(deps.secureCookie !== undefined ? { secureCookie: deps.secureCookie } : {}),
+    ...(deps.sessionTtlMinutes !== undefined
+      ? { sessionTtlMinutes: deps.sessionTtlMinutes }
+      : {}),
+  });
 
   return { router };
 }
