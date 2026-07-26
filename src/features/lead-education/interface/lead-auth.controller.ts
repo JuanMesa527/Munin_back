@@ -26,7 +26,8 @@ import {
 } from '@shared/infrastructure/http/lead-session-cookie.js';
 import { validateBody } from '@shared/infrastructure/http/validate.js';
 import { logger } from '@shared/infrastructure/logging/logger.js';
-import { UnauthorizedError } from '@shared/kernel/errors.js';
+import { InfrastructureError, UnauthorizedError } from '@shared/kernel/errors.js';
+import type { DomainError } from '@shared/kernel/errors.js';
 import type { RequestOtpBody, VerifyOtpBody } from './lead-auth.dto.js';
 import { RequestOtpBodySchema, VerifyOtpBodySchema } from './lead-auth.dto.js';
 import { readLeadSessionToken } from './require-lead.js';
@@ -59,7 +60,7 @@ function contactOf(body: RequestOtpBody | VerifyOtpBody): LeadContactInput {
 async function resolverLeadId(
   deps: LeadAuthControllerDeps,
   body: RequestOtpBody | VerifyOtpBody,
-): Promise<{ ok: true; value: string } | { ok: false }> {
+): Promise<{ ok: true; value: string } | { ok: false; error: DomainError }> {
   if (body.leadId !== null) {
     // No basta con confiar en el id: si no existe, no hay a quien mandarle
     // nada. `findContactByLeadId` en `requestOtp` ya lo comprueba; aca solo
@@ -67,7 +68,10 @@ async function resolverLeadId(
     return { ok: true, value: body.leadId };
   }
   const resuelto = await deps.contactLookup.findLeadIdByContact(contactOf(body));
-  return resuelto.ok ? { ok: true, value: resuelto.value } : { ok: false };
+  // El error se PROPAGA (antes se descartaba): `requestOtp` lo necesita para
+  // poder distinguir "no hay cuenta con ese correo" de "se cayo Supabase"
+  // fuera de produccion. Quien no deba revelarlo simplemente no lo mira.
+  return resuelto.ok ? { ok: true, value: resuelto.value } : { ok: false, error: resuelto.error };
 }
 
 /**
@@ -95,10 +99,22 @@ export function createLeadAuthRouter(deps: LeadAuthControllerDeps): Router {
       const esGate = body.leadId !== null;
       const resuelto = await resolverLeadId(deps, body);
 
+      // Fuera de produccion el endpoint DICE la verdad (no existe la cuenta /
+      // fallo el envio) en vez de responder "enviado" a ciegas. Mismo criterio
+      // que devolver `codigo` mas abajo: en la demo el "enviado: true" mudo
+      // hacia indistinguibles un SMTP caido, un correo sin cuenta y un envio
+      // correcto — tres causas con arreglos opuestos. En produccion se
+      // mantiene la respuesta ciega (OWASP A07, ver nota de abajo).
+      const revelarCausa = !deps.isProduction;
+
       // Misma respuesta exista o no el contacto: de lo contrario este endpoint
       // se vuelve un oraculo de "que telefonos/emails estan registrados"
       // (OWASP A07). Solo si el contacto matchea se genera y "envia" un OTP.
       if (!resuelto.ok) {
+        if (revelarCausa) {
+          sendError(res, resuelto.error);
+          return;
+        }
         sendOk(res, { enviado: true });
         return;
       }
@@ -113,7 +129,7 @@ export function createLeadAuthRouter(deps: LeadAuthControllerDeps): Router {
         // Por `leadId` SI se puede responder con el error real: un uuid no es
         // enumerable y quien lo manda ya lo tenia. Por telefono/email se sigue
         // respondiendo "enviado" a ciegas (misma regla de arriba).
-        if (esGate) {
+        if (esGate || revelarCausa) {
           sendError(res, contacto.error);
           return;
         }
@@ -124,6 +140,8 @@ export function createLeadAuthRouter(deps: LeadAuthControllerDeps): Router {
       const destinoTelefono = contacto.value.telefono ?? body.telefono;
 
       const emitido = await deps.otp.requestOtp(leadId);
+      /** Se llena solo si el canal real fallo; fuera de produccion se responde. */
+      let falloEnvio: DomainError | null = null;
       if (emitido.ok) {
         // Best-effort: el codigo YA se genero y es valido aunque el envio
         // falle, asi que un fallo de correo/SMTP NUNCA tumba esta respuesta
@@ -136,17 +154,27 @@ export function createLeadAuthRouter(deps: LeadAuthControllerDeps): Router {
             codigo: emitido.value.codigo,
           });
           if (!enviado.ok) {
+            falloEnvio = enviado.error;
             logger.error(
               { leadId, err: enviado.error },
               'fallo el envio del OTP; el codigo sigue siendo valido',
             );
           }
         } catch (causa) {
+          falloEnvio = new InfrastructureError('No se pudo enviar el codigo de acceso');
           logger.error(
             { leadId, err: causa },
             'fallo inesperado enviando el OTP; el codigo sigue siendo valido',
           );
         }
+      }
+
+      // El codigo es valido igual (se emitio antes del envio), pero callar el
+      // fallo del canal es lo que hacia parecer "roto el SMTP" cuando el
+      // problema estaba en otro lado. En produccion se sigue callando.
+      if (falloEnvio !== null && revelarCausa) {
+        sendError(res, falloEnvio);
+        return;
       }
 
       sendOk(res, {

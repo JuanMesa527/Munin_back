@@ -147,8 +147,12 @@ describe('lead auth HTTP', () => {
     expect(response.body).toEqual({ ok: true, data: { enviado: true } });
   });
 
-  it('responde igual exista o no el contacto (anti-enumeracion)', async () => {
-    const { app } = createTestContext();
+  it('en produccion responde igual exista o no el contacto (anti-enumeracion)', async () => {
+    // La propiedad se verifica CON `isProduction: true`, que es donde tiene que
+    // valer: fuera de produccion el endpoint revela la causa a proposito (test
+    // de abajo), porque un "enviado: true" mudo volvia indistinguibles un SMTP
+    // caido, un correo sin cuenta y un envio correcto.
+    const { app } = createTestContext({ isProduction: true });
 
     const existente = await request(
       app,
@@ -162,11 +166,21 @@ describe('lead auth HTTP', () => {
     );
 
     expect(existente.status).toBe(inexistente.status);
-    const clavesExistente = Object.keys((existente.body as { data: object }).data).sort();
-    const clavesInexistente = Object.keys((inexistente.body as { data: object }).data).sort();
-    expect(clavesExistente).not.toEqual(clavesInexistente);
-    // Ambos exponen `enviado: true`; solo el contacto real trae `codigo`.
+    expect(existente.body).toEqual(inexistente.body);
     expect((inexistente.body as { data: { enviado: boolean } }).data.enviado).toBe(true);
+  });
+
+  it('fuera de produccion dice que no existe la cuenta en vez de fingir el envio', async () => {
+    const { app } = createTestContext();
+
+    const inexistente = await request(
+      app,
+      '/api/leads/education/auth/otp/request',
+      jsonRequest({ telefono: '+573009999999', email: null }),
+    );
+
+    expect(inexistente.status).toBe(404);
+    expect((inexistente.body as { ok: boolean }).ok).toBe(false);
   });
 
   it('login por OTP completo: pedir codigo, verificarlo y usar la sesion emitida', async () => {

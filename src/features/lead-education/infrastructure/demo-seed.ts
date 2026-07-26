@@ -15,7 +15,14 @@ import type { IsoDateTime, LeadProfile } from '@contracts';
 import type { LeadRepository } from '@shared/application/ports/index.js';
 import { createEmptyLeadProfile } from '@shared/domain/index.js';
 
-/** Perfiles semilla: tres situaciones distintas del carril no viable. */
+/**
+ * Perfiles semilla: tres situaciones distintas del carril no viable.
+ *
+ * Correo y telefono DEBEN ser distintos de los de
+ * `shared/infrastructure/persistence/demo-seed.ts` (carril viable): el OTP
+ * resuelve el lead por contacto, no por id, asi que dos semillas con el mismo
+ * correo — aunque tengan ids distintos — dejaban ambos leads inalcanzables.
+ */
 function perfilesDemo(now: IsoDateTime): LeadProfile[] {
   const base = (id: string): LeadProfile => ({
     ...createEmptyLeadProfile(id, now),
@@ -34,8 +41,8 @@ function perfilesDemo(now: IsoDateTime): LeadProfile[] {
       // Aspira al SFV (<= 4 SMMLV) pero le falta ahorro.
       ...base('demo-lead-1'),
       nombre: 'Laura Demo',
-      email: 'laura.demo@example.com',
-      telefono: '3001112233',
+      email: 'laura.nutricion@example.com',
+      telefono: '3011112233',
       edad: 34,
       estadoCivil: 'Casado/a',
       esAfiliado: true,
@@ -51,8 +58,8 @@ function perfilesDemo(now: IsoDateTime): LeadProfile[] {
       // No afiliado: suma la meta de afiliacion al camino.
       ...base('demo-lead-2'),
       nombre: 'Camila Demo',
-      email: 'camila.demo@example.com',
-      telefono: '3002223344',
+      email: 'camila.nutricion@example.com',
+      telefono: '3012223344',
       edad: 26,
       estadoCivil: 'Soltero/a',
       esAfiliado: false,
@@ -68,8 +75,8 @@ function perfilesDemo(now: IsoDateTime): LeadProfile[] {
       // Por encima del tope del SFV: el camino no muestra subsidio.
       ...base('demo-lead-3'),
       nombre: 'Andrés Demo',
-      email: 'andres.demo@example.com',
-      telefono: '3003334455',
+      email: 'andres.nutricion@example.com',
+      telefono: '3013334455',
       edad: 41,
       estadoCivil: 'Unión libre',
       esAfiliado: true,

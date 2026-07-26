@@ -47,19 +47,28 @@ export class SupabaseLeadContactLookup implements LeadContactLookupPort {
     }
 
     try {
+      // `limit(1)` sobre el mas reciente, NO `maybeSingle()`: el contacto no es
+      // unico y nunca lo fue. F1 crea un `lead_id` nuevo por conversacion
+      // (`start-conversation.use-case.ts` -> `ids.newId()`), asi que la misma
+      // persona que repite el chat deja dos filas con su mismo correo. Con
+      // `maybeSingle()` eso devolvia PGRST116 ("multiple rows returned"), el
+      // controller lo leia como "contacto no encontrado" y el OTP se dejaba de
+      // enviar EN SILENCIO justo para los leads que volvieron: los mas activos.
       const { data, error } = await this.client
         .from(TABLE)
         .select('lead_id')
         .eq(columna, valor)
-        .maybeSingle();
+        .order('created_at', { ascending: false })
+        .limit(1);
 
       if (error) {
         return unavailable('No se pudo resolver el contacto', 'findLeadIdByContact', error);
       }
-      if (data === null) {
+      const fila = data[0];
+      if (fila === undefined) {
         return err(new NotFoundError('No existe un lead con ese contacto'));
       }
-      return ok(data.lead_id);
+      return ok(fila.lead_id);
     } catch (error) {
       return unavailable('No se pudo resolver el contacto', 'findLeadIdByContact', error);
     }
