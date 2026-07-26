@@ -7,6 +7,9 @@ Express 5 + TypeScript sobre **arquitectura hexagonal**: seis features aisladas,
 > Contexto del producto y tesis glass-box: [`../README.md`](../README.md) · Pesos y fórmulas: [`../Docs/glass-box-scoring.md`](../Docs/glass-box-scoring.md)
 
 ---
+## Repositorios del reto:
+
+- Frontend: https://github.com/JuanMesa527/Munin_front
 
 ## Arranque
 
