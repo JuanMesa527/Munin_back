@@ -64,4 +64,24 @@ export class SupabaseLeadContactLookup implements LeadContactLookupPort {
       return unavailable('No se pudo resolver el contacto', 'findLeadIdByContact', error);
     }
   }
+
+  async findContactByLeadId(leadId: string): Promise<Result<LeadContactInput>> {
+    try {
+      const { data, error } = await this.client
+        .from(TABLE)
+        .select('email, telefono')
+        .eq('lead_id', leadId)
+        .maybeSingle();
+
+      if (error) {
+        return unavailable('No se pudo resolver el contacto', 'findContactByLeadId', error);
+      }
+      if (data === null) {
+        return err(new NotFoundError('No existe un lead con ese id'));
+      }
+      return ok({ telefono: data.telefono, email: data.email });
+    } catch (error) {
+      return unavailable('No se pudo resolver el contacto', 'findContactByLeadId', error);
+    }
+  }
 }

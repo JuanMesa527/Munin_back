@@ -10,16 +10,10 @@
 import type { Request, Response } from 'express';
 import { Router } from 'express';
 import { API_ROUTES } from '@contracts';
-import type { LeadSessionStorePort } from '@shared/application/ports/lead-auth.port.js';
 import { sendError, sendOk } from '@shared/infrastructure/http/api-response.js';
 import { asyncHandler } from '@shared/infrastructure/http/async-handler.js';
-import {
-  LEAD_SESSION_COOKIE,
-  leadSessionCookieOptions,
-} from '@shared/infrastructure/http/lead-session-cookie.js';
 import { publicRateLimiter } from '@shared/infrastructure/http/security.js';
 import { validateBody } from '@shared/infrastructure/http/validate.js';
-import { logger } from '@shared/infrastructure/logging/logger.js';
 import type { ProcessConversationTurnUseCase } from '../application/process-conversation-turn.use-case.js';
 import type { StartConversationUseCase } from '../application/start-conversation.use-case.js';
 import type { SubmitConsentUseCase } from '../application/submit-consent.use-case.js';
@@ -40,76 +34,6 @@ export interface IntakeControllerDeps {
   readonly startConversation: Pick<StartConversationUseCase, 'execute'>;
   readonly submitConsent: Pick<SubmitConsentUseCase, 'execute'>;
   readonly processConversationTurn: Pick<ProcessConversationTurnUseCase, 'execute'>;
-  /**
-   * Auto-login del lead `no_viable`, sin OTP (ya "demostro" su identidad
-   * completando la conversacion en esta misma sesion de navegador). Los 3
-   * campos son opcionales EN CONJUNTO para no romper otros consumidores/tests
-   * que construyan el router sin este dep: si falta cualquiera de los 3, el
-   * turno responde igual mas no emite la cookie (ver `sessionDepsCompletos`).
-   */
-  readonly sessionStore?: LeadSessionStorePort;
-  readonly secureCookie?: boolean;
-  readonly sessionTtlMinutes?: number;
-}
-
-interface SessionDepsCompletos {
-  readonly sessionStore: LeadSessionStorePort;
-  readonly secureCookie: boolean;
-  readonly sessionTtlMinutes: number;
-}
-
-function sessionDepsCompletos(deps: IntakeControllerDeps): SessionDepsCompletos | null {
-  if (
-    deps.sessionStore === undefined ||
-    deps.secureCookie === undefined ||
-    deps.sessionTtlMinutes === undefined
-  ) {
-    return null;
-  }
-  return {
-    sessionStore: deps.sessionStore,
-    secureCookie: deps.secureCookie,
-    sessionTtlMinutes: deps.sessionTtlMinutes,
-  };
-}
-
-/**
- * Best-effort: si F1 clasifico el lead como `no_viable`, se le emite la
- * cookie de sesion (mismo mecanismo que el login por OTP de F2.2) para que
- * `ClientFlowPage` lo reconozca solo al recargar y salte directo al camino de
- * nutricion. Un fallo emitiendo la sesion NUNCA tumba la respuesta del turno
- * — mismo criterio que `explicacionMejorEsfuerzo` en el caso de uso: el dato
- * ya se persistio, la sesion es una comodidad adicional, no un requisito.
- */
-async function emitirSesionSiNoViableMejorEsfuerzo(
-  deps: IntakeControllerDeps,
-  resultado: { routing: { carril: string } | null; profile: { id: string } },
-  res: Response,
-): Promise<void> {
-  if (resultado.routing?.carril !== 'no_viable') {
-    return;
-  }
-  const sesion = sessionDepsCompletos(deps);
-  if (sesion === null) {
-    return;
-  }
-
-  try {
-    const issued = await sesion.sessionStore.issue(resultado.profile.id);
-    if (!issued.ok) {
-      logger.error(
-        { err: issued.error },
-        'no se pudo emitir la sesion automatica del lead no_viable',
-      );
-      return;
-    }
-    res.cookie(LEAD_SESSION_COOKIE, issued.value.token, leadSessionCookieOptions(sesion));
-  } catch (causa) {
-    logger.error(
-      { err: causa },
-      'fallo inesperado emitiendo la sesion automatica del lead no_viable',
-    );
-  }
 }
 
 /**
@@ -160,7 +84,11 @@ export function createIntakeRouter(deps: IntakeControllerDeps): Router {
         sendError(res, resultado.error);
         return;
       }
-      await emitirSesionSiNoViableMejorEsfuerzo(deps, resultado.value, res);
+      // F1 NO emite sesion, ni siquiera para `no_viable`: terminar el chat ya
+      // no da acceso al modulo educativo. La unica puerta es el OTP contra el
+      // correo que el propio lead declaro (`lead-auth.controller.ts`) — antes
+      // aca se emitia la cookie "por comodidad" y eso volvia el gate saltable
+      // con solo recargar la pagina.
       sendOk(res, resultado.value);
     }),
   );

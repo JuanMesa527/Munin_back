@@ -30,6 +30,12 @@ const TEST_ENV: AppEnv = {
   closerUsername: 'closer.demo',
   closerPassword: 'correct-password',
   leadSessionTtlMinutes: 43_200,
+  emailProvider: 'mock',
+  smtpHost: 'smtp.example.com',
+  smtpPort: 587,
+  smtpUser: null,
+  smtpPassword: null,
+  smtpFrom: null,
   persistenceDriver: 'memory',
   supabaseUrl: null,
   supabaseServiceRoleKey: null,
@@ -147,5 +153,65 @@ describe('createApp', () => {
       ok: true,
       data: { telefono: '+57 300 000 0042' },
     });
+  });
+  /**
+   * Regresion del montaje: `createLeadAuthRouter` declara rutas ABSOLUTAS, asi
+   * que montarlo bajo `PREFIJO_EDUCATION` las duplicaba y dejaba todo el login
+   * por OTP en 404. Los tests del controller no lo detectan porque montan el
+   * router en la raiz — este si arma la app real.
+   */
+  it('las rutas de OTP existen en la app real (no 404 por doble prefijo)', async () => {
+    const { server } = await createApp(TEST_ENV);
+
+    const response = await request(
+      server,
+      API_ROUTES.education.auth.requestOtp,
+      postJson({ leadId: 'demo-lead-1' }),
+    );
+
+    expect(response.status).toBe(200);
+  });
+
+  it('el journey exige la sesion que solo emite el OTP: con leadId suelto es 401', async () => {
+    const { server } = await createApp(TEST_ENV);
+
+    const sinSesion = await request(
+      server,
+      `${API_ROUTES.education.journey}?leadId=demo-lead-1`,
+    );
+
+    expect(sinSesion.status).toBe(401);
+  });
+
+  it('flujo completo del gate: OTP -> cookie -> journey accesible', async () => {
+    const { server } = await createApp(TEST_ENV);
+
+    const pedido = await request(
+      server,
+      API_ROUTES.education.auth.requestOtp,
+      postJson({ leadId: 'demo-lead-1' }),
+    );
+    const codigo = (pedido.body as { data: { codigo: string } }).data.codigo;
+
+    const verificado = await request(
+      server,
+      API_ROUTES.education.auth.verifyOtp,
+      postJson({ leadId: 'demo-lead-1', codigo }),
+    );
+    expect(verificado.status).toBe(200);
+    const setCookie = verificado.setCookie;
+    if (setCookie === null) throw new Error('El verify no emitio cookie');
+    const cookie = setCookie.split(';', 1)[0]!;
+
+    const journey = await request(server, `${API_ROUTES.education.journey}?leadId=demo-lead-1`, {
+      headers: { cookie },
+    });
+    expect(journey.status).toBe(200);
+
+    // La sesion es de ESE lead, no un pase para todo el modulo.
+    const ajeno = await request(server, `${API_ROUTES.education.journey}?leadId=demo-lead-2`, {
+      headers: { cookie },
+    });
+    expect(ajeno.status).toBe(401);
   });
 });

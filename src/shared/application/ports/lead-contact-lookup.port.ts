@@ -23,4 +23,11 @@ export interface LeadContactLookupPort {
    * permitiria enumerar que telefonos/emails estan registrados (OWASP A07).
    */
   findLeadIdByContact(contact: LeadContactInput): Promise<Result<string>>;
+  /**
+   * Direccion inversa: el contacto que F1 ya le capturo a un lead. La usa el
+   * GATE de F2.2 — el lead acaba de salir de la conversacion, tenemos su
+   * `leadId` pero no su correo, y el codigo hay que mandarlo a ALGUN lado.
+   * Sin esto habria que pedirle otra vez el correo que acaba de escribir.
+   */
+  findContactByLeadId(leadId: string): Promise<Result<LeadContactInput>>;
 }

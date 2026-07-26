@@ -206,15 +206,11 @@ export async function createApp(env: AppEnv, server: Express = express()): Promi
   // Su router aplica su propio rate limit dentro del modulo.
   // `vault` es el MISMO que recibe el briefing (F4) mas abajo: F1 emite el
   // token de contacto y F4 lo canjea. Dos instancias = "revelar contacto" roto.
+  // F1 no emite sesion: terminar el chat NO abre el modulo educativo. Esa
+  // puerta la abre solo el OTP contra el correo declarado (F2.2).
   const intake = createLeadIntakeModule(env, {
     leads,
     vault,
-    // MISMA instancia que emite/verifica la sesion del login por OTP de F2.2:
-    // aqui se usa para auto-loguear al lead cuando F1 lo clasifica no_viable,
-    // sin pasar por OTP (ya "demostro" su identidad en esta conversacion).
-    sessionStore: leadSessionStore,
-    secureCookie: env.isProduction,
-    sessionTtlMinutes: env.leadSessionTtlMinutes,
   });
   server.use(intake.router);
 
@@ -248,11 +244,26 @@ export async function createApp(env: AppEnv, server: Express = express()): Promi
   });
   // Limitadores mas estrictos SOLO en las 2 rutas que "envian"/verifican OTP,
   // mismo criterio que `authRateLimiter` del closer: se acotan a su ruta
-  // exacta para no capturar `/journey`/`/progress`, que siguen publicas.
+  // exacta para no capturar `/journey`/`/progress`.
   server.use(API_ROUTES.education.auth.requestOtp, otpRequestRateLimiter);
   server.use(API_ROUTES.education.auth.verifyOtp, otpVerifyRateLimiter);
-  server.use(PREFIJO_EDUCATION, education.authRouter);
-  server.use(PREFIJO_EDUCATION, publicRateLimiter, education.router);
+  // En la RAIZ, no bajo `PREFIJO_EDUCATION`: `createLeadAuthRouter` declara sus
+  // rutas con la ruta COMPLETA de `API_ROUTES.education.auth.*` (a diferencia
+  // de `createEducationRouter`, que las declara relativas). Montarlo con
+  // prefijo las duplicaba (`/api/leads/education/api/leads/education/...`) y
+  // dejaba TODO el login por OTP en 404 — los tests no lo veian porque montan
+  // el router en la raiz.
+  server.use(education.authRouter);
+  // El journey y el progreso ya no son publicos: exigen la cookie que solo
+  // emite `/auth/otp/verify`, y ademas que el `leadId` pedido sea el de esa
+  // sesion (si no, cualquiera con un id ajeno leia el camino de otro).
+  server.use(
+    PREFIJO_EDUCATION,
+    publicRateLimiter,
+    education.requireLead,
+    education.requireOwnLead,
+    education.router,
+  );
 
   // --- Login publico; el resto de las rutas closer exige sesion verificada ---
   const dashboard = createCloserDashboardModule({

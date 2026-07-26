@@ -51,6 +51,39 @@ function contactOf(body: RequestOtpBody | VerifyOtpBody): LeadContactInput {
   return { telefono: body.telefono, email: body.email };
 }
 
+/**
+ * Un solo lugar resuelve el `leadId`, venga por el canal que venga: el gate
+ * manda `leadId` (ya lo tiene de F1) y la recuperacion manda telefono/email.
+ * El zod del DTO ya garantizo que llega exactamente uno.
+ */
+async function resolverLeadId(
+  deps: LeadAuthControllerDeps,
+  body: RequestOtpBody | VerifyOtpBody,
+): Promise<{ ok: true; value: string } | { ok: false }> {
+  if (body.leadId !== null) {
+    // No basta con confiar en el id: si no existe, no hay a quien mandarle
+    // nada. `findContactByLeadId` en `requestOtp` ya lo comprueba; aca solo
+    // se propaga el id para que `verifyOtp` no tenga que repetir el viaje.
+    return { ok: true, value: body.leadId };
+  }
+  const resuelto = await deps.contactLookup.findLeadIdByContact(contactOf(body));
+  return resuelto.ok ? { ok: true, value: resuelto.value } : { ok: false };
+}
+
+/**
+ * `nicolas@gmail.com` -> `ni****@gmail.com`. La pantalla del gate tiene que
+ * poder decir A DONDE fue el codigo (si no, el lead no sabe que bandeja
+ * abrir) sin escupir el correo completo a quien solo tenga el `leadId`.
+ */
+function enmascararEmail(email: string): string {
+  const arroba = email.indexOf('@');
+  if (arroba <= 0) return '****';
+  const usuario = email.slice(0, arroba);
+  const dominio = email.slice(arroba);
+  const visible = usuario.slice(0, Math.min(2, usuario.length));
+  return `${visible}${'*'.repeat(Math.max(usuario.length - visible.length, 1))}${dominio}`;
+}
+
 export function createLeadAuthRouter(deps: LeadAuthControllerDeps): Router {
   const router = Router();
 
@@ -59,45 +92,76 @@ export function createLeadAuthRouter(deps: LeadAuthControllerDeps): Router {
     validateBody(RequestOtpBodySchema),
     asyncHandler(async (req: Request, res: Response) => {
       const body = req.body as RequestOtpBody;
-      const resuelto = await deps.contactLookup.findLeadIdByContact(contactOf(body));
+      const esGate = body.leadId !== null;
+      const resuelto = await resolverLeadId(deps, body);
 
       // Misma respuesta exista o no el contacto: de lo contrario este endpoint
       // se vuelve un oraculo de "que telefonos/emails estan registrados"
       // (OWASP A07). Solo si el contacto matchea se genera y "envia" un OTP.
-      if (resuelto.ok) {
-        const emitido = await deps.otp.requestOtp(resuelto.value);
-        if (emitido.ok) {
-          // Best-effort: el codigo YA se genero y es valido aunque el envio
-          // falle, asi que un fallo de correo/SMTP NUNCA tumba esta respuesta
-          // (mismo criterio que `emitirSesionSiNoViableMejorEsfuerzo` en
-          // `intake.controller.ts`) — solo se loguea para poder investigarlo.
-          try {
-            const enviado = await deps.otpDelivery.send({
-              email: body.email,
-              telefono: body.telefono,
-              codigo: emitido.value.codigo,
-            });
-            if (!enviado.ok) {
-              logger.error(
-                { leadId: resuelto.value, err: enviado.error },
-                'fallo el envio del OTP; el codigo sigue siendo valido',
-              );
-            }
-          } catch (causa) {
-            logger.error(
-              { leadId: resuelto.value, err: causa },
-              'fallo inesperado enviando el OTP; el codigo sigue siendo valido',
-            );
-          }
-        }
-        sendOk(res, {
-          enviado: true,
-          ...(deps.isProduction || !emitido.ok ? {} : { codigo: emitido.value.codigo }),
-        });
+      if (!resuelto.ok) {
+        sendOk(res, { enviado: true });
         return;
       }
+      const leadId = resuelto.value;
 
-      sendOk(res, { enviado: true });
+      // El contacto GUARDADO manda sobre el que vino en el body: es el que F1
+      // capturo y el unico que existe cuando el canal es `leadId` (el gate no
+      // le pide al lead un correo que ya dio en el chat). De paso arregla el
+      // caso "entro por telefono": el codigo igual sale por su correo real.
+      const contacto = await deps.contactLookup.findContactByLeadId(leadId);
+      if (!contacto.ok) {
+        // Por `leadId` SI se puede responder con el error real: un uuid no es
+        // enumerable y quien lo manda ya lo tenia. Por telefono/email se sigue
+        // respondiendo "enviado" a ciegas (misma regla de arriba).
+        if (esGate) {
+          sendError(res, contacto.error);
+          return;
+        }
+        sendOk(res, { enviado: true });
+        return;
+      }
+      const destinoEmail = contacto.value.email ?? body.email;
+      const destinoTelefono = contacto.value.telefono ?? body.telefono;
+
+      const emitido = await deps.otp.requestOtp(leadId);
+      if (emitido.ok) {
+        // Best-effort: el codigo YA se genero y es valido aunque el envio
+        // falle, asi que un fallo de correo/SMTP NUNCA tumba esta respuesta
+        // (mismo criterio que `emitirSesionSiNoViableMejorEsfuerzo` en
+        // `intake.controller.ts`) — solo se loguea para poder investigarlo.
+        try {
+          const enviado = await deps.otpDelivery.send({
+            email: destinoEmail,
+            telefono: destinoTelefono,
+            codigo: emitido.value.codigo,
+          });
+          if (!enviado.ok) {
+            logger.error(
+              { leadId, err: enviado.error },
+              'fallo el envio del OTP; el codigo sigue siendo valido',
+            );
+          }
+        } catch (causa) {
+          logger.error(
+            { leadId, err: causa },
+            'fallo inesperado enviando el OTP; el codigo sigue siendo valido',
+          );
+        }
+      }
+
+      sendOk(res, {
+        enviado: true,
+        // Solo en el gate: ahi el lead NO escribio nada y necesita saber que
+        // bandeja abrir. En el flujo por telefono/email devolverlo delataria
+        // si el contacto existe — justo lo que evita el `sendOk` a ciegas.
+        ...(esGate
+          ? {
+              destino: destinoEmail !== null ? enmascararEmail(destinoEmail) : null,
+              canal: destinoEmail !== null ? ('email' as const) : ('telefono' as const),
+            }
+          : {}),
+        ...(deps.isProduction || !emitido.ok ? {} : { codigo: emitido.value.codigo }),
+      });
     }),
   );
 
@@ -106,7 +170,7 @@ export function createLeadAuthRouter(deps: LeadAuthControllerDeps): Router {
     validateBody(VerifyOtpBodySchema),
     asyncHandler(async (req: Request, res: Response) => {
       const body = req.body as VerifyOtpBody;
-      const resuelto = await deps.contactLookup.findLeadIdByContact(contactOf(body));
+      const resuelto = await resolverLeadId(deps, body);
       if (!resuelto.ok) {
         sendError(res, codigoInvalido());
         return;

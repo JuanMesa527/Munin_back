@@ -15,4 +15,10 @@ export class InMemoryLeadContactLookup implements LeadContactLookupPort {
     }
     return Promise.resolve(ok(encontrado.id));
   }
+
+  async findContactByLeadId(leadId: string): Promise<Result<LeadContactInput>> {
+    const encontrado = await this.leads.findById(leadId);
+    if (!encontrado.ok) return encontrado;
+    return ok({ telefono: encontrado.value.telefono, email: encontrado.value.email });
+  }
 }

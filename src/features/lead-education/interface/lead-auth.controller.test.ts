@@ -18,6 +18,8 @@ const MINUTO_MS = 60_000;
 interface TestContext {
   readonly app: Application;
   readonly advanceMinutes: (minutes: number) => void;
+  /** A donde termino saliendo cada codigo: es lo unico que prueba el gate por `leadId`. */
+  readonly enviados: { email: string | null; telefono: string | null }[];
 }
 
 interface HttpResponse {
@@ -38,7 +40,13 @@ function createTestContext(options: { isProduction?: boolean; secureCookie?: boo
   void leads.save({ ...leadProfile('lead-1'), telefono: '+573001112233', email: 'persona@correo.com' });
 
   const sessionStore = new InMemoryLeadSessionStore({ clock, ttlMinutos: 60 });
-  const otpDelivery: LeadOtpDeliveryPort = { send: () => Promise.resolve(ok(undefined)) };
+  const enviados: { email: string | null; telefono: string | null }[] = [];
+  const otpDelivery: LeadOtpDeliveryPort = {
+    send: (input) => {
+      enviados.push({ email: input.email, telefono: input.telefono });
+      return Promise.resolve(ok(undefined));
+    },
+  };
   const app = express();
   app.use(express.json());
   app.use(
@@ -58,6 +66,7 @@ function createTestContext(options: { isProduction?: boolean; secureCookie?: boo
 
   return {
     app,
+    enviados,
     advanceMinutes: (minutes: number) => {
       nowMs += minutes * MINUTO_MS;
     },
@@ -266,5 +275,113 @@ describe('lead auth HTTP', () => {
     expect(second.status).toBe(200);
     expect(first.setCookie).toContain('lead_session=;');
     expect(session.status).toBe(401);
+  });
+});
+
+/**
+ * Gate de entrada al modulo educativo: el lead acaba de terminar F1, la app
+ * tiene su `leadId` y el correo se lo dio al chat. No se le vuelve a pedir el
+ * contacto — se le manda el codigo al que ya declaro y sin ese codigo no entra.
+ */
+describe('gate por leadId', () => {
+  it('pide el codigo con solo el leadId y lo manda al correo que F1 capturo', async () => {
+    const { app, enviados } = createTestContext();
+
+    const response = await request(
+      app,
+      '/api/leads/education/auth/otp/request',
+      jsonRequest({ leadId: 'lead-1' }),
+    );
+
+    expect(response.status).toBe(200);
+    expect(enviados).toEqual([{ email: 'persona@correo.com', telefono: '+573001112233' }]);
+  });
+
+  it('devuelve el destino ENMASCARADO: el lead sabe que bandeja abrir sin que el correo se filtre entero', async () => {
+    const { app } = createTestContext();
+
+    const response = await request(
+      app,
+      '/api/leads/education/auth/otp/request',
+      jsonRequest({ leadId: 'lead-1' }),
+    );
+
+    expect(response.body).toMatchObject({
+      data: { destino: 'pe*****@correo.com', canal: 'email' },
+    });
+  });
+
+  it('por telefono/email NO devuelve destino: delataria si ese contacto existe', async () => {
+    const { app } = createTestContext();
+
+    const response = await request(
+      app,
+      '/api/leads/education/auth/otp/request',
+      jsonRequest({ telefono: '+573001112233', email: null }),
+    );
+
+    expect((response.body as { data: Record<string, unknown> }).data).not.toHaveProperty('destino');
+  });
+
+  it('el codigo del gate abre la sesion igual que el del login', async () => {
+    const { app } = createTestContext();
+    const requested = await request(
+      app,
+      '/api/leads/education/auth/otp/request',
+      jsonRequest({ leadId: 'lead-1' }),
+    );
+    const codigo = (requested.body as { data: { codigo: string } }).data.codigo;
+
+    const verified = await request(
+      app,
+      '/api/leads/education/auth/otp/verify',
+      jsonRequest({ leadId: 'lead-1', codigo }),
+    );
+
+    expect(verified.status).toBe(200);
+    expect(verified.body).toEqual({ ok: true, data: { leadId: 'lead-1' } });
+    const protegido = await request(app, '/protected', {
+      headers: { cookie: cookiePair(verified) },
+    });
+    expect(protegido.status).toBe(200);
+  });
+
+  it('tener el leadId NO alcanza: sin el codigo correcto no hay sesion', async () => {
+    const { app } = createTestContext();
+    await request(app, '/api/leads/education/auth/otp/request', jsonRequest({ leadId: 'lead-1' }));
+
+    const verified = await request(
+      app,
+      '/api/leads/education/auth/otp/verify',
+      jsonRequest({ leadId: 'lead-1', codigo: '000000' }),
+    );
+
+    expect(verified.status).toBe(401);
+    expect(verified.setCookie).toBeNull();
+  });
+
+  it('un leadId inexistente si responde el error real (un id no es enumerable como un correo)', async () => {
+    const { app, enviados } = createTestContext();
+
+    const response = await request(
+      app,
+      '/api/leads/education/auth/otp/request',
+      jsonRequest({ leadId: 'lead-que-no-existe' }),
+    );
+
+    expect(response.status).toBe(404);
+    expect(enviados).toEqual([]);
+  });
+
+  it('mandar dos canales a la vez es 400: el lead se resuelve por uno solo', async () => {
+    const { app } = createTestContext();
+
+    const response = await request(
+      app,
+      '/api/leads/education/auth/otp/request',
+      jsonRequest({ leadId: 'lead-1', email: 'persona@correo.com' }),
+    );
+
+    expect(response.status).toBe(400);
   });
 });

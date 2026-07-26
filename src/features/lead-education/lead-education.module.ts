@@ -23,7 +23,7 @@ import { RecordProgressUseCase } from './application/record-progress.use-case.js
 import { seedDemoLeads } from './infrastructure/demo-seed.js';
 import { createEducationRouter } from './interface/education.controller.js';
 import { createLeadAuthRouter } from './interface/lead-auth.controller.js';
-import { createRequireLead } from './interface/require-lead.js';
+import { createRequireLead, createRequireOwnLead } from './interface/require-lead.js';
 
 export { seedDemoLeads };
 
@@ -48,6 +48,8 @@ export interface LeadEducationModule {
   readonly router: Router;
   readonly authRouter: Router;
   readonly requireLead: RequestHandler;
+  /** Se monta DESPUES de `requireLead`: la sesion tiene que ser la del `leadId` pedido. */
+  readonly requireOwnLead: RequestHandler;
 }
 
 export function createLeadEducationModule(deps: LeadEducationModuleDeps): LeadEducationModule {
@@ -77,5 +79,6 @@ export function createLeadEducationModule(deps: LeadEducationModuleDeps): LeadEd
       isProduction: deps.isProduction,
     }),
     requireLead: createRequireLead(deps.sessionStore),
+    requireOwnLead: createRequireOwnLead(),
   };
 }
