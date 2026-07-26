@@ -114,13 +114,12 @@ export async function createApp(env: AppEnv, server: Express = express()): Promi
     clock,
     ttlMinutes: env.closerSessionTtlMinutes,
   });
-  // Login por OTP del lead (F2.2, adenda A14): igual que la sesion del
-  // closer, SIEMPRE en memoria — el OTP y la sesion son estado efimero
-  // (TTL corto), a diferencia del journey, que si necesitaba sobrevivir un
-  // restart (bloque 1 del plan).
+  // Login por OTP del lead (F2.2): igual que la sesion del closer, SIEMPRE en
+  // memoria — el OTP y la sesion son estado efimero (TTL corto), a diferencia
+  // del journey, que si necesitaba sobrevivir un restart (bloque 1 del plan).
   const leadOtp = new InMemoryLeadOtpStore({ clock });
-  // Envio real del OTP (adenda A14): `mock` (default) o `smtp` segun
-  // `EMAIL_PROVIDER` — unica eleccion de canal de envio, vive solo aqui.
+  // Envio real del OTP: `mock` (default) o `smtp` segun `EMAIL_PROVIDER` —
+  // unica eleccion de canal de envio, vive solo aqui.
   const leadOtpDelivery = createLeadOtpDeliveryPort(env);
   const leadSessionStore = new InMemoryLeadSessionStore({
     clock,
@@ -292,9 +291,9 @@ export async function createApp(env: AppEnv, server: Express = express()): Promi
   server.use(briefing.router);
 
   // F5 call-simulation: entrenador de cierre por voz. Puerto propio
-  // (CallSimulatorPort), NO comparte LlmPort con F1 (regla 12, ver
-  // llm.port.ts). Rate limit propio y mas estricto: cada turno cuesta tokens
-  // de DeepSeek Y caracteres de Polly.
+  // (CallSimulatorPort), NO comparte LlmPort con F1 (ver llm.port.ts). Rate
+  // limit propio y mas estricto: cada turno cuesta tokens de DeepSeek Y
+  // caracteres de Polly.
   const callSimulation = createCallSimulationModule({
     callSimulator: createCallSimulator(env),
     speech: createSpeechSynthesis(env),

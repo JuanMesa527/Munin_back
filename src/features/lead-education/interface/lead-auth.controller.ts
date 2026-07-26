@@ -1,11 +1,11 @@
 /**
- * Controller HTTP del login por OTP del lead (F2.2, adenda A14). Capa: interface.
+ * Controller HTTP del login por OTP del lead (F2.2). Capa: interface.
  *
  * El envio del codigo pasa por `LeadOtpDeliveryPort`: real por correo SMTP
  * cuando `EMAIL_PROVIDER=smtp`, o mock (solo log, sin red) por defecto para
  * desarrollo sin credenciales — ver `email.factory.ts`. El controller no sabe
- * cual de los dos esta activo. Fuera de produccion el codigo ADEMAS viaja en
- * la respuesta para poder probar el flujo sin bandeja de entrada real.
+ * cual de los dos esta activo. Fuera de produccion el codigo ADEMAS viaja en la
+ * respuesta para poder probar el flujo sin bandeja de entrada real.
  */
 
 import { Router } from 'express';

@@ -2,14 +2,14 @@
  * Puerto del analista de la llamada. Capa: application (puerto LOCAL de F5).
  *
  * SEPARADO de `CallSimulatorPort` a proposito, aunque los dos hablen con el
- * mismo proveedor: interpretar a la persona turno a turno y analizar la
- * llamada terminada son trabajos distintos, con prompts distintos y con modos
- * de fallo distintos. Si el analisis se cae, el roleplay no se entera.
+ * mismo proveedor: interpretar a la persona turno a turno y analizar la llamada
+ * terminada son trabajos distintos, con prompts distintos y con modos de fallo
+ * distintos. Si el analisis se cae, el roleplay no se entera.
  *
- * GLASS-BOX (regla 12): esto redacta NARRATIVA sobre hechos ya calculados.
- * Recibe el `CallScorecard` ya cerrado — `outcome`, `puntaje` y `factores` los
- * decidio `domain/verdict.ts` — y solo explica en lenguaje humano lo que esos
- * numeros ya dicen. Un highlight jamas cambia un veredicto.
+ * GLASS-BOX: esto redacta NARRATIVA sobre hechos ya calculados. Recibe el
+ * `CallScorecard` ya cerrado — `outcome`, `puntaje` y `factores` los decidio
+ * `domain/verdict.ts` — y solo explica en lenguaje humano lo que esos numeros
+ * ya dicen. Un highlight jamas cambia un veredicto.
  */
 
 import type { CallHighlights, CallScorecard, CallTurn, PersonaContext } from '@contracts';

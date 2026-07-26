@@ -1,8 +1,8 @@
 /**
  * Puerto del roleplay de voz. Capa: application (puerto LOCAL de F5).
  *
- * GLASS-BOX (regla 12) — igual disciplina que `shared/application/ports/llm.port.ts`,
- * pero un puerto NUEVO y separado a proposito: `llm.port.ts` prohibe explicitamente
+ * GLASS-BOX — igual disciplina que `shared/application/ports/llm.port.ts`, pero
+ * un puerto NUEVO y separado a proposito: `llm.port.ts` prohibe explicitamente
  * agregarle un tercer metodo ("PROHIBIDO agregar aqui un metodo que puntue,
  * clasifique, ordene, decida"). Interpretar a una persona en una llamada es una
  * tercera capacidad que ese contrato nunca prometio cubrir.

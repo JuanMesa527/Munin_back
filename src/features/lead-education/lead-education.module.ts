@@ -33,10 +33,10 @@ export interface LeadEducationModuleDeps {
   readonly catalog: DataCatalogPort;
   readonly clock: ClockPort;
   readonly ids: IdGeneratorPort;
-  /** Login por OTP (adenda A14): recupera el `leadId` cuando se perdio de `localStorage`. */
+  /** Login por OTP: recupera el `leadId` cuando se perdio de `localStorage`. */
   readonly contactLookup: LeadContactLookupPort;
   readonly otp: LeadOtpPort;
-  /** Envio real del OTP (adenda A14): `mock` o `smtp` segun `EMAIL_PROVIDER`. */
+  /** Envio real del OTP: `mock` o `smtp` segun `EMAIL_PROVIDER`. */
   readonly otpDelivery: LeadOtpDeliveryPort;
   readonly sessionStore: LeadSessionStorePort;
   readonly secureCookie: boolean;

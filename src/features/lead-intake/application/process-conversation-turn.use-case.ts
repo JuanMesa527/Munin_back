@@ -1,8 +1,7 @@
 /**
- * Caso de uso `/turn` de F1 (lead-intake). Capa: application.
- * Orquesta el loop de slots y las TRES salidas de carril persistidas
- * (`viable` | `no_viable` | `null`, design.md D3/D4) — todas por el MISMO
- * `LeadRepository.save`.
+ * Caso de uso `/turn` de F1 (lead-intake). Capa: application. Orquesta el loop
+ * de slots y las TRES salidas de carril persistidas (`viable` | `no_viable` |
+ * `null`) — todas por el MISMO `LeadRepository.save`.
  *
  * - Chip: parser puro del slot actual (sin LLM).
  * - Texto libre: `llm.converseIntake` puede llenar N slots; cada valor vuelve
@@ -35,7 +34,7 @@ import { checkAffiliation, estimateCapacity, scoreLead } from '../domain/profili
 import { decideViability } from '../domain/routing.js';
 import { stepPromptFor } from './step-copy.js';
 
-/** Confianza minima del LLM para aceptar su extraccion (design.md D1). */
+/** Confianza minima del LLM para aceptar su extraccion. */
 const CONFIANZA_MINIMA_LLM = 0.5;
 
 const TEXTO_NO_ENTENDIDO =
@@ -54,7 +53,7 @@ export interface ProcessConversationTurnDeps {
    * que se emite aqui es el que el closer canjea al revelar el telefono.
    */
   readonly vault: ContactVaultPort;
-  /** `env.privacyPolicyVersion`, inyectado desde `lead-intake.module.ts` (design.md D2). */
+  /** `env.privacyPolicyVersion`, inyectado desde `lead-intake.module.ts`. */
   readonly activePolicyVersion: string;
 }
 
@@ -307,9 +306,9 @@ export class ProcessConversationTurnUseCase {
   }
 
   /**
-   * Perfilamiento + matching + enrutamiento (design.md Data Flow, D3/D4).
-   * Cualquier fallo aguas abajo de este punto degrada de forma honesta a
-   * `finalizeUnclassified` — nunca fabrica un carril.
+   * Perfilamiento + matching + enrutamiento. Cualquier fallo aguas abajo de
+   * este punto degrada de forma honesta a `finalizeUnclassified` — nunca
+   * fabrica un carril.
    */
   private async finalize(profile: LeadProfile): Promise<Result<ConversationTurn>> {
     const now = this.deps.clock.now();
@@ -437,7 +436,7 @@ export class ProcessConversationTurnUseCase {
  * - No sensibles: viaja el VALOR real (edad, ocupacion, etc.).
  * - PII (nombre, email, telefono): viaja solo la marca `'capturado'`, nunca
  *   el valor — asi el modelo sabe que ya no debe pedirlo sin que el dato
- *   personal cruce el prompt (design.md D11 regla 4).
+ *   Personal cruce el prompt.
  */
 /** `[clave, valor crudo o ya como string, esPii]`. `esPii` colapsa el valor a `'capturado'`. */
 type CampoLlm = readonly [clave: string, valor: string | null, esPii?: boolean];

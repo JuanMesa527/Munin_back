@@ -72,9 +72,9 @@ describe('buildGamifiedJourney', () => {
   });
 
   it('marca la meta de capacidad como opcional si la razón de ingreso no es financiera', () => {
-    // Currículo adaptativo (adenda A12): si el lead entró solo por no estar
-    // afiliado (no por ahorro/capacidad), forzarle "entendé tu capacidad
-    // financiera" no tiene sentido — ya demostró que sabe de plata.
+    // Currículo adaptativo: si el lead entró solo por no estar afiliado (no por
+    // ahorro/capacidad), forzarle "entendé tu capacidad financiera" no tiene
+    // sentido — ya demostró que sabe de plata.
     const profile = createEmptyLeadProfile('lead-3', NOW);
     const journey = buildGamifiedJourney({
       profile,
@@ -273,7 +273,7 @@ describe('checkReadmission', () => {
   });
 
   it('readmite aunque una meta opcional quede sin completar (currículo adaptativo)', () => {
-    // Este es el comportamiento nuevo: antes de la adenda A12, 'meta-edu-capacidad'
+    // Este es el comportamiento nuevo: antes de la, 'meta-edu-capacidad'
     // SIEMPRE contaba, así que dejarla pendiente habría dejado esta prueba en
     // `false` — probamos justamente que una meta opcional no bloquea nada.
     const profile = createEmptyLeadProfile('lead-4', NOW);

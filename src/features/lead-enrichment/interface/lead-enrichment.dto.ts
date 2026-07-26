@@ -40,7 +40,7 @@ export const SwipeBodySchema = z.object({
   leadId: IdSchema,
   proyectoId: IdSchema,
   accion: z.enum(['pass', 'like', 'favorito']),
-  /** --- Telemetria opcional de la tarjeta (adenda A10) --- */
+  /** --- Telemetria opcional de la tarjeta --- */
   dwellMs: z.number().int().nonnegative().max(MAX_DWELL_MS).optional(),
   abrioDetalle: z.boolean().optional(),
   detalleMs: z.number().int().nonnegative().max(MAX_DWELL_MS).optional(),
@@ -66,7 +66,7 @@ export const SummaryBodySchema = z.object({
 export type SummaryBody = z.infer<typeof SummaryBodySchema>;
 
 /* --------------------------------------------------------------------------
- *  Telemetria de atencion (adenda A10)
+ *  Telemetria de atencion
  * ------------------------------------------------------------------------ */
 
 const ViewEventSchema = z.object({

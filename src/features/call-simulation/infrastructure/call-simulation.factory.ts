@@ -53,9 +53,9 @@ export function createSpeechSynthesis(env: AppEnv): SpeechSynthesisPort {
 }
 
 /**
- * Adenda A12. Va aparte de `createSpeechSynthesis` aunque comparta region y
- * credenciales: sintetizar y transcribir fallan por motivos distintos, y una
- * demo puede querer oir al lead sin pagar el dictado.
+ * Va aparte de `createSpeechSynthesis` aunque comparta region y credenciales:
+ * sintetizar y transcribir fallan por motivos distintos, y una demo puede
+ * querer oir al lead sin pagar el dictado.
  */
 export function createSpeechTranscription(env: AppEnv): SpeechTranscriptionPort {
   if (env.transcriptionProvider === 'aws') {

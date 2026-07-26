@@ -28,9 +28,9 @@ export type JourneyQuery = z.infer<typeof JourneyQuerySchema>;
  * meta de ahorro mandando un numero absurdo: el dominio ya lo topa al objetivo,
  * pero rechazarlo en el borde deja el error explicito.
  *
- * `fechaObjetivo` (adenda A10) es OPCIONAL y ortogonal al evento de progreso:
- * cuando viaja, el caso de uso configura la fecha limite de `metaId` ademas de
- * (no en lugar de) aplicar el evento — ver `RecordProgressUseCase`.
+ * `fechaObjetivo` es OPCIONAL y ortogonal al evento de progreso: cuando viaja,
+ * el caso de uso configura la fecha limite de `metaId` ademas de (no en lugar
+ * de) aplicar el evento — ver `RecordProgressUseCase`.
  */
 export const ProgressRequestSchema = z.object({
   leadId: LeadIdSchema,

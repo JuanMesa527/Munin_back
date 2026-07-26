@@ -2,10 +2,7 @@
  * Helpers puros sobre `LeadProfile`. Capa: domain compartido (puro, sin I/O).
  * Viven aqui y no dentro de una feature porque los usan F1 (intake), F2.1
  * (enrichment) y F2.2 (education): compartirlos por `@shared/domain` es lo que
- * evita que una feature importe internals de otra (regla 4).
- *
- * Convencion de scaffolding: un parametro con prefijo `_` significa "el cuerpo
- * todavia es un stub"; quita el `_` al implementar.
+ * evita que una feature importe internals de otra.
  */
 
 import type { IsoDateTime, LeadProfile, Slot } from '@contracts';
@@ -54,9 +51,9 @@ export function createEmptyLeadProfile(id: string, now: IsoDateTime): LeadProfil
 /**
  * Gate legal (Ley 1581 de 2012): consentimiento previo, expreso e INFORMADO.
  * `domain/` no puede leer `env`, asi que la version vigente de la politica
- * llega como parametro — la inyecta `application/` desde `env.privacyPolicyVersion`
- * (design.md D2). Si el titular acepto un texto de politica distinto al vigente,
- * no cuenta como consentimiento valido.
+ * llega como parametro — la inyecta `application/` desde
+ * `env.privacyPolicyVersion`. Si el titular acepto un texto de politica
+ * distinto al vigente, no cuenta como consentimiento valido.
  */
 export function hasConsent(profile: LeadProfile, activePolicyVersion: string): boolean {
   if (profile.consentimiento === null) {

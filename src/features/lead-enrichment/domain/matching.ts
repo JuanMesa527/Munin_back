@@ -1,10 +1,10 @@
 /**
  * Matching lead <-> proyecto. Capa: domain (funciones puras, cero I/O).
  *
- * GLASS-BOX (reglas 20 y 21): esto es una funcion determinista con pesos
- * declarados arriba. Ningun LLM participa. Cada tarjeta sale con la lista de
- * factores que la puso donde esta, y `razon` se arma con esos mismos factores,
- * no con una redaccion libre que podria contradecirlos.
+ * GLASS-BOX: esto es una funcion determinista con pesos declarados arriba.
+ * Ningun LLM participa. Cada tarjeta sale con la lista de factores que la puso
+ * donde esta, y `razon` se arma con esos mismos factores, no con una redaccion
+ * libre que podria contradecirlos.
  *
  * ## De donde salen los pesos
  *
@@ -21,7 +21,7 @@
  *
  * CUANDO CORRA EL PIPELINE: reemplazar `PESOS` por los de `weights.json` y
  * agregar el factor de similitud contra `perfilComprador`. Ese cambio va
- * documentado con su porque, igual que este (regla 23).
+ * documentado con su porque, igual que este.
  */
 
 import type {
@@ -418,8 +418,8 @@ function aFactores(ejes: readonly Eje[]): Factor[] {
     valor: aporte.valor,
     // En puntos sobre 100, que es como se lee un score en la UI.
     contribucion: redondear(aporte.ajuste * peso * 100),
-    // Adenda A8: intensidad 0-100 = que tan bien puntua el lead en ESTE eje,
-    // independiente del peso. `ajuste` vive en 0..1.
+    // Intensidad 0-100 = que tan bien puntua el lead en ESTE eje, independiente
+    // del peso. `ajuste` vive en 0..1.
     intensidad: Math.round(Math.max(0, Math.min(1, aporte.ajuste)) * 100),
   }));
 }

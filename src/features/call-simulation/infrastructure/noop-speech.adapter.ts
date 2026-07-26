@@ -1,10 +1,10 @@
 /**
- * Sintesis de voz apagada. Capa: infrastructure (adapter de `SpeechSynthesisPort`).
+ * Sintesis de voz apagada. Capa: infrastructure (adapter de
+ * `SpeechSynthesisPort`).
  *
  * Driver por defecto (`SPEECH_PROVIDER=none`): `CallTurn.audio` queda `null` en
  * toda la sesion y la UI cae a solo texto. NO es un estado de error — es una
- * configuracion soportada de proposito, para demos sin credenciales de AWS
- * (spec call-simulation-voice, requisito "SPEECH_PROVIDER=none Is a First-Class Mode").
+ * configuracion soportada de proposito, para demos sin credenciales de AWS.
  */
 
 import type { CallTurnAudio, SimulatedVoice } from '@contracts';

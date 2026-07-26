@@ -22,7 +22,7 @@ export function createLlmPort(env: AppEnv): LlmPort {
 
   if (env.llmProvider === 'deepseek') {
     if (env.deepseekApiKey === null) {
-      // Mismo fail-early que `anthropic` (design.md D11).
+      // Mismo fail-early que `anthropic`.
       throw new Error('LLM_PROVIDER=deepseek exige DEEPSEEK_API_KEY');
     }
     return new DeepSeekLlmAdapter(env.deepseekApiKey, env.deepseekModel);

@@ -74,9 +74,9 @@ const ArchivoProyectosSchema = z.union([
 type ArchivoProyectos = z.infer<typeof ArchivoProyectosSchema>;
 
 /**
- * Ficha comercial (adenda A8). Se valida con el mismo criterio que el resto: el
- * archivo lo genera `analysis/scripts/06_build_projects_catalog.py`, pero un
- * artefacto regenerado a mano es entrada no confiable igual que cualquier otra.
+ * Ficha comercial. Se valida con el mismo criterio que el resto: el archivo lo
+ * genera `analysis/scripts/06_build_projects_catalog.py`, pero un artefacto
+ * regenerado a mano es entrada no confiable igual que cualquier otra.
  */
 const ArchivoTipologiaSchema = z.object({
   nombre: z.string().min(1),

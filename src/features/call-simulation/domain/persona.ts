@@ -1,16 +1,17 @@
 /**
- * Contexto de la persona simulada y su system prompt. Capa: domain (funciones puras).
+ * Contexto de la persona simulada y su system prompt. Capa: domain (funciones
+ * puras).
  *
- * GLASS-BOX (regla 12): aqui se decide QUE sabe el LLM, nunca QUE decide la
- * llamada. Ni esta funcion ni el LLM escriben en `ScoreResult`, `carril` ni
- * `LeadProfile` — el roleplay vive en un carril de entrenamiento aparte, detras
- * de `CallSimulatorPort` (nuevo puerto, separado de `LlmPort` a proposito: ese
+ * GLASS-BOX: aqui se decide QUE sabe el LLM, nunca QUE decide la llamada. Ni
+ * esta funcion ni el LLM escriben en `ScoreResult`, `carril` ni `LeadProfile` —
+ * el roleplay vive en un carril de entrenamiento aparte, detras de
+ * `CallSimulatorPort` (nuevo puerto, separado de `LlmPort` a proposito: ese
  * puerto prohibe explicitamente un tercer metodo).
  *
  * SIN PII: `PersonaContext` NUNCA lleva telefono, apellidos ni documento — solo
  * primer nombre y atributos de perfil ya presentes en `BriefingSheet.lead`.
- * Mismo requisito que la regla 4 del adapter de `LlmPort` ("Nada de PII en el
- * prompt"), aplicado aqui porque el roleplay tiene su propio prompt.
+ * Mismo requisito que la del adapter de `LlmPort` ("Nada de PII en el prompt"),
+ * aplicado aqui porque el roleplay tiene su propio prompt.
  */
 
 import type { BriefingSheet, CallDifficulty, CallTurn, PersonaContext } from '@contracts';

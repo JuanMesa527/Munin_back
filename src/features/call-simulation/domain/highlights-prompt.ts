@@ -54,9 +54,9 @@ export function formatearTranscripcion(turnos: readonly CallTurn[]): string {
 /**
  * System prompt del analista.
  *
- * Se le entregan los hechos YA calculados (puntaje, factores, objeciones
- * vivas, alertas) y se le prohibe explicitamente recalcularlos: si el modelo
- * discrepa del veredicto, el que manda es el veredicto (regla 12).
+ * Se le entregan los hechos YA calculados (puntaje, factores, objeciones vivas,
+ * alertas) y se le prohibe explicitamente recalcularlos: si el modelo discrepa
+ * del veredicto, el que manda es el veredicto.
  */
 export function buildHighlightsPrompt(
   persona: PersonaContext,

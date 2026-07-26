@@ -1,11 +1,11 @@
 /**
- * Caso de uso: procesar un turno de la llamada (lo que dijo el closer ->
- * como responde el lead simulado). Capa: application.
+ * Caso de uso: procesar un turno de la llamada (lo que dijo el closer -> como
+ * responde el lead simulado). Capa: application.
  *
  * GLASS-BOX: `talkingPointsUsados` NO sale de lo que reporte el LLM — se
  * calcula aqui con `domain/coverage.ts`, por coincidencia de palabras entre
- * `closerDijo` y el guion real (spec call-simulation-verdict, "Coverage
- * Reflects Actual Talking Point Usage": "not by trusting a closer-reported flag").
+ * `closerDijo` y el guion real ("Coverage Reflects Actual Talking Point Usage":
+ * "not by trusting a closer-reported flag").
  */
 
 import type { CallTurn, PersonaContext } from '@contracts';
@@ -57,8 +57,7 @@ export class ProcessCallTurnUseCase {
     });
     if (!replica.ok) {
       // Entrada NO CONFIABLE del LLM: nunca se fabrica un turno con un delta
-      // inventado (spec "LLM Output Is Untrusted Input"). El closer puede
-      // reintentar el turno desde el frontend.
+      // inventado. El closer puede reintentar el turno desde el frontend.
       return replica;
     }
 

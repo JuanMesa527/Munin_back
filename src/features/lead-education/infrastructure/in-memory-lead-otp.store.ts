@@ -1,17 +1,16 @@
 /**
- * Generador y verificador de OTP para el login del lead (F2.2, adenda A14).
- * Capa: infrastructure (adapter de `LeadOtpPort`).
+ * Generador y verificador de OTP para el login del lead (F2.2). Capa:
+ * infrastructure (adapter de `LeadOtpPort`).
  *
  * OWASP A02 (fallas criptograficas): el codigo se genera con `randomInt` del
  * CSPRNG (nunca `Math.random`, y nunca `randomBytes % N`, que sesga la
- * distribucion) y se guarda HASHEADO (SHA-256), igual criterio que el token
- * de sesion — un volcado de memoria no entrega codigos utilizables.
+ * distribucion) y se guarda HASHEADO (SHA-256), igual criterio que el token de
+ * sesion — un volcado de memoria no entrega codigos utilizables.
  *
- * OWASP A07 (fuerza bruta): un OTP de 6 digitos tiene solo 10^6
- * combinaciones — MUY chico comparado con los 256 bits del token de sesion —
- * asi que ademas del TTL corto hace falta un limite EXPLICITO de intentos por
- * codigo; el token de sesion no lo necesita porque su espacio es
- * astronomicamente mas grande.
+ * OWASP A07 (fuerza bruta): un OTP de 6 digitos tiene solo 10^6 combinaciones —
+ * MUY chico comparado con los 256 bits del token de sesion — asi que ademas del
+ * TTL corto hace falta un limite EXPLICITO de intentos por codigo; el token de
+ * sesion no lo necesita porque su espacio es astronomicamente mas grande.
  */
 
 import { createHash, randomInt, timingSafeEqual } from 'node:crypto';

@@ -1,8 +1,8 @@
 /**
- * Fabrica del `LeadRepository`. Capa: infrastructure.
- * Espeja `llm.factory.ts` (design.md D10): un solo lugar decide que driver de
- * persistencia se usa, para que ninguna feature importe un adapter concreto y
- * el cambio de driver sea una variable de entorno.
+ * Fabrica del `LeadRepository`. Capa: infrastructure. Espeja `llm.factory.ts`:
+ * un solo lugar decide que driver de persistencia se usa, para que ninguna
+ * feature importe un adapter concreto y el cambio de driver sea una variable de
+ * entorno.
  */
 
 import type { EducationJourneyRepository } from '../../application/ports/education-repository.port.js';

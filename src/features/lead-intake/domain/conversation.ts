@@ -3,11 +3,11 @@
  * Llena `LeadProfile` con las 6 preguntas confirmadas por el product owner y
  * decide cuando la conversacion esta lista para enrutar.
  *
- * `parseAnswer` es deliberadamente PURO (design.md D1): no recibe `LlmPort`.
- * El caso de uso (application/, Fase 2) intenta `parseAnswer` primero; si
- * falla con texto libre, llama a `LlmPort.extractSlotValue` y alimenta el
- * `valor` devuelto DE VUELTA por `parseAnswer` — el LLM nunca entra al
- * dominio sin pasar por esta misma puerta de validacion.
+ * `parseAnswer` es deliberadamente PURO: no recibe `LlmPort`. El caso de uso
+ * (application/, Fase 2) intenta `parseAnswer` primero; si falla con texto
+ * libre, llama a `LlmPort.extractSlotValue` y alimenta el `valor` devuelto DE
+ * VUELTA por `parseAnswer` — el LLM nunca entra al dominio sin pasar por esta
+ * misma puerta de validacion.
  */
 
 import {
@@ -37,8 +37,8 @@ import { err, ok } from '@shared/kernel/result.js';
 
 /**
  * Union feature-interna de valores parseados. Mantiene las escrituras a
- * `LeadProfile` type-safe: cada `slot` solo puede traer el tipo de valor que
- * le corresponde en el contrato (design.md, seccion Interfaces/Contracts).
+ * `LeadProfile` type-safe: cada `slot` solo puede traer el tipo de valor que le
+ * corresponde en el contrato.
  */
 export type SlotValue =
   | { slot: 'afiliacion' | 'viviendaPropia'; valor: boolean }
@@ -274,9 +274,8 @@ function copyFor(slot: AskedSlot): { texto: string; quickReplies: QuickReply[] }
 }
 
 /**
- * Siguiente paso de la conversacion, o `null` cuando los slots preguntados
- * ya estan llenos (listo para enrutar). Sin rama de afiliacion a proposito
- * (spec "Non-Affiliation Never Short-Circuits the Flow", design.md D5): el
+ * Siguiente paso de la conversacion, o `null` cuando los slots preguntados ya
+ * estan llenos (listo para enrutar). Sin rama de afiliacion a proposito: el
  * orden es fijo y no consulta `esAfiliado`.
  */
 export function getNextStep(profile: LeadProfile): ConversationStep | null {
@@ -490,9 +489,8 @@ function parsePersonasACargo(texto: string): Result<SlotValue, ValidationError> 
 }
 
 /**
- * Parser puro de vocabulario/formato (design.md D1). Determinista: mismo
- * `texto` siempre produce el mismo `Result`. Nunca llama al LLM — eso vive en
- * `application/`.
+ * Parser puro de vocabulario/formato. Determinista: mismo `texto` siempre
+ * produce el mismo `Result`. Nunca llama al LLM — eso vive en `application/`.
  */
 export function parseAnswer(slot: Slot, texto: string): Result<SlotValue, ValidationError> {
   const normalizado = texto.trim();
@@ -597,7 +595,7 @@ function applyDirectValue(profile: LeadProfile, valor: SlotValue): LeadProfile {
   }
 }
 
-/** design.md D8: `rangoSalarial` → `segmento`. `Joven` nunca se infiere. */
+/** : `rangoSalarial` → `segmento`. `Joven` nunca se infiere. */
 function segmentoDesdeDesde(desde: number): Segmento {
   if (desde < 2) {
     return 'Basico';
@@ -623,9 +621,9 @@ function inferirSegmento(profile: LeadProfile, rangoSalarial: string): LeadProfi
 }
 
 /**
- * design.md D8: `segmentoFamiliar` → `personasACargo`. Mapeo PLACEHOLDER
- * pendiente de confirmacion con el rol de datos (design.md Open Questions);
- * valores razonables por tipo de nucleo familiar mientras tanto.
+ * `segmentoFamiliar` → `personasACargo`. Mapeo PLACEHOLDER pendiente de
+ * confirmacion con el rol de datos; valores razonables por tipo de nucleo
+ * familiar mientras tanto.
  */
 const PERSONAS_A_CARGO_POR_SEGMENTO_FAMILIAR: Record<string, number> = {
   Unipersonal: 0,

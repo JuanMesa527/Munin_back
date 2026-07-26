@@ -2,8 +2,8 @@
  * Borde HTTP de F2.1. Capa: interface.
  *
  * El controller solo traduce: valida con zod, llama al caso de uso y mapea el
- * `Result` a HTTP. Cero logica de negocio (regla 5) -- si aparece un `if` que
- * decide algo del dominio aca, va en el caso de uso.
+ * `Result` a HTTP. Cero logica de negocio -- si aparece un `if` que decide algo
+ * del dominio aca, va en el caso de uso.
  *
  * Estas rutas son PUBLICAS: el usuario final de F2.1 no tiene login (el reto
  * exige que sea autogestionado). La proteccion es que `leadId` es un id opaco y

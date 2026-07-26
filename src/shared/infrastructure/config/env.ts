@@ -76,9 +76,9 @@ const EnvSchema = z.object({
   CLOSER_PASSWORD: z.string().min(1, 'falta la contrasena del closer'),
 
   /**
-   * Login por OTP del lead (F2.2, adenda A14). Deliberadamente MUCHO mas
-   * largo que `CLOSER_SESSION_TTL_MINUTES`: un lead vuelve a nutrirse a lo
-   * largo de dias/semanas, no en un turno de trabajo — 30 dias por defecto.
+   * Login por OTP del lead (F2.2). Deliberadamente MUCHO mas largo que
+   * `CLOSER_SESSION_TTL_MINUTES`: un lead vuelve a nutrirse a lo largo de
+   * dias/semanas, no en un turno de trabajo — 30 dias por defecto.
    */
   LEAD_SESSION_TTL_MINUTES: z.coerce.number().int().positive().max(129_600).default(43_200),
 
@@ -99,9 +99,9 @@ const EnvSchema = z.object({
   PRIVACY_POLICY_VERSION: z.string().trim().min(1).default(VERSION_POLITICA_SIN_CONFIGURAR),
 
   /**
-   * F5 · call-simulation. `CALL_SIM_PROVIDER` es independiente de `LLM_PROVIDER`:
-   * el roleplay usa un puerto propio (`CallSimulatorPort`), nunca `LlmPort`
-   * (regla 12, glass-box — ver contracts.ts adenda A11).
+   * F5 · call-simulation. `CALL_SIM_PROVIDER` es independiente de
+   * `LLM_PROVIDER`: el roleplay usa un puerto propio (`CallSimulatorPort`),
+   * nunca `LlmPort` (glass-box — ver contracts.ts).
    */
   CALL_SIM_PROVIDER: z.enum(['stub', 'deepseek']).default('stub'),
   /** `none` deja `CallTurn.audio` en `null`: la UI cae a solo texto. */
@@ -111,15 +111,15 @@ const EnvSchema = z.object({
   POLLY_VOICE_FEMALE: z.string().trim().min(1).default('Mia'),
   POLLY_VOICE_MALE: z.string().trim().min(1).default('Andres'),
   /**
-   * Adenda A12. `none` deja el dictado apagado y el closer escribe; `aws` usa
-   * Amazon Transcribe Streaming con las MISMAS credenciales que Polly.
+   * `none` deja el dictado apagado y el closer escribe; `aws` usa Amazon
+   * Transcribe Streaming con las MISMAS credenciales que Polly.
    */
   TRANSCRIPTION_PROVIDER: z.enum(['none', 'aws']).default('none'),
 
   /**
-   * Envio real del OTP del lead (F2.2, adenda A14). `mock` (default) loguea
-   * el envio sin tocar red, igual que `LLM_PROVIDER=stub`; `smtp` manda un
-   * correo real (pensado para Gmail con "contrasena de aplicacion").
+   * Envio real del OTP del lead (F2.2). `mock` (default) loguea el envio sin
+   * tocar red, igual que `LLM_PROVIDER=stub`; `smtp` manda un correo real
+   * (pensado para Gmail con "contrasena de aplicacion").
    */
   EMAIL_PROVIDER: z.enum(['mock', 'smtp']).default('mock'),
   SMTP_HOST: z.string().trim().default('smtp.gmail.com'),
@@ -164,7 +164,7 @@ export interface AppEnv {
   readonly closerSessionTtlMinutes: number;
   readonly closerUsername: string;
   readonly closerPassword: string;
-  /** Login por OTP del lead (F2.2, adenda A14). */
+  /** Login por OTP del lead (F2.2,). */
   readonly leadSessionTtlMinutes: number;
   readonly persistenceDriver: PersistenceDriver;
   /** URL del proyecto Supabase. `null` con el driver `memory` (solo lo exige `supabase`, D10). */
@@ -173,7 +173,7 @@ export interface AppEnv {
   readonly supabaseServiceRoleKey: string | null;
   readonly weightsPath: string;
   readonly projectProfilesPath: string;
-  /** Fichas comerciales de los proyectos que consume F2.1 (adenda A8). */
+  /** Fichas comerciales de los proyectos que consume F2.1. */
   readonly projectsCatalogPath: string;
   /** Version del aviso que acepta el titular. Queda en `ConsentRecord`. */
   readonly privacyPolicyVersion: string;
@@ -188,7 +188,7 @@ export interface AppEnv {
   /** Dictado del closer. Comparte `awsRegion` y credenciales con Polly (A12). */
   readonly transcriptionProvider: TranscriptionProvider;
 
-  /** Envio real del OTP del lead (F2.2, adenda A14). */
+  /** Envio real del OTP del lead (F2.2,). */
   readonly emailProvider: EmailProvider;
   readonly smtpHost: string;
   readonly smtpPort: number;
@@ -319,9 +319,9 @@ export function loadEnv(): AppEnv {
     throw new Error('Configuracion invalida: LLM_PROVIDER=deepseek exige DEEPSEEK_API_KEY');
   }
 
-  // F5 · call-simulation: mismo puerto DEEPSEEK_API_KEY que arriba (es la
-  // misma cuenta/llave), pero un interruptor independiente de LLM_PROVIDER
-  // porque el roleplay usa `CallSimulatorPort`, no `LlmPort` (regla 12).
+  // F5 · call-simulation: mismo puerto DEEPSEEK_API_KEY que arriba (es la misma
+  // cuenta/llave), pero un interruptor independiente de LLM_PROVIDER porque el
+  // roleplay usa `CallSimulatorPort`, no `LlmPort`.
   if (env.callSimProvider === 'deepseek' && env.deepseekApiKey === null) {
     throw new Error('Configuracion invalida: CALL_SIM_PROVIDER=deepseek exige DEEPSEEK_API_KEY');
   }

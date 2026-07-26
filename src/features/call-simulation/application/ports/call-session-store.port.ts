@@ -1,10 +1,10 @@
 /**
- * Puerto de estado de la llamada en curso. Capa: application (puerto LOCAL de F5).
+ * Puerto de estado de la llamada en curso. Capa: application (puerto LOCAL de
+ * F5).
  *
  * El estado completo (turnos acumulados) vive SOLO server-side: el cliente
  * recibe un `CallTurn` por turno y el `CallScorecard` al colgar, nunca la
- * sesion completa (spec call-simulation-interface, requisito "Session State
- * Never Reaches the Client Directly").
+ * sesion completa.
  */
 
 import type {

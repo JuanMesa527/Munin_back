@@ -1,15 +1,15 @@
 /**
- * Archivo historico de llamadas en Supabase. Capa: infrastructure
- * (adapter de `CallRecordingStorePort`). Adenda A14.
+ * Archivo historico de llamadas en Supabase. Capa: infrastructure (adapter de
+ * `CallRecordingStorePort`)..
  *
  * Dos destinos:
  *  - tabla `call_sessions`: la fila con transcripcion, veredicto y highlights;
  *  - bucket privado `call-recordings`: el audio.
  *
- * TODO best-effort: ningun fallo aqui puede tumbar el veredicto. Los errores
- * se loguean y se devuelven como `Result`, y `EndCallUseCase` los ignora a
- * proposito. Perder el historico de una llamada es malo; dejar al closer sin
- * su resultado despues de seis minutos hablando es peor.
+ * TODO best-effort: ningun fallo aqui puede tumbar el veredicto. Los errores se
+ * loguean y se devuelven como `Result`, y `EndCallUseCase` los ignora a
+ * proposito. Perder el historico de una llamada es malo; dejar al closer sin su
+ * resultado despues de seis minutos hablando es peor.
  */
 
 import type { CallRecord, CallRecordingRef } from '@contracts';

@@ -98,10 +98,10 @@ export const publicRateLimiter = limitador({ windowMs: 5 * MINUTO_MS, limit: 60 
 export const authRateLimiter = limitador({ windowMs: 15 * MINUTO_MS, limit: 10 });
 
 /**
- * OWASP A07: login por OTP del lead (F2.2, adenda A14). Pedir un codigo es lo
- * caro de limitar (cada uno "envia" un mensaje, real en produccion): 5
- * intentos / 15 minutos por IP alcanza para reintentar un typo de telefono o
- * email sin abrir la puerta a bombardear un contacto ajeno de OTPs.
+ * OWASP A07: login por OTP del lead (F2.2). Pedir un codigo es lo caro de
+ * limitar (cada uno "envia" un mensaje, real en produccion): 5 intentos / 15
+ * minutos por IP alcanza para reintentar un typo de telefono o email sin abrir
+ * la puerta a bombardear un contacto ajeno de OTPs.
  */
 export const otpRequestRateLimiter = limitador({ windowMs: 15 * MINUTO_MS, limit: 5 });
 
@@ -185,17 +185,17 @@ export function applySecurity(app: Express, env: AppEnv): void {
   };
   app.use(cors(opcionesCors));
 
-  // --- OWASP A03 (inyeccion) ---
-  // Solo JSON y con techo de 32 kb: el body mas grande que manejamos es un turno
-  // de conversacion (texto acotado a 500 chars en el DTO). Un limite bajo corta
-  // de raiz los payloads gigantes de denegacion de servicio.
+  // --- OWASP A03 (inyeccion) --- Solo JSON y con techo de 32 kb: el body mas
+  // grande que manejamos es un turno de conversacion (texto acotado a 500 chars
+  // en el DTO). Un limite bajo corta de raiz los payloads gigantes de
+  // denegacion de servicio.
   //
-  // UNICA excepcion: el dictado del closer (adenda A12) sube PCM en base64 y no
-  // cabe en 32 kb. Se le da su propio parser en vez de subir el techo global
-  // para que la holgura exista SOLO en esa ruta: cualquier otro endpoint sigue
-  // rechazando un payload gigante en el parser, antes de tocar codigo nuestro.
-  // El tope fino (y el 400 legible) lo pone `TranscribeBodySchema`; este techo
-  // es la red de seguridad de mas afuera.
+  // UNICA excepcion: el dictado del closer sube PCM en base64 y no cabe en 32
+  // kb. Se le da su propio parser en vez de subir el techo global para que la
+  // holgura exista SOLO en esa ruta: cualquier otro endpoint sigue rechazando
+  // un payload gigante en el parser, antes de tocar codigo nuestro. El tope
+  // fino (y el 400 legible) lo pone `TranscribeBodySchema`; este techo es la
+  // red de seguridad de mas afuera.
   const jsonEstricto = express.json({ limit: '32kb' });
   const jsonAudio = express.json({ limit: '2mb' });
   app.use((req, res, next) => {

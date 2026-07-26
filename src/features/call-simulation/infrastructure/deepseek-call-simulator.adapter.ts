@@ -1,9 +1,10 @@
 /**
- * Roleplay real (DeepSeek). Capa: infrastructure (adapter de `CallSimulatorPort`).
+ * Roleplay real (DeepSeek). Capa: infrastructure (adapter de
+ * `CallSimulatorPort`).
  *
  * Mismo patron que `shared/infrastructure/llm/deepseek-llm.adapter.ts`: `fetch`
- * nativo (Node 22, regla 19 — no meter el SDK `openai` por una llamada POST),
- * salida validada con zod ANTES de entrar al dominio, texto del closer SIEMPRE
+ * nativo (Node 22, — no meter el SDK `openai` por una llamada POST), salida
+ * validada con zod ANTES de entrar al dominio, texto del closer SIEMPRE
  * delimitado como mensaje `user`, nunca concatenado en el `system`.
  *
  * DIFERENCIAS deliberadas frente a `deepseek-llm.adapter.ts`:
@@ -211,8 +212,7 @@ export class DeepSeekCallSimulatorAdapter implements CallSimulatorPort {
       mensajes.push({ role: 'assistant', content: turno.leadRespondio });
     }
 
-    // Dato delimitado, nunca concatenado en la instruccion (spec
-    // "Closer Text Is Delimited, Never Concatenated Into the System Prompt").
+    // Dato delimitado, nunca concatenado en la instruccion.
     mensajes.push({ role: 'user', content: input.closerDijo });
 
     return this.solicitar(mensajes);

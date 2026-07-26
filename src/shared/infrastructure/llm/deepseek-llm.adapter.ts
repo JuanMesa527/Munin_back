@@ -1,9 +1,9 @@
 /**
  * LLM real (DeepSeek). Capa: infrastructure (adapter de `LlmPort`).
  *
- * design.md D11 + intake conversacional: glass-box (nada de puntuar, clasificar,
- * ordenar ni decidir), sobre `fetch` nativo (Node 22) contra el endpoint
- * OpenAI-compatible de DeepSeek — sin el SDK `openai` (regla 19).
+ * Intake conversacional: glass-box (nada de puntuar, clasificar, ordenar ni
+ * decidir), sobre `fetch` nativo (Node 22) contra el endpoint OpenAI-compatible
+ * de DeepSeek — sin el SDK `openai`.
  *
  * REGLAS DE IMPLEMENTACION:
  *  1. El prompt SOLO puede extraer slots pendientes y/o redactar prosa de hechos.
@@ -29,7 +29,7 @@ import { err, ok } from '../../kernel/result.js';
 
 const DEEPSEEK_URL = 'https://api.deepseek.com/chat/completions';
 
-/** Un turno de chat no puede quedar colgado esperando al modelo (design.md D11). */
+/** Un turno de chat no puede quedar colgado esperando al modelo. */
 const TIMEOUT_MS = 8_000;
 
 const ExtractSlotValueSchema = z.object({

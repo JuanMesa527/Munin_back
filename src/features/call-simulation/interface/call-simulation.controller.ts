@@ -2,13 +2,13 @@
  * Borde HTTP de F5. Capa: interface.
  *
  * El controller solo traduce: valida con zod, llama al caso de uso y mapea el
- * `Result` a HTTP. Cero logica de negocio (regla 5) — el veredicto, la
- * cobertura y las alertas de cumplimiento se calculan en `domain/`, nunca aqui.
+ * `Result` a HTTP. Cero logica de negocio — el veredicto, la cobertura y las
+ * alertas de cumplimiento se calculan en `domain/`, nunca aqui.
  *
- * Estas rutas viven detras del guard de rol closer en el front
- * (`CloserGuard`); la autorizacion REAL la impone el backend — hoy comparte el
- * mismo estado sin-auth que el resto de `/api/closer/*` porque F3/F4 aun no
- * tiene backend de sesion (ver `use-closer-session.ts` en el front).
+ * Estas rutas viven detras del guard de rol closer en el front (`CloserGuard`);
+ * la autorizacion REAL la impone el backend — hoy comparte el mismo estado
+ * sin-auth que el resto de `/api/closer/*` porque F3/F4 aun no tiene backend de
+ * sesion (ver `use-closer-session.ts` en el front).
  */
 
 import { Router } from 'express';
@@ -90,8 +90,8 @@ export function createCallSimulationRouter(deps: CallSimulationControllerDeps): 
     }),
   );
 
-  // Voz del closer -> texto (adenda A12). No toca la sesion de la llamada: el
-  // closer revisa y corrige la transcripcion ANTES de enviar el turno.
+  // Voz del closer -> texto. No toca la sesion de la llamada: el closer revisa
+  // y corrige la transcripcion ANTES de enviar el turno.
   router.post(
     API_ROUTES.closer.call.transcribe,
     validateBody(TranscribeBodySchema),

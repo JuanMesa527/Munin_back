@@ -3,10 +3,9 @@
  * (funciones puras).
  *
  * GLASS-BOX: `talkingPointsUsados` de un turno NO sale de lo que el LLM diga
- * que uso — el LLM ni siquiera conoce los indices de `BriefingSheet.talkingPoints`.
- * Se calcula aqui, por coincidencia de palabras significativas entre lo que el
- * closer dijo y el propio punto del guion (spec call-simulation-verdict,
- * requisito "Coverage Reflects Actual Talking Point Usage").
+ * que uso — el LLM ni siquiera conoce los indices de
+ * `BriefingSheet.talkingPoints`. Se calcula aqui, por coincidencia de palabras
+ * significativas entre lo que el closer dijo y el propio punto del guion.
  */
 
 import type { CallTurn, ObjecionSugerida, TalkingPoint } from '@contracts';

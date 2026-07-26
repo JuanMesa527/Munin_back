@@ -1,6 +1,6 @@
 /**
  * Decision final de enrutamiento de F1 (lead-intake). Capa: domain (puro).
- * Determinista y explicable (EQUIPO.md regla 12): nunca recibe `LlmPort`.
+ * Determinista y explicable: nunca recibe `LlmPort`.
  */
 
 import type {
@@ -35,8 +35,8 @@ function construirRazones(
 }
 
 /**
- * `null` iff `score === null || capacidad === null` (design.md D4): "sin
- * evidencia, sin decision" vive en esta unica funcion pura y testeable.
+ * `null` iff `score === null || capacidad === null`: "sin evidencia, sin
+ * decision" vive en esta unica funcion pura y testeable.
  */
 export function decideViability(input: {
   score: ScoreResult | null;
