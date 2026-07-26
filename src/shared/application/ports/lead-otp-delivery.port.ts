@@ -1,5 +1,5 @@
 /**
- * Puerto de ENVIO del OTP del lead (F2.2, adenda A14). Capa: application.
+ * Puerto de ENVIO del OTP del lead (F2.2). Capa: application.
  *
  * Separado de `LeadOtpPort` (`lead-auth.port.ts`) a proposito: ese puerto
  * GENERA y VERIFICA el codigo; este solo lo ENTREGA por un canal real

@@ -25,10 +25,9 @@ interface RegistroDeSesion {
 export interface InMemoryLeadSessionStoreDeps {
   readonly clock: ClockPort;
   /**
-   * Igual a `env.leadSessionTtlMinutes`. Deliberadamente MUCHO mas largo que
-   * la sesion del closer (adenda A14): un lead no vuelve a diario a nutrirse,
-   * y pedirle un OTP nuevo cada pocas horas espantaria el uso real del
-   * recorrido de F2.2.
+   * Igual a `env.leadSessionTtlMinutes`. Deliberadamente MUCHO mas largo que la
+   * sesion del closer: un lead no vuelve a diario a nutrirse, y pedirle un OTP
+   * nuevo cada pocas horas espantaria el uso real del recorrido de F2.2.
    */
   readonly ttlMinutos: number;
 }

@@ -47,8 +47,7 @@ export function validateBody<S extends ZodType>(schema: S): RequestHandler {
 }
 
 /**
- * PROPUESTA AL EQUIPO: equivalente para query strings, que F3 necesita para
- * `ListLeadsQuerySchema`. En Express 5 `req.query` es un getter y no se puede
+ * Equivalente de `validateBody` para query strings. En Express 5 `req.query` es un getter y no se puede
  * reasignar, asi que el valor parseado se deja en `res.locals.query` y se lee
  * con `readValidatedQuery`.
  */

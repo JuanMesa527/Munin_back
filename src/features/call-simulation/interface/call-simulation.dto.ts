@@ -42,9 +42,9 @@ const TalkingPointSchema = z.object({
 });
 
 /**
- * Recorte SIN PII del `BriefingSheet` (adenda A11). Nunca declara telefono,
- * apellidos ni documento: lo que no esta en el schema no puede llegar al
- * caso de uso, sin importar que mande el cliente.
+ * Recorte SIN PII del `BriefingSheet`. Nunca declara telefono, apellidos ni
+ * documento: lo que no esta en el schema no puede llegar al caso de uso, sin
+ * importar que mande el cliente.
  */
 export const PersonaContextSchema = z.object({
   primerNombre: z.string().trim().min(1).max(40),
@@ -80,10 +80,10 @@ export const EndCallBodySchema = z.object({
 export type EndCallBody = z.infer<typeof EndCallBodySchema>;
 
 /**
- * Tope de audio por tramo (adenda A12). 30 s de PCM 16-bit a 16 kHz son
- * ~960 KB crudos, ~1,3 MB ya en base64; 1,5 MB deja margen y queda por debajo
- * del techo de 2 MB del parser, para que quien se pase reciba un 400 legible
- * de zod y no un 413 opaco del body parser.
+ * Tope de audio por tramo. 30 s de PCM 16-bit a 16 kHz son ~960 KB crudos, ~1,3
+ * MB ya en base64; 1,5 MB deja margen y queda por debajo del techo de 2 MB del
+ * parser, para que quien se pase reciba un 400 legible de zod y no un 413 opaco
+ * del body parser.
  *
  * El limite NO es cosmetico: sin el, un cliente puede subir horas de audio y
  * convertir el endpoint en un amplificador de costo contra nuestra cuenta de
@@ -97,10 +97,10 @@ export const TranscribeBodySchema = z.object({
   /** Los que acepta Transcribe para PCM; el front captura a 16 kHz. */
   sampleRate: z.number().int().min(8000).max(48000),
   /**
-   * Opcional (adenda A14): con el, el audio se guarda para archivar la
-   * llamada. Sin el, se transcribe y se descarta. Es opcional a proposito —
-   * transcribir NO exige tener una llamada abierta, y hacerlo obligatorio
-   * acoplaria el dictado al ciclo de vida de la sesion.
+   * Opcional: con el, el audio se guarda para archivar la llamada. Sin el, se
+   * transcribe y se descarta. Es opcional a proposito — transcribir NO exige
+   * tener una llamada abierta, y hacerlo obligatorio acoplaria el dictado al
+   * ciclo de vida de la sesion.
    */
   callId: IdSchema.optional(),
 });

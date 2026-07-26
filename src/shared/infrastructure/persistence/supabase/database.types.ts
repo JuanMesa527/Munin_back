@@ -73,14 +73,14 @@ type LeadProfilesRow = {
   carril: string | null;
   score: number | null;
   intent_score: number | null;
-  // Denormalizados SOLO para el lookup del login por OTP (F2.2, adenda A14);
-  // `base_payload` sigue siendo la fuente de verdad de ambos campos.
+  // Denormalizados SOLO para el lookup del login por OTP (F2.2); `base_payload`
+  // sigue siendo la fuente de verdad de ambos campos.
   telefono: string | null;
   email: string | null;
   updated_at: Timestamptz;
 };
 
-/** F5 · una llamada de entrenamiento terminada (adenda A14). */
+/** F5 · una llamada de entrenamiento terminada. */
 type CallSessionsRow = {
   id: string;
   lead_id: string;
@@ -101,7 +101,7 @@ type CallSessionsRow = {
   creado_en: Timestamptz;
 };
 
-/** F2.2 · progreso gamificado de nutricion de un lead no viable (adenda A12). */
+/** F2.2 · progreso gamificado de nutricion de un lead no viable. */
 type EducationJourneysRow = {
   lead_id: string;
   // jsonb de solo-escritura, mismo criterio que `factores`/`transcripcion`

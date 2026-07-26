@@ -6,10 +6,10 @@
  * mostrar y la pantalla no se puede ni abrir. Cuando F1 entre, estos leads
  * dejan de ser el camino principal y quedan solo como datos de prueba.
  *
- * PROHIBICION DURA (EQUIPO.md seccion 8): cero PII real. Los contactos son
- * completamente ficticios (dominio example.com / prefijo 300) y el telefono
- * solo se entrega al `ContactVaultPort`; nunca se registra ni se incorpora
- * directamente al perfil tokenizado (`identidad`).
+ * PROHIBICION DURA: cero PII real. Los contactos son completamente ficticios
+ * (dominio example.com / prefijo 300) y el telefono solo se entrega al
+ * `ContactVaultPort`; nunca se registra ni se incorpora directamente al perfil
+ * tokenizado (`identidad`).
  *
  * Solo se siembra fuera de produccion. `app.ts` lo hace explicito.
  */

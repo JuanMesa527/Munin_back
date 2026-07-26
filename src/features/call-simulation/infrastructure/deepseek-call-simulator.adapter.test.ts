@@ -1,8 +1,8 @@
 /**
  * Tests de la parte pura del adapter: `parseTurnResponseContent`. Sin red
- * (`config.yaml` `integration: false`), igual que los tests del adapter
- * de F1. Protege la spec "LLM Output Is Untrusted Input": un JSON malformado
- * o incompleto nunca debe convertirse en un turno fabricado.
+ * (`config.yaml` `integration: false`), igual que los tests del adapter de F1.
+ * Protege la: un JSON malformado o incompleto nunca debe convertirse en un
+ * turno fabricado.
  */
 
 import { describe, expect, it } from 'vitest';

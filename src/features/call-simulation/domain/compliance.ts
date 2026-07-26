@@ -26,10 +26,9 @@ const FRASES_PROHIBIDAS: readonly string[] = [
 ];
 
 /**
- * Alertas de incumplimiento, una por turno donde el closer prometio algo que
- * la caja no puede garantizar. Corre independiente del `outcome`: una llamada
- * puede cerrar Y llevar una alerta (spec call-simulation-verdict, requisito
- * "Compliance Alerts Detect Forbidden Promises").
+ * Alertas de incumplimiento, una por turno donde el closer prometio algo que la
+ * caja no puede garantizar. Corre independiente del `outcome`: una llamada
+ * puede cerrar Y llevar una alerta.
  */
 export function detectForbiddenPromises(turnos: readonly CallTurn[]): string[] {
   const alertas: string[] = [];

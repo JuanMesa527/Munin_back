@@ -10,9 +10,9 @@ import { mismaCiudad } from '@shared/domain/value-objects/city.js';
 /**
  * Proporcion de compradores afiliados a partir de la cual un proyecto se
  * considera practicamente exclusivo de afiliados: por debajo de este umbral
- * queda margen suficiente para el 10% no-afiliado de la regla 90/10
- * (design.md D5). Placeholder documentado, como el resto de constantes de
- * calibracion de este feature.
+ * queda margen suficiente para el 10% no-afiliado de la regla 90/10.
+ * Placeholder documentado, como el resto de constantes de calibracion de este
+ * feature.
  */
 const UMBRAL_PROPORCION_AFILIADOS_SIN_MARGEN = 0.95;
 
@@ -99,10 +99,10 @@ function calcularSimilitud(proyecto: ProjectProfile, profile: LeadProfile): numb
 
 /**
  * Compone la razon en lenguaje natural a partir de datos deterministas del
- * buyer persona real del proyecto (`perfilComprador`) — nunca generacion
- * libre. Cuando no hay ninguna coincidencia de perfil, la razon cae a los
- * hechos de elegibilidad ya establecidos (precio/ciudad), pero SIEMPRE queda
- * fundamentada, nunca vacia ni un placeholder (spec "Every Match Has a Reason").
+ * buyer persona real del proyecto (`perfilComprador`) — nunca generacion libre.
+ * Cuando no hay ninguna coincidencia de perfil, la razon cae a los hechos de
+ * elegibilidad ya establecidos (precio/ciudad), pero SIEMPRE queda
+ * fundamentada, nunca vacia ni un placeholder.
  *
  * LA ESTADISTICA SOLO SE CITA SI ESTA CALIBRADA. "El 87% de compradores de X
  * comparten tu segmento" se lee como un hecho verificado sobre 4.142 personas
@@ -186,11 +186,12 @@ export function matchProjects(
       datosFaltantes: proyecto.perfilCalibrado
         ? datosFaltantes(proyecto, profile)
         : ['el perfil real de compradores de este proyecto'],
-      // `ProjectProfile` (buyer-persona agregado) no trae `etapa` ni `tipologia`:
-      // esos los resuelve el catalogo comercial (`ProjectCard`, adenda A8). Hasta
-      // cablear ese cruce, se derivan del dato disponible y quedan documentados
-      // como el resto de placeholders de calibracion de este feature.
-      // TODO (A8): resolver etapa/tipologia reales desde `getProjectCard`.
+      // `ProjectProfile` (buyer-persona agregado) no trae `etapa` ni
+      // `tipologia`: esos los resuelve el catalogo comercial (`ProjectCard`).
+      // Hasta cablear ese cruce, se derivan del dato disponible y quedan
+      // documentados como el resto de placeholders de calibracion de este
+      // feature. TODO (A8): resolver etapa/tipologia reales desde
+      // `getProjectCard`.
       etapa: 'Única etapa',
       tipologia: proyecto.esVIS ? 'VIS' : 'No VIS',
     }))

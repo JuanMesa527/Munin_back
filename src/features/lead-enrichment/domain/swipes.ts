@@ -6,7 +6,7 @@
  * proyectos y decide; de esas decisiones salen `intereses`, `zonaPreferida` y
  * el `intentScore`. Menos friccion y una senal mas honesta que la declarada.
  *
- * GLASS-BOX (regla 20): esto es aritmetica sobre los swipes. El LLM no puntua.
+ * GLASS-BOX: esto es aritmetica sobre los swipes. El LLM no puntua.
  */
 
 import type {

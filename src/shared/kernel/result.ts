@@ -4,7 +4,7 @@
  *
  * Existe para que un fallo de negocio sea un VALOR y no una excepcion: el caso
  * de uso devuelve `Result`, el borde HTTP decide el status. `throw` queda
- * reservado para bugs y para los stubs de scaffolding.
+ * reservado para bugs.
  */
 
 import type { DomainError } from './errors.js';

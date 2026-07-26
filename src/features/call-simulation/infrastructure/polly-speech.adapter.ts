@@ -1,13 +1,13 @@
 /**
- * Voz real (Amazon Polly). Capa: infrastructure (adapter de `SpeechSynthesisPort`).
+ * Voz real (Amazon Polly). Capa: infrastructure (adapter de
+ * `SpeechSynthesisPort`).
  *
  * `@aws-sdk/client-polly` es una dependencia justificada (a diferencia de por
- * que DeepSeek va sobre `fetch`, regla 19): Polly exige firmar cada request
- * con SigV4 (HMAC-SHA256 sobre un request canonico), ~150 lineas para
- * implementar correctamente a mano — justo la clase de complejidad que la
- * regla 19 no busca evitar. Las credenciales usan la cadena por defecto del
- * SDK (perfil del `aws` CLI, variables de entorno o rol de instancia):
- * NUNCA hardcodeadas aqui.
+ * que DeepSeek va sobre `fetch`): Polly exige firmar cada request con SigV4
+ * (HMAC-SHA256 sobre un request canonico), ~150 lineas para implementar
+ * correctamente a mano — justo la clase de complejidad que la no busca evitar.
+ * Las credenciales usan la cadena por defecto del SDK (perfil del `aws` CLI,
+ * variables de entorno o rol de instancia): NUNCA hardcodeadas aqui.
  *
  * No existe voz `es-CO`: se usa `es-MX` (Mia/Andres por defecto), el acento
  * neutro latino mas cercano disponible en Polly.
@@ -40,8 +40,7 @@ export class PollySpeechAdapter implements SpeechSynthesisPort {
   /**
    * La voz sigue al GENERO del lead, no a un hash: una Laura con voz de hombre
    * rompe la simulacion en el primer segundo. Sigue siendo deterministica
-   * (spec "Voice Selection Is Deterministic Per Lead") porque el genero se
-   * infiere del nombre, que no cambia entre llamadas.
+   * porque el genero se infiere del nombre, que no cambia entre llamadas.
    */
   voiceFor(input: VozRequerida): SimulatedVoice {
     return {
@@ -60,7 +59,7 @@ export class PollySpeechAdapter implements SpeechSynthesisPort {
     }
 
     // Fallback UNA vez a `neural` si `generative` no esta habilitado para esta
-    // cuenta/voz (spec call-simulation-voice, requisito "Engine Fallback on Rejection").
+    // cuenta/voz.
     if (this.engine === 'generative') {
       const reintento = await this.intentarSintetizar(input.texto, voz.voiceId, 'neural');
       if (reintento.ok) {

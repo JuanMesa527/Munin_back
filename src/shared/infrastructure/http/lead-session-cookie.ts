@@ -1,14 +1,13 @@
 /**
- * Cookie de sesion del lead (F2.2, adenda A14). Capa: infrastructure.
+ * Cookie de sesion del lead (F2.2). Capa: infrastructure.
  *
  * Nombre y opciones de la cookie `lead_session`, compartidos entre TODOS los
  * controllers que la emiten o la leen. Vive en `shared/` — no en
  * `lead-education`, donde nacio — porque F1 (lead-intake) tambien necesita
  * emitirla al clasificar `no_viable` (auto-login sin OTP: el usuario ya
- * "demostro" su identidad completando la conversacion), y una feature no
- * puede importar de la capa `interface` de otra sin romper el aislamiento
- * entre features (spec lead-intake-interface "Feature Isolation via Module
- * Boundary").
+ * "demostro" su identidad completando la conversacion), y una feature no puede
+ * importar de la capa `interface` de otra sin romper el aislamiento entre
+ * features.
  */
 
 import type { CookieOptions } from 'express';

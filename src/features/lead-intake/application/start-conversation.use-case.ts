@@ -1,8 +1,8 @@
 /**
- * Caso de uso `/start` de F1 (lead-intake). Capa: application.
- * design.md Data Flow: devuelve un `LeadProfile` EFIMERO y NO persistido
- * (D6) — solo para que la UI pueda renderizar el saludo y el gate de
- * consentimiento. `/consent` mintea el id real y hace la primera escritura.
+ * Caso de uso `/start` de F1 (lead-intake). Capa: application.: devuelve un
+ * `LeadProfile` EFIMERO y NO persistido (D6) — solo para que la UI pueda
+ * renderizar el saludo y el gate de consentimiento. `/consent` mintea el id
+ * real y hace la primera escritura.
  */
 
 import type { ConversationStep, ConversationTurn } from '@contracts';

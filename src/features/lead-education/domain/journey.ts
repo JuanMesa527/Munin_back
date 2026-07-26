@@ -93,10 +93,10 @@ export function buildGamifiedJourney(input: BuildJourneyInput): EducationJourney
     });
   }
 
-  // Currículo adaptativo (adenda A12): si la razon de ingreso no involucra
-  // ahorro/capacidad (el lead ya demostro que entiende su plata — entro por
-  // otro motivo, p. ej. no estar afiliado), la leccion de capacidad se marca
-  // opcional en vez de forzarla. No cuenta para `checkReadmission`/`progreso`.
+  // Currículo adaptativo: si la razon de ingreso no involucra ahorro/capacidad
+  // (el lead ya demostro que entiende su plata — entro por otro motivo, p. ej.
+  // no estar afiliado), la leccion de capacidad se marca opcional en vez de
+  // forzarla. No cuenta para `checkReadmission`/`progreso`.
   const capacidadEsOpcional =
     !routing.razones.includes('ahorro_insuficiente') && !routing.razones.includes('sin_capacidad');
 
@@ -185,15 +185,15 @@ export function trackProgress(
       meta.tipo === 'ahorro' ? meta.alcanzado + event.valor : Math.max(meta.alcanzado, event.valor);
     const alcanzado = Math.min(meta.objetivo, incremento);
     const completada = alcanzado >= meta.objetivo;
-    // Fecha real de la PRIMERA vez que se completa (adenda A15): si ya estaba
-    // completa (p. ej. un segundo aporte tras alcanzar la meta), se preserva
-    // la fecha original en vez de pisarla con `now`.
+    // Fecha real de la PRIMERA vez que se completa: si ya estaba completa (p.
+    // ej. un segundo aporte tras alcanzar la meta), se preserva la fecha
+    // original en vez de pisarla con `now`.
     const completadaEn = !eraCompletada && completada ? now : meta.completadaEn;
 
-    // Historial de abonos (adenda A10): PARALELO a `alcanzado`, nunca lo
-    // reemplaza. Solo se agrega un `AporteAhorro` cuando el evento es un abono
-    // real (`ahorro_registrado`) con `valor > 0` — un valor 0 no es un aporte,
-    // es p. ej. una request que solo configura `fechaObjetivo` (ver
+    // Historial de abonos: PARALELO a `alcanzado`, nunca lo reemplaza. Solo se
+    // agrega un `AporteAhorro` cuando el evento es un abono real
+    // (`ahorro_registrado`) con `valor > 0` — un valor 0 no es un aporte, es p.
+    // ej. una request que solo configura `fechaObjetivo` (ver
     // `configureFechaObjetivo`) y no deberia ensuciar el historial con entradas
     // de $0.
     const aportes =
@@ -222,10 +222,10 @@ export function trackProgress(
   });
 
   const completadas = metas.filter((meta) => meta.completada);
-  // Las metas opcionales (adenda A12) no cuentan ni a favor ni en contra: si
-  // el lead no las necesita, no deberian dejarlo pegado en un 83% para
-  // siempre. `progreso` es el numero que el usuario ve en todas las
-  // pantallas (Inicio/Progreso/Perfil), asi que se recalcula ACA, no solo en
+  // Las metas opcionales no cuentan ni a favor ni en contra: si el lead no las
+  // necesita, no deberian dejarlo pegado en un 83% para siempre. `progreso` es
+  // el numero que el usuario ve en todas las pantallas
+  // (Inicio/Progreso/Perfil), asi que se recalcula ACA, no solo en
   // `checkReadmission` — una sola fuente de verdad.
   const metasQueCuentan = metas.filter((meta) => meta.opcional !== true);
   const completadasQueCuentan = metasQueCuentan.filter((meta) => meta.completada);
@@ -250,14 +250,14 @@ export function trackProgress(
  * financieras (ahorro, afiliacion) Y las educativas (una por etapa) y de
  * documentacion.
  *
- * ANTES esta funcion readmitia con solo cerrar ahorro/afiliacion, ignorando
- * el resto del curriculo: un lead que registrara un aporte grande de una sola
- * vez se "graduaba" a F2.1 al instante, sin pasar por ninguna leccion — el
- * punto entero de F2.2 es nutrir CON educacion, no solo trackear un numero.
- * `journey.progreso` ya es la proporcion de las metas que CUENTAN (excluye
- * las `opcional: true` — adenda A12) completadas, asi que exigir `>= 1` cubre
- * financiero + educativo + documentacion en una sola condicion, sin necesitar
- * el atajo de "metas criticas" que habia antes.
+ * ANTES esta funcion readmitia con solo cerrar ahorro/afiliacion, ignorando el
+ * resto del curriculo: un lead que registrara un aporte grande de una sola vez
+ * se "graduaba" a F2.1 al instante, sin pasar por ninguna leccion — el punto
+ * entero de F2.2 es nutrir CON educacion, no solo trackear un numero.
+ * `journey.progreso` ya es la proporcion de las metas que CUENTAN (excluye las
+ * `opcional: true`) completadas, asi que exigir `>= 1` cubre financiero +
+ * educativo + documentacion en una sola condicion, sin necesitar el atajo de
+ * "metas criticas" que habia antes.
  */
 export function checkReadmission(journey: EducationJourney): boolean {
   return journey.progreso >= 1;

@@ -1,8 +1,8 @@
 /**
  * Controller HTTP de F2.2. Capa: interface.
  *
- * Sin logica de negocio (regla 5): valida, delega en el caso de uso y traduce
- * el `Result` a la envoltura `ApiResponse` del contrato.
+ * Sin logica de negocio: valida, delega en el caso de uso y traduce el `Result`
+ * a la envoltura `ApiResponse` del contrato.
  */
 
 import { Router } from 'express';

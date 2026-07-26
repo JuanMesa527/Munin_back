@@ -1,9 +1,9 @@
 /**
- * Caso de uso `/consent` de F1 (lead-intake). Capa: application.
- * Gate legal (Ley 1581) y PRIMERA escritura del `LeadProfile`
- * (design.md D6): el id lo mintea el servidor via `IdGeneratorPort`, nunca
- * el cliente — evita que un `leadId` ajeno sobrescriba un lead ya perfilado
- * (OWASP A01/A04, threat matrix "client-controlled identifier").
+ * Caso de uso `/consent` de F1 (lead-intake). Capa: application. Gate legal
+ * (Ley 1581) y PRIMERA escritura del `LeadProfile`: el id lo mintea el servidor
+ * via `IdGeneratorPort`, nunca el cliente — evita que un `leadId` ajeno
+ * sobrescriba un lead ya perfilado (OWASP A01/A04, "client-controlled
+ * identifier").
  */
 
 import type { ConsentRecord, ConversationTurn, FinalidadTratamiento } from '@contracts';
@@ -17,14 +17,14 @@ import { err, ok } from '@shared/kernel/result.js';
 import { buildBotMessage, computeProgress, getNextStep } from '../domain/conversation.js';
 import { stepPromptFor } from './step-copy.js';
 
-/** design.md Data Flow: `finalidades ⊇ perfilamiento_vivienda`. */
+/** : `finalidades ⊇ perfilamiento_vivienda`. */
 const FINALIDAD_REQUERIDA: FinalidadTratamiento = 'perfilamiento_vivienda';
 
 export interface SubmitConsentDeps {
   readonly leads: LeadRepository;
   readonly clock: ClockPort;
   readonly ids: IdGeneratorPort;
-  /** `env.privacyPolicyVersion`, inyectado desde `lead-intake.module.ts` (design.md D2). */
+  /** `env.privacyPolicyVersion`, inyectado desde `lead-intake.module.ts`. */
   readonly activePolicyVersion: string;
 }
 

@@ -1,10 +1,10 @@
 /**
- * Controller Express de F1 (lead-intake). Capa: interface.
- * Unico borde HTTP de la feature: valida con zod (`validate.ts`), aplica el
- * limitador publico (`security.ts`) y traduce `Result` a `ApiResponse`
- * (`api-response.ts`). Nunca loguea el body crudo — el logger HTTP
- * (`createHttpLogger`, montado en `app.ts`) serializa solo metodo/ruta, y
- * este controller tampoco llama al logger directamente (spec "No PII in Logs").
+ * Controller Express de F1 (lead-intake). Capa: interface. Unico borde HTTP de
+ * la feature: valida con zod (`validate.ts`), aplica el limitador publico
+ * (`security.ts`) y traduce `Result` a `ApiResponse` (`api-response.ts`). Nunca
+ * loguea el body crudo — el logger HTTP (`createHttpLogger`, montado en
+ * `app.ts`) serializa solo metodo/ruta, y este controller tampoco llama al
+ * logger directamente.
  */
 
 import type { Request, Response } from 'express';
@@ -38,8 +38,8 @@ export interface IntakeControllerDeps {
 
 /**
  * `createIntakeRouter` — el router monta las rutas completas de
- * `API_ROUTES.intake.*` (design.md D7): quien lo use hace `app.use(router)`
- * en la raiz, nunca un `app.use('/algo', router)` con sufijos reescritos.
+ * `API_ROUTES.intake.*`: quien lo use hace `app.use(router)` en la raiz, nunca
+ * un `app.use('/algo', router)` con sufijos reescritos.
  */
 export function createIntakeRouter(deps: IntakeControllerDeps): Router {
   const router = Router();

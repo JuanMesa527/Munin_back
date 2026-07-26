@@ -1,12 +1,12 @@
 /**
  * Veredicto de la llamada simulada. Capa: domain (funcion pura).
  *
- * GLASS-BOX (regla 12): el `outcome` y el `puntaje` NUNCA los decide el LLM.
- * El LLM solo reporta senal turno a turno (`interes`, objeciones); esta
- * funcion — pura, testeada, sin I/O — es la unica que convierte esa senal en
- * el veredicto. Ante un jurado que pregunte "¿por que dice que cerro?", la
- * respuesta es esta aritmetica, no la opinion de un modelo (misma disciplina
- * que `ScoreResult.factores` en el scoring de leads).
+ * GLASS-BOX: el `outcome` y el `puntaje` NUNCA los decide el LLM. El LLM solo
+ * reporta senal turno a turno (`interes`, objeciones); esta funcion — pura,
+ * testeada, sin I/O — es la unica que convierte esa senal en el veredicto. Ante
+ * un jurado que pregunte "¿por que dice que cerro?", la respuesta es esta
+ * aritmetica, no la opinion de un modelo (misma disciplina que
+ * `ScoreResult.factores` en el scoring de leads).
  */
 
 import type {
@@ -31,10 +31,9 @@ export interface Umbrales {
 }
 
 /**
- * Umbral MAS ALTO a mayor dificultad: una dificultad dura hace al personaje
- * mas dificil de convencer (via `persona.ts`), nunca reduce lo que hace falta
- * para ganar (spec call-simulation-verdict, requisito "Difficulty Scales the
- * System Prompt, Not the Verdict Threshold Alone").
+ * Umbral MAS ALTO a mayor dificultad: una dificultad dura hace al personaje mas
+ * dificil de convencer (via `persona.ts`), nunca reduce lo que hace falta para
+ * ganar.
  */
 export const UMBRALES: Record<CallDifficulty, Umbrales> = {
   receptivo: { agendaVisita: 55, loPiensa: 35 },
@@ -105,11 +104,11 @@ export interface ComputeVerdictInput {
 
 /**
  * Desglose del puntaje, en los mismos terminos que `ScoreResult.factores` del
- * scoring de leads (adenda A13, regla 12 glass-box).
+ * scoring de leads (glass-box).
  *
- * Existe porque el dial del veredicto y el `interesFinal` son numeros
- * DISTINTOS y sin esto parecian contradecirse: el interes mide al LEAD, el
- * puntaje mide al CLOSER. Aqui se ve de donde sale cada punto.
+ * Existe porque el dial del veredicto y el `interesFinal` son numeros DISTINTOS
+ * y sin esto parecian contradecirse: el interes mide al LEAD, el puntaje mide
+ * al CLOSER. Aqui se ve de donde sale cada punto.
  */
 function construirFactores(input: {
   interesFinal: number;
@@ -162,8 +161,7 @@ function construirFactores(input: {
 
 /**
  * Calcula el `CallScorecard` completo a partir de la sesion terminada. Pura:
- * mismos turnos + misma dificultad -> mismo veredicto, siempre (spec
- * requisito "Outcome Is Computed by a Pure Function").
+ * mismos turnos + misma dificultad -> mismo veredicto, siempre.
  */
 export function computeVerdict(input: ComputeVerdictInput): CallScorecard {
   const { turnos, talkingPoints, objeciones, dificultad, iniciadaEn, terminadaEn } = input;

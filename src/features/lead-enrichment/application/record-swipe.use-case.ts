@@ -42,7 +42,7 @@ export interface RecordSwipeInput {
   readonly leadId: string;
   readonly proyectoId: string;
   readonly accion: SwipeAction;
-  /** --- Telemetria opcional de la tarjeta (adenda A10) --- */
+  /** --- Telemetria opcional de la tarjeta --- */
   readonly dwellMs?: number | undefined;
   readonly abrioDetalle?: boolean | undefined;
   readonly detalleMs?: number | undefined;

@@ -3,12 +3,9 @@
  * Capa: domain compartido (puro, sin I/O).
  *
  * Guarda la etiqueta TAL COMO la declaro el lead porque el vocabulario todavia
- * no esta cerrado (adenda A7 del contrato: se confirma contra el Excel en
- * `analysis/`). La traduccion a numeros vive en una sola funcion auditable:
- * de ahi cuelga el umbral de 4 SMMLV del Subsidio Familiar de Vivienda.
- *
- * Convencion de scaffolding: un parametro con prefijo `_` significa "el cuerpo
- * todavia es un stub"; quita el `_` al implementar.
+ * no esta cerrado (del contrato: se confirma contra el Excel en `analysis/`).
+ * La traduccion a numeros vive en una sola funcion auditable: de ahi cuelga el
+ * umbral de 4 SMMLV del Subsidio Familiar de Vivienda.
  */
 
 import { RANGOS_SALARIALES_SMMLV } from '@contracts';
@@ -22,7 +19,7 @@ export interface SalaryRange {
 }
 
 /**
- * PROPUESTA AL EQUIPO: cotas numericas del rango. `desde` inclusivo,
+ * Cotas numericas del rango. `desde` inclusivo,
  * `hasta` exclusivo, `hasta === null` para el tramo abierto (`>10 SMMLV`).
  */
 export interface SmmlvBounds {
@@ -31,8 +28,7 @@ export interface SmmlvBounds {
 }
 
 /**
- * PROPUESTA AL EQUIPO: constructor validado. El manifiesto solo nombra
- * `toSmmlvBounds`, pero sin puerta de entrada cualquier string entraria al
+ * Constructor validado. Sin puerta de entrada cualquier string entraria al
  * dominio y el scoring dejaria de ser explicable.
  */
 export function fromEtiqueta(etiqueta: string): Result<SalaryRange, ValidationError> {
@@ -48,9 +44,10 @@ export function fromEtiqueta(etiqueta: string): Result<SalaryRange, ValidationEr
 }
 
 /**
- * Cotas numericas por etiqueta, en el mismo orden que `RANGOS_SALARIALES_SMMLV`.
- * Tabla explicita (no un parseo por regex del string) para que el mapeo sea
- * auditable linea por linea — exactamente lo que pide design.md D8.
+ * Cotas numericas por etiqueta, en el mismo orden que
+ * `RANGOS_SALARIALES_SMMLV`. Tabla explicita (no un parseo por regex del
+ * string) para que el mapeo sea auditable linea por linea — exactamente lo que
+ * pide.
  */
 const COTAS_POR_ETIQUETA: Record<string, SmmlvBounds> = {
   '0-2 SMMLV': { desde: 0, hasta: 2 },
@@ -63,9 +60,9 @@ const COTAS_POR_ETIQUETA: Record<string, SmmlvBounds> = {
 /**
  * Parsea la etiqueta a cotas numericas.
  *
- * Es la unica puerta entre el texto declarado y la aritmetica del subsidio;
- * el vocabulario definitivo lo confirma el pipeline de `analysis/` (adenda A7).
- * Si `range.etiqueta` no esta en la tabla (no deberia pasar si vino de
+ * Es la unica puerta entre el texto declarado y la aritmetica del subsidio; el
+ * vocabulario definitivo lo confirma el pipeline de `analysis/`. Si
+ * `range.etiqueta` no esta en la tabla (no deberia pasar si vino de
  * `fromEtiqueta`, pero esta funcion no confia en eso), retorna `err` en vez de
  * adivinar una cota.
  */

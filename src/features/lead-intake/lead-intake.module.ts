@@ -1,16 +1,15 @@
 /**
  * Composition root de F1 (lead-intake). Capa: composicion (feature-level).
  * UNICO archivo, fuera de `app.ts`, que sabe que implementacion concreta usa
- * esta feature (spec lead-intake-interface "Feature Isolation via Module
- * Boundary"): nada mas debe importar `domain/`, `application/` ni
+ * esta feature: nada mas debe importar `domain/`, `application/` ni
  * `interface/` de esta feature directamente — solo `{ router }`.
  *
- * Fase 5 (D10/D11): `leads`/`llm` ya salen de sus fabricas env-driven
- * (`persistence.factory.ts`/`llm.factory.ts`), no de una construccion
- * directa — asi el driver de persistencia (`memory`/`supabase`) y el
- * provider de LLM (`stub`/`anthropic`/`deepseek`) son una variable de
- * entorno, nunca una eleccion hardcodeada en el modulo. No se introduce
- * ningun puerto nuevo (config.yaml rules.design).
+ * Fase 5: `leads`/`llm` ya salen de sus fabricas env-driven
+ * (`persistence.factory.ts`/`llm.factory.ts`), no de una construccion directa —
+ * asi el driver de persistencia (`memory`/`supabase`) y el provider de LLM
+ * (`stub`/`anthropic`/`deepseek`) son una variable de entorno, nunca una
+ * eleccion hardcodeada en el modulo. No se introduce ningun puerto nuevo
+ * (config.yaml rules.design).
  */
 
 import type { Router } from 'express';

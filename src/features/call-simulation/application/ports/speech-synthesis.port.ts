@@ -1,10 +1,9 @@
 /**
  * Puerto de sintesis de voz. Capa: application (puerto LOCAL de F5).
  *
- * Nunca es una precondicion para que la llamada avance: `ProcessCallTurnUseCase`
- * degrada a `audio: null` si este puerto falla (spec call-simulation-voice,
- * requisito "Speech Synthesis Never Blocks the Conversation"). La voz es un
- * enriquecimiento, el texto es la fuente de verdad.
+ * Nunca es una precondicion para que la llamada avance:
+ * `ProcessCallTurnUseCase` degrada a `audio: null` si este puerto falla. La voz
+ * es un enriquecimiento, el texto es la fuente de verdad.
  */
 
 import type { CallTurnAudio, SimulatedVoice } from '@contracts';
@@ -27,7 +26,7 @@ export interface SpeechSynthesisPort {
 
   /**
    * Voz asignada a un lead. Deterministica: el mismo `leadId` SIEMPRE recibe la
-   * misma voz (spec requisito "Voice Selection Is Deterministic Per Lead").
+   * misma voz.
    */
   voiceFor(input: VozRequerida): SimulatedVoice;
 }

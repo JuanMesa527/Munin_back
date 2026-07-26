@@ -7,16 +7,16 @@
  *  repos (backend <-> frontend). Vive en `perfilador-vivienda-backend` y se
  *  copia al frontend con `npm run contracts:sync`.
  *
- *  REGLAS (ver EQUIPO.md, seccion "Reglas de iteracion con IA"):
+ *  REGLAS (ver, seccion "Reglas de iteracion con IA"):
  *   1. NUNCA edites la copia del frontend. Edita aqui y corre el sync.
  *   2. Cualquier cambio aqui ROMPE A TODO EL EQUIPO: anunciarlo en el canal
- *      del equipo antes de hacer merge (regla 16).
+ *      del equipo antes de hacer merge.
  *   3. Si te falta un dato, PROPONE el campo. No lo agregues en silencio
- *      dentro de tu feature (regla 17).
+ *      dentro de tu feature.
  *   4. Este archivo es dominio puro: CERO imports de frameworks, CERO `any`,
  *      cero logica. Solo tipos, uniones y constantes.
  *
- *  CONVENCION DE IDIOMA (regla 7): identificadores tecnicos en ingles,
+ *  CONVENCION DE IDIOMA: identificadores tecnicos en ingles,
  *  terminos del dominio del negocio en espanol porque son el lenguaje ubicuo
  *  de Colsubsidio (`afiliado`, `subsidio`, `segmento`, `carril`).
  *
@@ -33,7 +33,7 @@
  *      infrastructure. Principio de minimizacion de datos (Ley 1581, art. 4).
  *  A3. `segmento` pasa de `string | null` a `Segmento | null`. El brief ya
  *      enumeraba los 4 valores en un comentario; los volvemos tipo para
- *      "modelar estados imposibles como imposibles" (regla 8).
+ *      "modelar estados imposibles como imposibles".
  *  A4. `Meta` — DEFINIDO. El brief lo referencia en `EducationJourney` pero no
  *      lo declara.
  *  A5. Tipos de F1 (conversacion), F3 (dashboard/auth) y F4 (briefing) —
@@ -144,9 +144,9 @@ export type Segmento = 'Basico' | 'Medio' | 'Alto' | 'Joven';
 export const SEGMENTOS: readonly Segmento[] = ['Basico', 'Medio', 'Alto', 'Joven'];
 
 /**
- * Vocabulario TENTATIVO de rangos salariales, en multiplos de SMMLV.
- * Confirmar contra el Excel en el pipeline de `analysis/` y recien entonces
- * cerrar `LeadProfile.rangoSalarial` a una union (ver adenda A7).
+ * Vocabulario TENTATIVO de rangos salariales, en multiplos de SMMLV. Confirmar
+ * contra el Excel en el pipeline de `analysis/` y recien entonces cerrar
+ * `LeadProfile.rangoSalarial` a una union.
  */
 export const RANGOS_SALARIALES_SMMLV: readonly string[] = [
   '0-2 SMMLV',
@@ -287,7 +287,7 @@ export interface ContactIdentity {
 
 /**
  * Un factor del score con su aporte. Existe para que TODA clasificacion se
- * pueda explicar (regla 13: si no se puede explicar, no se muestra).
+ * pueda explicar (si no se puede explicar, no se muestra).
  */
 export interface Factor {
   nombre: string;
@@ -301,9 +301,9 @@ export interface Factor {
    */
   contribucion: number;
   /**
-   * Que tan bien puntua el lead en ESTE factor, 0-100. Es lo unico que se
-   * puede dibujar como barra: `contribucion` trae signo y `peso` describe al
-   * modelo, no al lead. Adenda A8.
+   * Que tan bien puntua el lead en ESTE factor, 0-100. Es lo unico que se puede
+   * dibujar como barra: `contribucion` trae signo y `peso` describe al modelo,
+   * no al lead..
    */
   intensidad: number;
 }
@@ -311,9 +311,9 @@ export interface Factor {
 /**
  * Resultado del scoring determinista. `valor` es 0-100.
  *
- * GLASS-BOX (regla 12): esto lo produce una funcion pura calibrada contra los
- * 4.142 compradores reales. El LLM no participa. `factores` no es opcional:
- * es la evidencia de la decision.
+ * GLASS-BOX: esto lo produce una funcion pura calibrada contra los 4.142
+ * compradores reales. El LLM no participa. `factores` no es opcional: es la
+ * evidencia de la decision.
  */
 export interface ScoreResult {
   valor: number;
@@ -338,7 +338,7 @@ export interface CapacityBand {
  *
  * Trae el proyecto ya resuelto (nombre, etapa, precio, tipologia) y no solo su
  * id: el closer lo lee en voz alta mientras habla con el cliente y no puede
- * depender de que el front cruce el id contra otro endpoint. Adenda A8.
+ * depender de que el front cruce el id contra otro endpoint..
  */
 export interface ProjectMatch {
   proyectoId: string;
@@ -504,8 +504,8 @@ export type NonViableReason =
   | 'datos_insuficientes';
 
 /**
- * Decision de enrutamiento. Determinista y explicable (regla 12).
- * `razones` esta vacio cuando `carril === 'viable'`.
+ * Decision de enrutamiento. Determinista y explicable. `razones` esta vacio
+ * cuando `carril === 'viable'`.
  */
 export interface RoutingDecision {
   carril: Carril;
@@ -630,7 +630,7 @@ export interface RegistroGestion {
   registradoEn: IsoDateTime;
 }
 
-/** Dia de la semana con que tan contactable ha sido el lead ahi. Adenda A8. */
+/** Dia de la semana con que tan contactable ha sido el lead ahi.. */
 export interface ContactabilidadDia {
   dia: 'L' | 'M' | 'X' | 'J' | 'V' | 'S' | 'D';
   /** 0-100, relativo a la mejor franja del propio lead. */
@@ -640,7 +640,7 @@ export interface ContactabilidadDia {
 /** Hito del recorrido del lead, para que el closer sepa de donde viene. */
 export type TipoHito = 'ingreso' | 'consentimiento' | 'perfilamiento' | 'nutricion' | 'viable';
 
-/** Evento del recorrido del lead. Adenda A8. */
+/** Evento del recorrido del lead.. */
 export interface LeadTimelineEvent {
   label: string;
   /** Ya formateada para mostrar: el backend conoce la zona horaria, el front no. */
@@ -658,7 +658,7 @@ export interface EnrichedLead extends LeadProfile {
   intentScore: number;
   enriquecidoEn: IsoDateTime;
 
-  /** --- Adenda A8: lo que la ficha de llamada (F4) necesita mostrar --- */
+  /** ---: lo que la ficha de llamada (F4) necesita mostrar --- */
   edad: number | null;
   ocupacion: string | null;
   /** Composicion del hogar en texto, p. ej. `2 personas a cargo`. */
@@ -682,9 +682,9 @@ export interface EnrichedLead extends LeadProfile {
  * ========================================================================== */
 
 /**
- * Las 5 etapas del recorrido del comprador (adenda A8). No son "materias":
- * son hitos reales del camino a la vivienda. El orden es fijo y el usuario
- * avanza de una a la siguiente a medida que completa metas.
+ * Las 5 etapas del recorrido del comprador. No son "materias": son hitos reales
+ * del camino a la vivienda. El orden es fijo y el usuario avanza de una a la
+ * siguiente a medida que completa metas.
  */
 export type EtapaId = 'descubrir' | 'capacidad' | 'financiar' | 'prepararse' | 'llegar';
 
@@ -715,7 +715,7 @@ export const ETAPAS_CAMINO: readonly EtapaCamino[] = [
  * consumo en celular. Contenido DETERMINISTA: no lo genera un LLM en la demo
  * (glass-box + autogestionado a prueba de jurado).
  */
-/** Pregunta de opción múltiple para una lección `tipo: 'quiz'` (adenda A13). */
+/** Pregunta de opción múltiple para una lección `tipo: 'quiz'`. */
 export interface PreguntaQuiz {
   pregunta: string;
   opciones: string[];
@@ -724,10 +724,10 @@ export interface PreguntaQuiz {
 }
 
 /**
- * Widget interactivo embebido en una lección (adenda A13). Discriminado por
- * `tipo` para que cada lección elija el formato que más le sirve — no todas
- * son texto+video, algunas necesitan que la persona meta sus propios números
- * o compruebe que entendió.
+ * Widget interactivo embebido en una lección. Discriminado por `tipo` para que
+ * cada lección elija el formato que más le sirve — no todas son texto+video,
+ * algunas necesitan que la persona meta sus propios números o compruebe que
+ * entendió.
  */
 export type InteractivoLeccion =
   | { tipo: 'calculadora'; calculadora: 'cuota-inicial' }
@@ -742,7 +742,7 @@ export interface ContenidoEducativo {
   tipoContenido: 'concepto' | 'simulacion' | 'checklist';
   /** Id del video de YouTube (no la URL completa). Opcional: no toda lección tiene video. */
   videoId?: string;
-  /** Widget interactivo de la lección (adenda A13). Opcional: no toda lección lo tiene todavía. */
+  /** Widget interactivo de la lección. Opcional: no toda lección lo tiene todavía. */
   interactivo?: InteractivoLeccion;
 }
 
@@ -755,7 +755,7 @@ export interface NurturePlan {
   precioObjetivo: COP;
   subsidioEstimado: COP;
   /**
-   * Cuota inicial objetivo (adenda A11): un % de `precioObjetivo` (ver
+   * Cuota inicial objetivo: un % de `precioObjetivo` (ver
    * `PORCENTAJE_CUOTA_INICIAL`), NO el precio completo. Ahorrar el precio
    * entero de la vivienda antes de arrancar tramites no tiene sentido — el
    * credito hipotecario cubre el resto. `gap` se mide contra ESTA cifra.
@@ -771,14 +771,14 @@ export interface NurturePlan {
 
 export type TipoMeta = 'ahorro' | 'documentacion' | 'afiliacion' | 'educacion';
 
-/** Un abono individual a una meta de ahorro (adenda A10). */
+/** Un abono individual a una meta de ahorro. */
 export interface AporteAhorro {
   id: string;
   monto: COP;
   ocurridoEn: IsoDateTime;
 }
 
-/** Meta gamificada del journey (adenda A4). */
+/** Meta gamificada del journey. */
 export interface Meta {
   id: string;
   titulo: string;
@@ -790,31 +790,31 @@ export interface Meta {
   completada: boolean;
   puntos: number;
   badgeId: string | null;
-  /** Etapa del "Camino a Mi Hogar" a la que pertenece la meta (adenda A8). */
+  /** Etapa del "Camino a Mi Hogar" a la que pertenece la meta. */
   etapa?: EtapaId;
   /**
-   * Fecha límite que el usuario se propone para la meta (adenda A10). Solo
-   * aplica a metas `tipo: 'ahorro'`; opcional porque el usuario puede no
-   * haberla configurado todavía.
+   * Fecha límite que el usuario se propone para la meta. Solo aplica a metas
+   * `tipo: 'ahorro'`; opcional porque el usuario puede no haberla configurado
+   * todavía.
    */
   fechaObjetivo?: IsoDateTime;
   /**
-   * Historial de abonos individuales (adenda A10). Solo aplica a metas
-   * `tipo: 'ahorro'`. Permite calcular el ritmo real de ahorro, a diferencia
-   * de `alcanzado`, que es solo el total acumulado.
+   * Historial de abonos individuales. Solo aplica a metas `tipo: 'ahorro'`.
+   * Permite calcular el ritmo real de ahorro, a diferencia de `alcanzado`, que
+   * es solo el total acumulado.
    */
   aportes?: AporteAhorro[];
   /**
-   * Fecha real en que esta meta se completó por primera vez (adenda A15).
-   * Opcional porque las metas aún no completadas no la tienen. Se preserva:
-   * un evento posterior sobre una meta ya completa no la reescribe.
+   * Fecha real en que esta meta se completó por primera vez. Opcional porque
+   * las metas aún no completadas no la tienen. Se preserva: un evento posterior
+   * sobre una meta ya completa no la reescribe.
    */
   completadaEn?: IsoDateTime;
   /**
-   * Meta opcional para este lead en particular (adenda A12): cuando la razón
-   * de ingreso a nutrición no involucra esta meta (p. ej. ya tiene buena
-   * capacidad financiera, solo le falta afiliación), se marca como opcional
-   * en vez de forzarla. No cuenta para `checkReadmission`.
+   * Meta opcional para este lead en particular: cuando la razón de ingreso a
+   * nutrición no involucra esta meta (p. ej. ya tiene buena capacidad
+   * financiera, solo le falta afiliación), se marca como opcional en vez de
+   * forzarla. No cuenta para `checkReadmission`.
    */
   opcional?: boolean;
 }
@@ -839,8 +839,8 @@ export interface EducationJourney {
   /** Por que entro a nutricion. Viene de `RoutingDecision.razones`. */
   razonesIngreso: NonViableReason[];
   /**
-   * Las etapas del "Camino a Mi Hogar" en orden (adenda A8). Opcional para no
-   * romper consumidores previos; F2.2 siempre lo llena con `ETAPAS_CAMINO`.
+   * Las etapas del "Camino a Mi Hogar" en orden. Opcional para no romper
+   * consumidores previos; F2.2 siempre lo llena con `ETAPAS_CAMINO`.
    */
   etapas?: EtapaCamino[];
   actualizadoEn: IsoDateTime;
@@ -876,9 +876,9 @@ export interface EducationLeadSnapshot {
 }
 
 /**
- * Ritmo de ahorro real de la meta `tipo: 'ahorro'` (adenda A10). Se calcula
- * on-the-fly a partir de `Meta.aportes` — NO se persiste — por eso vive en la
- * vista (`EducationJourneyView`) y no en `Meta`: es derivado, no estado.
+ * Ritmo de ahorro real de la meta `tipo: 'ahorro'`. Se calcula on-the-fly a
+ * partir de `Meta.aportes` — NO se persiste — por eso vive en la vista
+ * (`EducationJourneyView`) y no en `Meta`: es derivado, no estado.
  */
 export interface RitmoAhorro {
   /** COP promedio por mes calendario, desde el primer aporte hasta ahora. */
@@ -898,9 +898,9 @@ export interface EducationJourneyView {
   contenidos: ContenidoEducativo[];
   lead: EducationLeadSnapshot;
   /**
-   * Ritmo de ahorro de `meta-ahorro`, cuando el journey tiene meta de ahorro
-   * (adenda A10). `undefined` si el journey no tiene brecha de ahorro (F2.2
-   * omite `meta-ahorro` cuando `plan.gap === 0`).
+   * Ritmo de ahorro de `meta-ahorro`, cuando el journey tiene meta de ahorro.
+   * `undefined` si el journey no tiene brecha de ahorro (F2.2 omite
+   * `meta-ahorro` cuando `plan.gap === 0`).
    */
   ritmoAhorro?: RitmoAhorro;
 }
@@ -928,9 +928,9 @@ export interface CloserSession {
 }
 
 /**
- * Sesión del lead tras verificar el código OTP (adenda A14). Permite volver
- * más tarde y recuperar el camino sin repetir la conversación de F1 — sin
- * contraseña que gestionar, el OTP mismo es la credencial.
+ * Sesión del lead tras verificar el código OTP. Permite volver más tarde y
+ * recuperar el camino sin repetir la conversación de F1 — sin contraseña que
+ * gestionar, el OTP mismo es la credencial.
  */
 export interface LeadSession {
   leadId: string;
@@ -953,7 +953,7 @@ export interface ViableLeadListItem {
   vieneDeNutricion: boolean;
   actualizadoEn: IsoDateTime;
 
-  /** --- Adenda A8: lo que la fila del dashboard (F3) necesita mostrar --- */
+  /** ---: lo que la fila del dashboard (F3) necesita mostrar --- */
   edad: number | null;
   ocupacion: string | null;
   /** Techo de precio alcanzable. Espejo de `CapacityBand.precioMaximoEstimado`. */
@@ -972,9 +972,9 @@ export interface LeadListFilters {
   ciudad: string | null;
   scoreMinimo: number | null;
   banda: Banda | null;
-  /** Solo leads recuperados por el carril de nutricion (F2.2). Adenda A8. */
+  /** Solo leads recuperados por el carril de nutricion (F2.2).. */
   soloNutridos: boolean | null;
-  /** Texto libre sobre nombre, zona, ocupacion y proyecto. Adenda A8. */
+  /** Texto libre sobre nombre, zona, ocupacion y proyecto.. */
   busqueda: string | null;
 }
 
@@ -1000,7 +1000,7 @@ export interface TalkingPoint {
   prioridad: number;
 }
 
-/** Objecion probable del lead + como responderla. Adenda A8. */
+/** Objecion probable del lead + como responderla.. */
 export interface ObjecionSugerida {
   /** Lo que probablemente diga el lead, en sus palabras. */
   pregunta: string;
@@ -1022,9 +1022,8 @@ export interface BriefingSheet {
   generadoEn: IsoDateTime;
 
   /**
-   * Una frase que explica el score en lenguaje natural. Adenda A8.
-   * Lo REDACTA el LLM a partir de los factores ya calculados; no los calcula
-   * (regla 12, glass-box).
+   * Una frase que explica el score en lenguaje natural.. Lo REDACTA el LLM a
+   * partir de los factores ya calculados; no los calcula (glass-box).
    */
   resumenScore: string;
   objeciones: ObjecionSugerida[];
@@ -1036,7 +1035,7 @@ export interface BriefingSheet {
  *  Roleplay de voz para que el closer practique la llamada ANTES de marcar de
  *  verdad. NO es telefonia: nadie se marca, `revealContact` no interviene.
  *
- *  GLASS-BOX (regla 12), igual que el resto del contrato: el LLM detras de
+ *  GLASS-BOX, igual que el resto del contrato: el LLM detras de
  *  `CallSimulatorPort` (nuevo, separado de `LlmPort`) solo interpreta a la
  *  persona turno a turno; el `outcome` y el `puntaje` de `CallScorecard` los
  *  calcula una funcion pura determinista a partir de la senal que el LLM
@@ -1139,26 +1138,26 @@ export interface CallScorecard {
   turnos: number;
   explicacion: string;
   /**
-   * Desglose del `puntaje`, mismo contrato de glass-box que `ScoreResult.factores`
-   * (regla 12). Adenda A13.
+   * Desglose del `puntaje`, mismo contrato de glass-box que
+   * `ScoreResult.factores`..
    *
-   * SIN ESTO el veredicto miente por omision: la UI mostraba un dial de "54"
-   * al lado de la frase "interes final de 70/100" y no habia forma de saber
-   * por que no coinciden — el puntaje mide al CLOSER (interes que logro +
-   * guion que cubrio + objeciones que resolvio), no el interes del lead.
+   * SIN ESTO el veredicto miente por omision: la UI mostraba un dial de "54" al
+   * lado de la frase "interes final de 70/100" y no habia forma de saber por
+   * que no coinciden — el puntaje mide al CLOSER (interes que logro + guion que
+   * cubrio + objeciones que resolvio), no el interes del lead.
    */
   factores: Factor[];
   /** Incumplimientos detectados, p. ej. prometer "aprobado". Nunca vacio en falso. */
   alertas: string[];
   /**
-   * Analisis redactado por el LLM (adenda A14). `null` cuando no se pudo
-   * generar: el veredicto NUNCA depende de esto para mostrarse.
+   * Analisis redactado por el LLM. `null` cuando no se pudo generar: el
+   * veredicto NUNCA depende de esto para mostrarse.
    */
   highlights: CallHighlights | null;
 }
 
 /**
- * Un tramo de voz del CLOSER, listo para transcribir. Adenda A12.
+ * Un tramo de voz del CLOSER, listo para transcribir..
  *
  * PCM 16-bit con signo, little-endian, MONO. Ese formato y no un contenedor
  * (WebM/MP4) por dos razones: es lo que aceptan los motores de transcripcion
@@ -1182,7 +1181,7 @@ export interface TranscriptionResult {
 }
 
 /* ==========================================================================
- *  10.b F5 · grabacion y highlights de la llamada (adenda A14)
+ *  10.b F5 · grabacion y highlights de la llamada
  * ========================================================================== */
 
 /**
@@ -1333,7 +1332,7 @@ export interface Tipologia {
 }
 
 /**
- * Banda de precio de un proyecto (adenda A8).
+ * Banda de precio de un proyecto.
  *
  * `esEstimado` OBLIGA a la UI: si es `true`, el numero se rotula como estimado
  * y jamas como oferta. 15 de los 16 brochures no publican precio y dicen
@@ -1350,7 +1349,7 @@ export interface PriceBand {
 }
 
 /**
- * Ficha comercial de un proyecto (adenda A8).
+ * Ficha comercial de un proyecto.
  *
  * Sale de `data/projects_catalog.json`, que genera
  * `analysis/scripts/06_build_projects_catalog.py` transcribiendo los brochures
@@ -1418,19 +1417,19 @@ export const API_ROUTES = {
   enrichment: {
     start: '/api/leads/enrichment/start',
     turn: '/api/leads/enrichment/turn',
-    /** Baraja de proyectos afines al lead viable (adenda A9). */
+    /** Baraja de proyectos afines al lead viable. */
     deck: '/api/leads/enrichment/deck',
     /** Registra una decision sobre una tarjeta. */
     swipe: '/api/leads/enrichment/swipe',
     /** Cierra F2.1 y persiste el lead enriquecido. */
     summary: '/api/leads/enrichment/summary',
-    /** Recibe el lote de telemetria de atencion de la sesion (adenda A10). */
+    /** Recibe el lote de telemetria de atencion de la sesion. */
     telemetry: '/api/leads/enrichment/telemetry',
   },
   education: {
     journey: '/api/leads/education/journey',
     progress: '/api/leads/education/progress',
-    /** Login por OTP del lead (adenda A14): permite retomar F2.2 sin F1. */
+    /** Login por OTP del lead: permite retomar F2.2 sin F1. */
     auth: {
       requestOtp: '/api/leads/education/auth/otp/request',
       verifyOtp: '/api/leads/education/auth/otp/verify',
@@ -1444,15 +1443,15 @@ export const API_ROUTES = {
     session: '/api/closer/auth/session',
     leads: '/api/closer/leads',
     briefing: '/api/closer/leads/briefing',
-    /** F5 · llamada simulada de entrenamiento. Adenda A11. */
+    /** F5 · llamada simulada de entrenamiento.. */
     call: {
       start: '/api/closer/leads/call/start',
       turn: '/api/closer/leads/call/turn',
       end: '/api/closer/leads/call/end',
-      /** Voz del closer -> texto. Nuestra, no la del navegador (adenda A12). */
+      /** Voz del closer -> texto. Nuestra, no la del navegador. */
       transcribe: '/api/closer/leads/call/transcribe',
     },
-    /** Revela el telefono real. Accion auditada (F4). Adenda A8. */
+    /** Revela el telefono real. Accion auditada (F4).. */
     revealContact: '/api/closer/leads/reveal-contact',
     /** Resultado de la llamada + nota del closer. Cambia el estado del lead. */
     gestion: '/api/closer/leads/gestion',

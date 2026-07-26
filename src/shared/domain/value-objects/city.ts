@@ -2,8 +2,8 @@
  * Normalizacion de nombres de ciudad. Capa: domain compartido (puro, sin I/O).
  *
  * POR QUE EXISTE: el chat ofrece "Bogota" con tilde y
- * `data/projects_catalog.json` la escribe sin tilde. Comparar con
- * `toLowerCase()` a secas las hacia ciudades DISTINTAS, y eso rompia dos cosas:
+ * `data/projects_catalog.json` la escribe sin tilde. Comparar con `toLowerCase`
+ * a secas las hacia ciudades DISTINTAS, y eso rompia dos cosas:
  *
  *   - `filterByEligibility` (F1) descartaba los 4 proyectos de Bogota para
  *     cualquiera que hubiera elegido el chip con tilde -> ficha sin proyectos;
@@ -11,7 +11,7 @@
  *     que la baraja le mostraba sus PROPIOS proyectos de ultimos.
  *
  * Vive en `shared/` porque lo necesitan F1 y F2.1, y tener dos normalizaciones
- * distintas es como volver a tener el bug (regla 4).
+ * distintas es como volver a tener el bug.
  */
 
 /**

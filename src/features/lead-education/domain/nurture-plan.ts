@@ -1,15 +1,15 @@
 /**
  * Plan de nutricion basado en el SFV. Capa: domain (puro).
  *
- * Formulas (adenda A11 — corrige el brief original):
+ * Formulas (corrige el brief original):
  *   cuotaInicialObjetivo = precioObjetivo * PORCENTAJE_CUOTA_INICIAL
  *   gap   = cuotaInicialObjetivo - ahorroDeclarado - subsidioEstimado   (nunca < 0)
  *   meses = ceil(gap / capacidadAhorroMensual)
  *
- * ANTES `gap` se media contra el precio COMPLETO de la vivienda: nadie
- * necesita ahorrar el 100% del precio antes de arrancar tramites, el credito
- * hipotecario cubre el resto (VIS admite hasta 80% LTV en Colombia). La meta
- * real y accionable es la cuota inicial — que es ademas lo que ya ensenan las
+ * ANTES `gap` se media contra el precio COMPLETO de la vivienda: nadie necesita
+ * ahorrar el 100% del precio antes de arrancar tramites, el credito hipotecario
+ * cubre el resto (VIS admite hasta 80% LTV en Colombia). La meta real y
+ * accionable es la cuota inicial — que es ademas lo que ya ensenan las
  * lecciones de esta misma etapa.
  *
  * Determinista y explicable. Devuelve `Result` porque un lead sin ahorro o sin

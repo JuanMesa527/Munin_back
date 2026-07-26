@@ -1,17 +1,16 @@
 /**
  * Puerto del LLM. Capa: application (puerto compartido).
  *
- * GLASS-BOX (regla 12) — LA RESTRICCION MAS IMPORTANTE DEL PROYECTO:
- * este puerto NO decide score, capacidad, matching ni carril.
- * Capacidades permitidas:
+ * GLASS-BOX — LA RESTRICCION MAS IMPORTANTE DEL PROYECTO: este puerto NO decide
+ * score, capacidad, matching ni carril. Capacidades permitidas:
  *   1. `extractSlotValue`: convertir texto libre en el valor de UN slot.
  *   2. `converseIntake`: extraer CERO O MAS slots pendientes + redactar la
  *      siguiente pregunta en prosa (intake conversacional).
  *   3. `writeExplanation`: redactar un "por que" que YA calculo una funcion
  *      pura y determinista.
  *
- * PROHIBIDO agregar un metodo que puntue, clasifique, ordene, decida
- * viabilidad o elija un proyecto.
+ * PROHIBIDO agregar un metodo que puntue, clasifique, ordene, decida viabilidad
+ * o elija un proyecto.
  *
  * La salida del modelo es entrada NO CONFIABLE: el adapter la valida con zod
  * antes de que entre al dominio (OWASP A03).

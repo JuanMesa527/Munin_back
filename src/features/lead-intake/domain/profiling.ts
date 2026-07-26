@@ -1,10 +1,10 @@
 /**
  * Afiliacion, capacidad y scoring de F1 (lead-intake). Capa: domain (puro).
  *
- * REGLA DURA (glass-box, EQUIPO.md regla 12/20): estas funciones son
- * DETERMINISTAS. Ninguna recibe `LlmPort` ni llama a un adapter de red. Sin
- * `estrato` en ningun lado — `FileDataCatalogAdapter` ya lo rechaza aguas
- * arriba, y aqui ademas nunca se referencia esa clave.
+ * REGLA DURA (glass-box): estas funciones son DETERMINISTAS. Ninguna recibe
+ * `LlmPort` ni llama a un adapter de red. Sin `estrato` en ningun lado —
+ * `FileDataCatalogAdapter` ya lo rechaza aguas arriba, y aqui ademas nunca se
+ * referencia esa clave.
  */
 
 import { SMMLV_2026 } from '@contracts';
@@ -32,9 +32,8 @@ export interface AffiliationCheck {
 }
 
 /**
- * Afiliacion es UN factor, nunca un gate (spec "Affiliation Is One Weighted
- * Factor, Not a Gate", design.md D5): esta funcion solo observa y clasifica,
- * no decide ni detiene la conversacion.
+ * Afiliacion es UN factor, nunca un gate: esta funcion solo observa y
+ * clasifica, no decide ni detiene la conversacion.
  */
 export function checkAffiliation(profile: LeadProfile): AffiliationCheck {
   const esAfiliado = profile.esAfiliado === true;
@@ -43,7 +42,7 @@ export function checkAffiliation(profile: LeadProfile): AffiliationCheck {
 
 /* ---------------------------------------------------------------------- *
  *  estimateCapacity — constantes PLACEHOLDER hasta que analysis/ calibre.
- *  Documentadas explicitamente (design.md Open Questions) para que un
+ *  Documentadas explicitamente para que un
  *  revisor pueda apuntar a la linea y reemplazarlas cuando haya datos reales.
  * ---------------------------------------------------------------------- */
 
@@ -134,9 +133,9 @@ function aplicarBancabilidad(
 }
 
 /**
- * Estima una banda de capacidad SIN consultar ningun bureau de credito
- * (fuera de alcance, EQUIPO.md seccion 8). Todo COP se trata como entero ya
- * normalizado — nunca se multiplica/divide por 1000.
+ * Estima una banda de capacidad SIN consultar ningun bureau de credito (fuera
+ * de alcance). Todo COP se trata como entero ya normalizado — nunca se
+ * multiplica/divide por 1000.
  */
 export function estimateCapacity(profile: LeadProfile): Result<CapacityBand, ValidationError> {
   const hayDatos =
@@ -256,11 +255,10 @@ function clamp(valor: number, minimo: number, maximo: number): number {
 }
 
 /**
- * Score determinista 0-100 calibrado contra `weights.json` (design.md,
- * spec lead-intake-profiling). NUNCA recibe `LlmPort`: el LLM no decide.
- * Si ningun peso calibrado tiene una contraparte observable en el perfil,
- * retorna `DataUnavailableError` en vez de un `ScoreResult` sin factores
- * (spec "Every Score Carries Explainable Factors").
+ * Score determinista 0-100 calibrado contra `weights.json`. NUNCA recibe
+ * `LlmPort`: el LLM no decide. Si ningun peso calibrado tiene una contraparte
+ * observable en el perfil, retorna `DataUnavailableError` en vez de un
+ * `ScoreResult` sin factores.
  */
 export function scoreLead(
   profile: LeadProfile,
@@ -283,9 +281,9 @@ export function scoreLead(
       peso,
       valor: observado.valorLegible,
       contribucion: redondear2(peso * observado.valorNormalizado),
-      // Adenda A8: `intensidad` (0-100) es lo unico dibujable como barra —
-      // que tan bien puntua el lead en ESTE factor, independiente del signo del
-      // aporte. Es el `valorNormalizado` (0-1) llevado a escala 0-100.
+      // `intensidad` (0-100) es lo unico dibujable como barra — que tan bien
+      // puntua el lead en ESTE factor, independiente del signo del aporte. Es
+      // el `valorNormalizado` (0-1) llevado a escala 0-100.
       intensidad: Math.round(observado.valorNormalizado * 100),
     });
   }

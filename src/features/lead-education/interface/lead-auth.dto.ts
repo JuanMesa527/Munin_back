@@ -1,5 +1,5 @@
 /**
- * DTOs del login por OTP del lead (F2.2, adenda A14). Capa: interface.
+ * DTOs del login por OTP del lead (F2.2). Capa: interface.
  *
  * OWASP A03: nada entra al caso de uso sin pasar por zod. Los TRES canales
  * (`telefono`, `email`, `leadId`) son mutuamente EXCLUYENTES a proposito: se

@@ -14,8 +14,7 @@ import { logger } from '../logging/logger.js';
 import { sendError } from './api-response.js';
 
 /**
- * PROPUESTA AL EQUIPO: 404 uniforme para `app.ts`, que lo monta despues de los
- * cinco modulos y antes de `errorHandler`. Sin esto, una ruta mal escrita
+ * 404 uniforme, montado despues de los modulos y antes de `errorHandler`. Sin esto, una ruta mal escrita
  * devuelve el HTML por defecto de Express y el frontend no puede parsearlo.
  */
 export function notFoundHandler(req: Request, res: Response): void {

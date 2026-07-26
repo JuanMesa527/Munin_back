@@ -1,7 +1,6 @@
 /**
  * Repositorio de leads en memoria. Capa: infrastructure (adapter de `LeadRepository`).
- * Es el driver por defecto del scaffolding (`PERSISTENCE_DRIVER=memory`): la demo
- * corre sin base de datos y sin tocar NINGUN sistema de Colsubsidio.
+ * Es el driver por defecto (`PERSISTENCE_DRIVER=memory`): corre sin base de datos y sin tocar NINGUN sistema de Colsubsidio.
  *
  * Los metodos no son `async` a proposito: no hay I/O que esperar. La firma del
  * puerto si es asincrona para que el adapter real (Postgres) entre sin cambiar

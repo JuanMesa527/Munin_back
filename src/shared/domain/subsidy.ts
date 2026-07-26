@@ -5,17 +5,17 @@
  * VIVE EN `shared/` Y NO EN UNA FEATURE porque lo consumen dos: F2.2 lo usa
  * para el plan de nutricion y F2.1 para el `subsidioEstimado` de la ficha del
  * closer. Duplicar la tabla en cada una era garantizar que se desincronizaran
- * (regla 4: una feature no importa internals de otra).
+ * (una feature no importa internals de otra).
  *
- * GLASS-BOX + LEGAL: esto es un ESTIMADO determinista, nunca una aprobacion.
- * El SFV lo otorga la caja a hogares con ingresos <= 4 SMMLV; aqui solo
- * calculamos una banda con el rango salarial DECLARADO por el usuario. No se
- * consulta ninguna central de riesgo (Ley 1266 de 2008, fuera de alcance).
+ * GLASS-BOX + LEGAL: esto es un ESTIMADO determinista, nunca una aprobacion. El
+ * SFV lo otorga la caja a hogares con ingresos <= 4 SMMLV; aqui solo calculamos
+ * una banda con el rango salarial DECLARADO por el usuario. No se consulta
+ * ninguna central de riesgo (Ley 1266 de 2008, fuera de alcance).
  *
  * La tabla de montos esta documentada y versionada a mano para que sea
  * auditable y recalibrable: son multiplos de SMMLV alineados con el esquema
- * historico de "Mi Casa Ya" (30 SMMLV para <= 2 SMMLV, 20 SMMLV para 2-4).
- * Si data/analisis confirma otras cifras, se cambian AQUI y en un solo lugar.
+ * historico de "Mi Casa Ya" (30 SMMLV para <= 2 SMMLV, 20 SMMLV para 2-4). Si
+ * data/analisis confirma otras cifras, se cambian AQUI y en un solo lugar.
  */
 
 import type { COP, LeadProfile } from '@contracts';

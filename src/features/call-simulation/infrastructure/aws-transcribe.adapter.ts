@@ -2,18 +2,18 @@
  * Transcripcion real (Amazon Transcribe Streaming). Capa: infrastructure
  * (adapter de `SpeechTranscriptionPort`).
  *
- * Par natural de `PollySpeechAdapter`: misma cuenta, misma region, misma
- * cadena de credenciales del SDK (perfil del `aws` CLI, variables de entorno o
- * rol de instancia) — NUNCA hardcodeadas. La dependencia esta justificada por
- * la misma razon que Polly (regla 19): la API exige SigV4 sobre eventos
- * binarios encadenados, no es un `fetch` con un JSON.
+ * Par natural de `PollySpeechAdapter`: misma cuenta, misma region, misma cadena
+ * de credenciales del SDK (perfil del `aws` CLI, variables de entorno o rol de
+ * instancia) — NUNCA hardcodeadas. La dependencia esta justificada por la misma
+ * razon que Polly: la API exige SigV4 sobre eventos binarios encadenados, no es
+ * un `fetch` con un JSON.
  *
  * POR QUE STREAMING PARA UN AUDIO YA COMPLETO: la API batch
- * (`StartTranscriptionJob`) exige subir el audio a S3 y hacer polling de un
- * job asincrono — minutos, y un bucket mas que administrar. La streaming
- * acepta el audio por la misma conexion y responde en ~1-2 s. Se le entrega el
- * buffer ya cerrado troceado en eventos: el push-to-talk no necesita
- * resultados parciales, solo el texto final.
+ * (`StartTranscriptionJob`) exige subir el audio a S3 y hacer polling de un job
+ * asincrono — minutos, y un bucket mas que administrar. La streaming acepta el
+ * audio por la misma conexion y responde en ~1-2 s. Se le entrega el buffer ya
+ * cerrado troceado en eventos: el push-to-talk no necesita resultados
+ * parciales, solo el texto final.
  *
  * No existe `es-CO` en Transcribe: `es-US` es el espanol latinoamericano, el
  * mismo criterio que llevo a `es-MX` en Polly.

@@ -6,8 +6,8 @@
  * recidir reemplaza en vez de duplicar. Ademas guarda la telemetria de la
  * tarjeta (dwell, si abrio el detalle) y el glass-box del match congelado.
  *
- * La fila que vuelve de la base es ENTRADA NO CONFIABLE (regla 14): se valida
- * con zod antes de mapearla al contrato, igual que se hace con el borde HTTP.
+ * La fila que vuelve de la base es ENTRADA NO CONFIABLE: se valida con zod
+ * antes de mapearla al contrato, igual que se hace con el borde HTTP.
  */
 
 import { z } from 'zod';
