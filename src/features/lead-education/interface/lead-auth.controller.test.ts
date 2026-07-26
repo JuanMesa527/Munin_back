@@ -30,7 +30,9 @@ interface HttpResponse {
 
 const servers: ReturnType<Application['listen']>[] = [];
 
-function createTestContext(options: { isProduction?: boolean; secureCookie?: boolean } = {}): TestContext {
+function createTestContext(
+  options: { isProduction?: boolean; secureCookie?: boolean; revealOtpCause?: boolean } = {},
+): TestContext {
   let nowMs = Date.parse('2026-07-25T15:00:00.000Z');
   const clock: ClockPort = {
     now: () => new Date(nowMs).toISOString(),
@@ -58,6 +60,8 @@ function createTestContext(options: { isProduction?: boolean; secureCookie?: boo
       secureCookie: options.secureCookie ?? false,
       sessionTtlMinutes: 60,
       isProduction: options.isProduction ?? false,
+      // Por defecto sigue al entorno, que es el default real de `OTP_REVEAL_CAUSE`.
+      revealOtpCause: options.revealOtpCause ?? !(options.isProduction ?? false),
     }),
   );
   app.get('/protected', createRequireLead(sessionStore), (_req, res) => {
@@ -181,6 +185,28 @@ describe('lead auth HTTP', () => {
 
     expect(inexistente.status).toBe(404);
     expect((inexistente.body as { ok: boolean }).ok).toBe(false);
+  });
+
+  it('la causa se revela por bandera propia, no por el entorno (demo con NODE_ENV=production)', async () => {
+    // El despliegue de la demo corre en `production`: si revelar dependiera de
+    // `isProduction`, ahi seguiria el `enviado: true` mudo y no habria forma de
+    // ver por que no llega un codigo. `codigo` sigue sin viajar: son dos cosas
+    // distintas y solo una se enciende.
+    const { app } = createTestContext({ isProduction: true, revealOtpCause: true });
+
+    const inexistente = await request(
+      app,
+      '/api/leads/education/auth/otp/request',
+      jsonRequest({ telefono: '+573009999999', email: null }),
+    );
+    const existente = await request(
+      app,
+      '/api/leads/education/auth/otp/request',
+      jsonRequest({ telefono: '+573001112233', email: null }),
+    );
+
+    expect(inexistente.status).toBe(404);
+    expect(existente.body).toEqual({ ok: true, data: { enviado: true } });
   });
 
   it('login por OTP completo: pedir codigo, verificarlo y usar la sesion emitida', async () => {

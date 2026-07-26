@@ -41,6 +41,13 @@ export interface LeadAuthControllerDeps {
   readonly sessionTtlMinutes: number;
   /** Fuera de produccion, el codigo viaja en la respuesta (demo sin SMS real). */
   readonly isProduction: boolean;
+  /**
+   * Si al pedir el codigo se responde la causa real en vez de `enviado: true`
+   * a ciegas. Es una bandera propia y NO `!isProduction` porque el despliegue
+   * de la demo corre con `NODE_ENV=production` y ahi tambien se quiere el
+   * aviso. Ver `OTP_REVEAL_CAUSE` en `env.ts` para el costo de encenderlo.
+   */
+  readonly revealOtpCause: boolean;
 }
 
 /** Error unico para "contacto inexistente", "codigo incorrecto" y "vencido": distinguirlos permite enumerar contactos registrados (OWASP A07). */
@@ -99,13 +106,12 @@ export function createLeadAuthRouter(deps: LeadAuthControllerDeps): Router {
       const esGate = body.leadId !== null;
       const resuelto = await resolverLeadId(deps, body);
 
-      // Fuera de produccion el endpoint DICE la verdad (no existe la cuenta /
-      // fallo el envio) en vez de responder "enviado" a ciegas. Mismo criterio
-      // que devolver `codigo` mas abajo: en la demo el "enviado: true" mudo
-      // hacia indistinguibles un SMTP caido, un correo sin cuenta y un envio
-      // correcto — tres causas con arreglos opuestos. En produccion se
-      // mantiene la respuesta ciega (OWASP A07, ver nota de abajo).
-      const revelarCausa = !deps.isProduction;
+      // Con la bandera puesta el endpoint DICE la verdad (no existe la cuenta /
+      // fallo el envio) en vez de responder "enviado" a ciegas: el "enviado:
+      // true" mudo hacia indistinguibles un SMTP caido, un correo sin cuenta y
+      // un envio correcto — tres causas con arreglos opuestos. Apagarla vuelve
+      // a la respuesta ciega (OWASP A07, ver nota de abajo).
+      const revelarCausa = deps.revealOtpCause;
 
       // Misma respuesta exista o no el contacto: de lo contrario este endpoint
       // se vuelve un oraculo de "que telefonos/emails estan registrados"

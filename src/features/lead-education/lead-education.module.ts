@@ -42,6 +42,8 @@ export interface LeadEducationModuleDeps {
   readonly secureCookie: boolean;
   readonly sessionTtlMinutes: number;
   readonly isProduction: boolean;
+  /** Ver `OTP_REVEAL_CAUSE`: no se deduce de `isProduction` a proposito. */
+  readonly revealOtpCause: boolean;
 }
 
 export interface LeadEducationModule {
@@ -77,6 +79,7 @@ export function createLeadEducationModule(deps: LeadEducationModuleDeps): LeadEd
       secureCookie: deps.secureCookie,
       sessionTtlMinutes: deps.sessionTtlMinutes,
       isProduction: deps.isProduction,
+      revealOtpCause: deps.revealOtpCause,
     }),
     requireLead: createRequireLead(deps.sessionStore),
     requireOwnLead: createRequireOwnLead(),

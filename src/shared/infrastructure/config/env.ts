@@ -38,6 +38,29 @@ const EnvSchema = z.object({
    */
   TRUST_PROXY: z.coerce.number().int().min(0).max(10).default(0),
 
+  /**
+   * Interruptor de los limitadores de `security.ts`. Vacio = el default segun
+   * entorno: APAGADO fuera de produccion, ENCENDIDO en produccion.
+   *
+   * Existe porque en desarrollo los limites estorban de verdad: probar el OTP
+   * gasta 5 solicitudes / 15 min y deja la pantalla en 429 durante el resto de
+   * la sesion. Se apaga el limite, no la ruta, para que lo unico que cambie sea
+   * el techo — y para que en produccion siga puesto sin tener que acordarse.
+   */
+  RATE_LIMIT_ENABLED: z.enum(['true', 'false', '']).default(''),
+
+  /**
+   * Si el endpoint de pedir OTP DICE la causa ("no existe una cuenta con ese
+   * contacto", el error del envio) en vez de responder `enviado: true` a
+   * ciegas. Vacio = el default por entorno: si fuera de produccion, no dentro.
+   *
+   * Encenderlo en produccion tiene un costo real y consciente: convierte el
+   * endpoint en un oraculo de que correos/telefonos estan registrados
+   * (OWASP A07). Se activa igual en el despliegue de la demo porque ahi vale
+   * mas poder explicar por que no llega un codigo que ocultar el padron.
+   */
+  OTP_REVEAL_CAUSE: z.enum(['true', 'false', '']).default(''),
+
   LLM_PROVIDER: z.enum(['stub', 'anthropic', 'deepseek']).default('stub'),
   ANTHROPIC_API_KEY: z.string().trim().default(''),
   LLM_MODEL: z.string().trim().min(1).default('claude-sonnet-5'),
@@ -126,6 +149,10 @@ export interface AppEnv {
   readonly corsOrigins: readonly string[];
   /** Saltos de proxy confiables. `0` = no confiar en `X-Forwarded-For`. */
   readonly trustProxy: number;
+  /** Limitadores de `security.ts` activos. Default: solo en produccion. */
+  readonly rateLimitEnabled: boolean;
+  /** El OTP dice por que no se envio. Default: solo fuera de produccion. */
+  readonly otpRevealCause: boolean;
   readonly llmProvider: LlmProvider;
   /** `null` cuando no hay llave: el provider `stub` no la necesita. */
   readonly anthropicApiKey: string | null;
@@ -241,6 +268,12 @@ export function loadEnv(): AppEnv {
     logLevel: raw.LOG_LEVEL,
     corsOrigins: parseOrigins(raw.CORS_ORIGINS),
     trustProxy: raw.TRUST_PROXY,
+    // Sin valor explicito manda el entorno: en produccion los limitadores
+    // siguen puestos aunque nadie configure la variable.
+    rateLimitEnabled:
+      raw.RATE_LIMIT_ENABLED === '' ? raw.NODE_ENV === 'production' : raw.RATE_LIMIT_ENABLED === 'true',
+    otpRevealCause:
+      raw.OTP_REVEAL_CAUSE === '' ? raw.NODE_ENV !== 'production' : raw.OTP_REVEAL_CAUSE === 'true',
     llmProvider: raw.LLM_PROVIDER,
     anthropicApiKey: raw.ANTHROPIC_API_KEY.length > 0 ? raw.ANTHROPIC_API_KEY : null,
     llmModel: raw.LLM_MODEL,

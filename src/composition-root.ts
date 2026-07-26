@@ -241,6 +241,7 @@ export async function createApp(env: AppEnv, server: Express = express()): Promi
     secureCookie: env.isProduction,
     sessionTtlMinutes: env.leadSessionTtlMinutes,
     isProduction: env.isProduction,
+    revealOtpCause: env.otpRevealCause,
   });
   // Limitadores mas estrictos SOLO en las 2 rutas que "envian"/verifican OTP,
   // mismo criterio que `authRateLimiter` del closer: se acotan a su ruta

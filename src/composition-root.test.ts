@@ -20,6 +20,8 @@ const TEST_ENV: AppEnv = {
   logLevel: 'silent',
   corsOrigins: ['http://localhost:5173'],
   trustProxy: 0,
+  rateLimitEnabled: false,
+  otpRevealCause: true,
   llmProvider: 'stub',
   anthropicApiKey: null,
   llmModel: 'claude-sonnet-5',

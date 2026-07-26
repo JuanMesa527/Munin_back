@@ -16,6 +16,7 @@ import { rateLimit } from 'express-rate-limit';
 import helmetImport from 'helmet';
 import { API_ROUTES } from '@contracts';
 import type { AppEnv } from '../config/env.js';
+import { logger } from '../logging/logger.js';
 
 /**
  * helmet 8 tipa mal el default export bajo algunos resolvers (Vercel/NodeNext):
@@ -51,31 +52,50 @@ const CUERPO_LIMITE_EXCEDIDO = {
 } as const;
 
 /**
+ * Interruptor global de los limitadores, lo fija `applySecurity` desde
+ * `RATE_LIMIT_ENABLED` (default: solo produccion). Es estado de modulo porque
+ * los limitadores se importan como constantes en `composition-root.ts` y en
+ * `intake.controller.ts`: volverlos fabricas obligaria a enhebrar `env` por
+ * cada router solo para poder apagarlos.
+ *
+ * Apagado NO quita el middleware ni la ruta: lo unico que cambia es que deja
+ * pasar. Asi el 429 no estorba mientras se prueba, y no hay una version del
+ * codigo sin defensas esperando a que alguien despliegue con la variable mal.
+ */
+let limitesActivos = true;
+
+/** Envuelve un limitador para que sea transparente cuando estan apagados. */
+function limitador(opciones: { windowMs: number; limit: number }): RequestHandler {
+  const real = rateLimit({
+    windowMs: opciones.windowMs,
+    limit: opciones.limit,
+    standardHeaders: 'draft-7',
+    legacyHeaders: false,
+    message: CUERPO_LIMITE_EXCEDIDO,
+  });
+  return (req, res, next) => {
+    if (!limitesActivos) {
+      next();
+      return;
+    }
+    real(req, res, next);
+  };
+}
+
+/**
  * OWASP A03 (inyeccion) + A05: limitador del flujo publico `/api/leads/*`.
  * 60 requests / 5 minutos por IP. Un perfilamiento humano completo son ~15
  * turnos de chat, asi que este techo no molesta a un usuario real pero si corta
  * un script que quiera envenenar el dataset o quemar tokens del LLM.
  */
-export const publicRateLimiter = rateLimit({
-  windowMs: 5 * MINUTO_MS,
-  limit: 60,
-  standardHeaders: 'draft-7',
-  legacyHeaders: false,
-  message: CUERPO_LIMITE_EXCEDIDO,
-});
+export const publicRateLimiter = limitador({ windowMs: 5 * MINUTO_MS, limit: 60 });
 
 /**
  * OWASP A07 (fallas de identificacion y autenticacion): limitador del login del
  * closer. 10 intentos / 15 minutos por IP para frenar fuerza bruta y relleno de
  * credenciales. Deliberadamente mas estricto que el publico.
  */
-export const authRateLimiter = rateLimit({
-  windowMs: 15 * MINUTO_MS,
-  limit: 10,
-  standardHeaders: 'draft-7',
-  legacyHeaders: false,
-  message: CUERPO_LIMITE_EXCEDIDO,
-});
+export const authRateLimiter = limitador({ windowMs: 15 * MINUTO_MS, limit: 10 });
 
 /**
  * OWASP A07: login por OTP del lead (F2.2, adenda A14). Pedir un codigo es lo
@@ -83,13 +103,7 @@ export const authRateLimiter = rateLimit({
  * intentos / 15 minutos por IP alcanza para reintentar un typo de telefono o
  * email sin abrir la puerta a bombardear un contacto ajeno de OTPs.
  */
-export const otpRequestRateLimiter = rateLimit({
-  windowMs: 15 * MINUTO_MS,
-  limit: 5,
-  standardHeaders: 'draft-7',
-  legacyHeaders: false,
-  message: CUERPO_LIMITE_EXCEDIDO,
-});
+export const otpRequestRateLimiter = limitador({ windowMs: 15 * MINUTO_MS, limit: 5 });
 
 /**
  * OWASP A07: verificar el OTP es lo que hay que frenar contra fuerza bruta
@@ -97,13 +111,7 @@ export const otpRequestRateLimiter = rateLimit({
  * real puede tipear mal el codigo un par de veces sin toparse el limite antes
  * que el bloqueo por intentos de `InMemoryLeadOtpStore`.
  */
-export const otpVerifyRateLimiter = rateLimit({
-  windowMs: 15 * MINUTO_MS,
-  limit: 10,
-  standardHeaders: 'draft-7',
-  legacyHeaders: false,
-  message: CUERPO_LIMITE_EXCEDIDO,
-});
+export const otpVerifyRateLimiter = limitador({ windowMs: 15 * MINUTO_MS, limit: 10 });
 
 /**
  * F5 (call-simulation): mas estricto que `publicRateLimiter` a proposito. Cada
@@ -112,15 +120,21 @@ export const otpVerifyRateLimiter = rateLimit({
  * ciclos de CPU. 40 turnos / 5 minutos alcanza para varias llamadas de
  * entrenamiento seguidas sin abrir la puerta a un abuso caro.
  */
-export const simulationRateLimiter = rateLimit({
-  windowMs: 5 * MINUTO_MS,
-  limit: 40,
-  standardHeaders: 'draft-7',
-  legacyHeaders: false,
-  message: CUERPO_LIMITE_EXCEDIDO,
-});
+export const simulationRateLimiter = limitador({ windowMs: 5 * MINUTO_MS, limit: 40 });
 
 export function applySecurity(app: Express, env: AppEnv): void {
+  // Antes que nada: los limitadores se importan como constantes y ya existen
+  // cuando llegamos aqui, asi que lo que se configura es su interruptor.
+  limitesActivos = env.rateLimitEnabled;
+  if (!limitesActivos) {
+    // Que quede en el arranque: un 429 que no aparece es tan confuso como uno
+    // que aparece de mas, y esto es lo unico que lo explica.
+    logger.warn(
+      { rateLimitEnabled: false, entorno: env.nodeEnv },
+      'limitadores de peticiones APAGADOS (RATE_LIMIT_ENABLED); se encienden solos en produccion',
+    );
+  }
+
   // --- OWASP A05 (mala configuracion de seguridad) ---
   // `X-Powered-By` regala la version del framework a cualquier escaner.
   app.disable('x-powered-by');
